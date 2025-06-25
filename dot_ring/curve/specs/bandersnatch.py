@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
 
-from jam.ring_vrf.curve.e2c import E2C_Variant
+from dot_ring.curve.e2c import E2C_Variant
 
 from ..glv import DisabledGLV, GLVSpecs
 from ..twisted_edwards.te_curve import TECurve
