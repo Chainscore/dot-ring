@@ -1,28 +1,13 @@
-import time
-
-from jam.ring_vrf.curve.specs.bandersnatch import BandersnatchParams
-start_time=time.time()
+from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from sympy import mod_inverse
-from jam.ring_vrf.ring_proof.constants import S_PRIME, SeedPoint, SIZE, D_512 as D, OMEGA
-from jam.ring_vrf.ring_proof.transcript.transcript import Transcript
-from jam.ring_vrf.ring_proof.transcript.phases import phase1_alphas, phase2_eval_point, phase3_nu_vector
-from jam.ring_vrf.ring_proof.polynomial.ops import lagrange_basis_polynomial, poly_evaluate
-# from jam.ring_vrf.ring_proof.proof.aggregation_poly_and_proof_gtn import proof_ptr
-# from jam.ring_vrf.ring_proof.columns.columns import fixed_cols as fs, witness_relation_res as cnd_res, Result_plus_Seed
-# from jam.ring_vrf.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
+from dot_ring.ring_proof.constants import S_PRIME, SIZE, D_512 as D, OMEGA
+from dot_ring.ring_proof.transcript.transcript import Transcript
+from dot_ring.ring_proof.transcript.phases import phase1_alphas, phase2_eval_point, phase3_nu_vector
+from dot_ring.ring_proof.polynomial.ops import lagrange_basis_polynomial, poly_evaluate
 from py_ecc.optimized_bls12_381 import  normalize as nm
-from jam.ring_vrf.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.pcs.kzg import KZG
 from py_ecc.optimized_bls12_381 import multiply, add, Z1, curve_order
-from jam.ring_vrf.ring_proof.helpers import Helpers as H
-
-# fixed_col_commits=[H.to_int(nm(fs[0].commitment)), H.to_int(nm(fs[1].commitment)), H.to_int(nm(fs[2].commitment))]
-#
-# vk= {
-#     'g1':g1_points[0],
-#     'g2':H.altered_points(g2_points),
-# 'commitments':fixed_col_commits
-# }
-
+from dot_ring.ring_proof.helpers import Helpers as H
 kzg= KZG.default()
 
 class Verify:
@@ -46,6 +31,7 @@ class Verify:
             self.Phi_zeta,
             self.Phi_zeta_omega
         ) = proof
+
         self.proof_ptr= proof
         self.verifier_key= vk
         if hasattr(fixed_cols[0], 'commitment'):
@@ -57,35 +43,19 @@ class Verify:
 
         #can even put as separate function
         self.t= Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
-        strat_time=time.time()
         self.cur_t, self.alpha_list = phase1_alphas(self.t, self.verifier_key, self.relation_to_proove,list(H.to_int(nm(cmt)) for cmt in self.proof_ptr[:4]))  #cb, caccip, caccx, caccy
 
 
         self.cur_t, self.zeta_p = phase2_eval_point(self.cur_t, H.to_int(nm(self.proof_ptr[-4])))
         self.V_list = phase3_nu_vector(self.cur_t, self.proof_ptr[4:11], self.proof_ptr[-3])
-        end_time=time.time()
-        # print("How much fs consuming:", end_time -strat_time)
-
-
-    # def recover_fiat_shamir_challeneges(self):
-    #     """
-    #     input:Proof
-    #     output: FS Challenges
-    #     """
-    #     t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
-    #     cur_t, alpha_list = phase1_alphas(t, self.verifier_key, self.relation_to_proove,list(H.to_int(nm(cmt)) for cmt in proof_ptr[:4]))
-    #     cur_t, zeta_p = phase2_eval_point(cur_t, H.to_int(nm(proof_ptr[-4]))) # fiat_shamir_evaluation_point(Cq)
-    #     V_list = phase3_nu_vector(cur_t, proof_ptr[4:11], proof_ptr[-3])
-    #     return alpha_list, zeta_p, V_list
 
     def contributions_to_constraints_eval_at_zeta(self):
 
         L_0_x = lagrange_basis_polynomial(self.D, 0)
-        zeta= self.zeta_p#self.recover_fiat_shamir_challeneges()[1]
+        zeta= self.zeta_p
         L_0_zeta = poly_evaluate(L_0_x, zeta, S_PRIME) % curve_order
         L_N_4_x = lagrange_basis_polynomial(self.D, SIZE - 4)
         L_N_4_zeta = poly_evaluate(L_N_4_x, zeta, S_PRIME) % curve_order
-        # sp = sw.from_twisted_edwards(self.sp)
         sp= self.sp
         sx, sy = sp
         MOD = curve_order
@@ -96,23 +66,6 @@ class Verify:
         negated = (-inner_sum) % MOD  # Ensures result is positive in the field
         vanishing_term = (zeta - D[-4]) % MOD
         c1_zeta = (negated * vanishing_term) % MOD
-
-        # Constraint 2
-        # term1 = ((self.accx_zeta - self.px_zeta) ** 2) % MOD
-        # term1 = (term1 * ((self.accx_zeta + self.px_zeta) % MOD)) % MOD
-        # term2 = ((self.py_zeta - self.accy_zeta) ** 2) % MOD
-        # c2_inner = (term1 - term2) % MOD
-        # c2 = (self.b_zeta * c2_inner) % MOD
-        # c2 = (c2 - ((1 - self.b_zeta) * self.accy_zeta) % MOD) % MOD
-        # c2_zeta = (c2 * ((zeta - D[-4]) % MOD)) % MOD
-
-        # Constraint 3
-        # term1 = ((self.accx_zeta - self.px_zeta) * self.accy_zeta) % MOD
-        # term2 = ((self.py_zeta - self.accy_zeta) * self.accx_zeta) % MOD
-        # c3 = (self.b_zeta * ((term1 + term2) % MOD)) % MOD
-        # c3 = (c3 - ((1 - self.b_zeta) * self.accx_zeta) % MOD) % MOD
-        # c3_zeta = (c3 * ((zeta - D[-4]) % MOD)) % MOD
-
 
         #constraint 1 and 2 new
         x1, y1 = self.accx_zeta, self.accy_zeta
@@ -158,17 +111,11 @@ class Verify:
         input: commitments, alphas, zeta,
         output:
         """
-        q_time=time.time()
 
-
-        alphas_list, zeta, v_list = self.alpha_list, self.zeta_p, self.V_list #self.recover_fiat_shamir_challeneges()
-
-
-        s_time=time.time()
+        alphas_list, zeta, v_list = self.alpha_list, self.zeta_p, self.V_list
 
         cs = self.contributions_to_constraints_eval_at_zeta()
-        e_time=time.time()
-        # print("cs eval at zeta consuming:", e_time-s_time)
+
 
         C_a = [self.Cpx, self.Cpy, self.Cs, self.Cb, self.Caccip, self.Caccx, self.Caccy, self.Cq]  # commitments which are in bls12 field form
 
@@ -204,29 +151,13 @@ class Verify:
         ]
 
         Agg_zeta = sum(terms) % MOD
-        st_time=time.time()
         verification = kzg.verify(C_agg, self.Phi_zeta, zeta, Agg_zeta)
-        et_time=time.time()
-        # print("KZG Verify Consuming:", et_time-st_time)
-        end_time=time.time()
-        # print("Q_poly_at zeta consuming:", end_time- st_time)
         return verification#, cs
 
 
     def evaluation_of_linearization_poly_at_zeta_omega(self):
-        st_time=time.time()
-        alphas_list, zeta, v_list= self.alpha_list, self.zeta_p, self.V_list  #self.recover_fiat_shamir_challeneges()
-
-
+        alphas_list, zeta, v_list= self.alpha_list, self.zeta_p, self.V_list
         Cl1 = multiply(self.Caccip, (zeta - self.D[-4]) % curve_order)
-
-        # Cl2 = multiply(
-        #     add(
-        #         multiply(self.Caccx, (self.b_zeta * pow(self.accx_zeta - self.px_zeta, 2, curve_order)) % curve_order),
-        #         multiply(self.Caccy, (1 - self.b_zeta) % curve_order)
-        #     ),
-        #     (zeta - self.D[-4]) % curve_order
-        # )
 
         #Cl2
         x1, y1 = self.accx_zeta, self.accy_zeta
@@ -241,26 +172,8 @@ class Verify:
         #
         term1= multiply( self.Caccx, C_acc_x_f)
         term2= multiply(self.Caccy,C_acc_y_f)
-        # print("Cacc_x_f:", C_acc_x_f)
-        # print("Cacc_y_f:", C_acc_y_f)
+
         Cl2=add(term1, term2)
-        # print("Resultant L2:" ,Cl2)
-        # return Cl2
-
-        # Cl3 = multiply(
-        #     add(
-        #         multiply(
-        #             self.Caccx,
-        #             (self.b_zeta * (self.accy_zeta - self.py_zeta) + (1 - self.b_zeta)) % curve_order
-        #         ),
-        #         multiply(
-        #             self.Caccy,
-        #             (self.b_zeta * (self.accx_zeta - self.px_zeta)) % curve_order
-        #         )
-        #     ),
-        #     (zeta - self.D[-4]) % curve_order
-        # )
-
 
         #c3
         b= self.b_zeta
@@ -283,8 +196,7 @@ class Verify:
             Cl = add(Cl, multiply(Cl_list[i], alphas_list[i]))
 
         verified = kzg.verify(Cl, self.Phi_zeta_omega, zeta * OMEGA % curve_order, self.l_zeta_omega)
-        ed_time=time.time()
-        # print("L_poly_at_zw:",ed_time- st_time)
+
         return verified
 
     def is_signtaure_valid(self):
