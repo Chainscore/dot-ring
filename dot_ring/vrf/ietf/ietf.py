@@ -6,6 +6,7 @@ from typing import Tuple, Type
 from dot_ring.curve.point import Point
 from ..vrf import VRF
 from ...curve.curve import Curve
+from ...ring_proof.helpers import Helpers
 
 
 @dataclass
@@ -40,13 +41,94 @@ class IETF_VRF(VRF):
         if not isinstance(curve, Curve):
             raise TypeError("Curve must be a valid elliptic curve")
 
+    # def prove(
+    #         self,
+    #         alpha: bytes,
+    #         secret_key: int,
+    #         additional_data: bytes,
+    #         salt: bytes = b''
+    # ) -> Tuple[Point, Tuple[int, int]]:
+    #     """
+    #     Generate IETF VRF proof.
+    #
+    #     Args:
+    #         alpha: Input message
+    #         secret_key: Secret key
+    #         additional_data: Additional data for challenge
+    #         salt: Optional salt for encoding
+    #
+    #     Returns:
+    #         Tuple[BandersnatchPoint, Tuple[int, int]]: (output_point, (c, s))
+    #     """
+    #     # Create generator point
+    #     generator = self.point_type.generator_point()
+    #
+    #     # Encode input to curve point
+    #     input_point = self.point_type.encode_to_curve(alpha, salt)
+    #
+    #     # Compute output point and public key
+    #     output_point = input_point * secret_key
+    #     public_key = generator * secret_key
+    #
+    #     # Generate nonce and compute proof points
+    #     nonce = self.generate_nonce(secret_key, input_point)
+    #     U = generator * nonce
+    #     V = input_point * nonce
+    #
+    #     # Generate challenge
+    #     c = self.challenge(
+    #         [public_key, input_point, output_point, U, V],
+    #         additional_data
+    #     )
+    #
+    #     # Compute response
+    #     s = (nonce + c * secret_key) % self.curve.ORDER
+    #
+    #     return output_point, (c, s)
+    #
+    # def verify(
+    #         self,
+    #         public_key: Point,
+    #         input_point: Point,
+    #         additional_data: bytes,
+    #         output_point: Point,
+    #         proof: Tuple[int, int]
+    # ) -> bool:
+    #     """
+    #     Verify IETF VRF proof.
+    #
+    #     Args:
+    #         public_key: Public key point
+    #         input_point: Input point
+    #         additional_data: Additional data used in proof
+    #         output_point: Claimed output point
+    #         proof: Proof tuple (c, s)
+    #
+    #     Returns:
+    #         bool: True if proof is valid
+    #     """
+    #     c, s = proof
+    #
+    #     # Create generator point
+    #     generator = self.point_type.generator_point()
+    #
+    #     # Compute proof points
+    #     U = generator * s - public_key * c
+    #     V = input_point * s - output_point * c
+    #     # Verify challenge
+    #     expected_c = self.challenge(
+    #         [public_key, input_point, output_point, U, V],
+    #         additional_data
+    #     )
+    #
+    #     return c == expected_c
     def prove(
             self,
-            alpha: bytes,
-            secret_key: int,
-            additional_data: bytes,
+            alpha: bytes|str,
+            secret_key: bytes|str,
+            additional_data: bytes|str,
             salt: bytes = b''
-    ) -> Tuple[Point, Tuple[int, int]]:
+    ) -> bytes:
         """
         Generate IETF VRF proof.
 
@@ -59,6 +141,12 @@ class IETF_VRF(VRF):
         Returns:
             Tuple[BandersnatchPoint, Tuple[int, int]]: (output_point, (c, s))
         """
+        if not isinstance(additional_data, bytes):
+            additional_data= bytes.fromhex(additional_data)
+        if not isinstance(alpha, bytes):
+            alpha= bytes.fromhex(alpha)
+
+        secret_key = Helpers.l_endian_2_int(secret_key)
         # Create generator point
         generator = self.point_type.generator_point()
 
@@ -82,16 +170,18 @@ class IETF_VRF(VRF):
 
         # Compute response
         s = (nonce + c * secret_key) % self.curve.ORDER
+        proof= output_point.point_to_string()+ Helpers.to_l_endian(c)+ Helpers.to_l_endian(s)
+        return proof
 
-        return output_point, (c, s)
+        # return output_point, (c, s)
 
+    #to make the point type dynamic
     def verify(
             self,
             public_key: Point,
             input_point: Point,
-            additional_data: bytes,
-            output_point: Point,
-            proof: Tuple[int, int]
+            additional_data: bytes|str,
+            proof:bytes|str
     ) -> bool:
         """
         Verify IETF VRF proof.
@@ -106,14 +196,21 @@ class IETF_VRF(VRF):
         Returns:
             bool: True if proof is valid
         """
-        c, s = proof
+        if not isinstance(additional_data, bytes):
+            additional_data= bytes.fromhex(additional_data)
 
+        if not isinstance(proof, bytes):
+            proof= bytes.fromhex(proof)
+
+        output_point= self.point_type.string_to_point(proof[32*0:32*1])
+        c, s = Helpers.l_endian_2_int(proof[32*1:32*2]), Helpers.l_endian_2_int(proof[32*2:32*3])
         # Create generator point
         generator = self.point_type.generator_point()
 
         # Compute proof points
         U = generator * s - public_key * c
         V = input_point * s - output_point * c
+
         # Verify challenge
         expected_c = self.challenge(
             [public_key, input_point, output_point, U, V],
