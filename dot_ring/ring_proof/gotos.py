@@ -1,13 +1,13 @@
 
 from typing import List, Any
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
-# from dot_ring.types.base import ByteArray32
-# from dot_ring.types.protocol.crypto import BandersnatchPublic
+# from dot-ring.types.base import ByteArray32
+# from dot-ring.types.protocol.crypto import BandersnatchPublic
 from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
 from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
 from dot_ring.ring_proof.transcript.phases import phase1_alphas
 from dot_ring.ring_proof.transcript.transcript import Transcript
-# from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
+# from dot-ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
 from dot_ring.ring_proof.constants import Blinding_Base, S_PRIME, OMEGA_2048, SeedPoint
 from dot_ring.ring_proof.columns.columns import WitnessColumnBuilder, PublicColumnBuilder
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
@@ -23,10 +23,10 @@ from dot_ring.curve.specs.bandersnatch import (
     Bandersnatch_TE_Curve,
     BandersnatchPoint,
 )
-from dot_ring.vrf.pedersen.s_pedersen import PedersenVRF
+from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 
-# from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+# from dot-ring.vrf.pedersen.pedersen import PedersenVRF
 
 
 # def generate_bls_signature(secret_t,producer_key, keys: List[BandersnatchPublic]):
