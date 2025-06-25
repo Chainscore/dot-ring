@@ -1,6 +1,6 @@
 from py_ecc.bls import point_compression
 from py_ecc.optimized_bls12_381 import FQ,FQ2, is_on_curve
-from jam.ring_vrf.ring_proof.constants import S_PRIME
+from dot_ring.ring_proof.constants import S_PRIME
 
 class Helpers:
     @staticmethod
@@ -122,5 +122,38 @@ class Helpers:
         return res
 
     @staticmethod
-    def bytes_to_int(byte_array:bytes):
-        return int.from_bytes(byte_array,'little')
+    def l_endian_2_int(byte_array:bytes):
+        if isinstance(byte_array, str):
+            return int.from_bytes(bytes.fromhex(byte_array),'little')
+        return int.from_bytes(byte_array, "little")
+
+    @staticmethod
+    def b_endian_2_int(byte_array: bytes):
+        if isinstance(byte_array, str):
+            return int.from_bytes(bytes.fromhex(byte_array),'big')
+        return int.from_bytes(byte_array, 'big')
+
+    @staticmethod
+    def to_b_endian(val:int)->bytes:
+        return val.to_bytes(32, 'big')
+
+    @staticmethod
+    def to_l_endian(val:int)->bytes:
+        return val.to_bytes(32, 'little')
+
+    @staticmethod
+    def sha512(data: bytes) -> bytes:
+        """SHA512 hash function"""
+        from hashlib import sha512
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        return sha512(data).digest()
+
+
+
+#Requirements
+#byteArray32
+#byteArray64
+#bandersnatchPublic
+#Bandersnatchringvrfsignature
+#BandersnatchvrfSignature
