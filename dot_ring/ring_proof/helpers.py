@@ -150,8 +150,7 @@ class Helpers:
         return sha512(data).digest()
 
 
-
-#Requirements
+#Requirements for safrole
 #byteArray32
 #byteArray64
 #bandersnatchPublic
