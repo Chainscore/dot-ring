@@ -1,6 +1,7 @@
 import json
 import os
 import pytest
+HERE = os.path.dirname(__file__)
 
 from dot_ring.curve.specs.bandersnatch import (
     Bandersnatch_TE_Curve,
@@ -10,7 +11,9 @@ from dot_ring.vrf.ietf.ietf import IETF_VRF
 
 # @pytest.mark.skipif("RUNALL" not in os.environ, reason="takes too long")
 def test_prove_bandersnatch_ed_sha512_ell2_ietf():
-    data_dir = "/home/siva/PycharmProjects/tessera_JAM_VRF/tests/unit/vrf/data/ark-vrf"
+    # Get the directory of the current test file
+    # Construct the relative path to the data folder
+    data_dir = os.path.join(HERE, "ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
         print(file)
@@ -35,7 +38,9 @@ def test_prove_bandersnatch_ed_sha512_ell2_ietf():
 
 # @pytest.mark.skipif("RUNALL" not in os.environ, reason="takes too long")
 def test_verify_bandersnatch_ed_sha512_ell2_ietf():
-    data_dir = "/home/siva/PycharmProjects/tessera_JAM_VRF/tests/unit/vrf/data/ark-vrf"
+    # Get the directory of the current test file
+    # Construct the relative path to the data folder
+    data_dir = os.path.join(HERE,"ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
         print(file)
