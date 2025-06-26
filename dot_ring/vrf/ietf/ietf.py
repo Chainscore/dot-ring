@@ -218,3 +218,12 @@ class IETF_VRF(VRF):
         )
 
         return c == expected_c
+
+    def get_public_key(self, secret_key:bytes|str)->bytes:
+        """Take the Secret_Key and return Public Key"""
+        secret_key = Helpers.l_endian_2_int(secret_key)
+        # Create generator point
+        generator = self.point_type.generator_point()
+        public_key = generator * secret_key
+        p_k=public_key.point_to_string()
+        return p_k
