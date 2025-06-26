@@ -1,7 +1,7 @@
 import os
 
 def read_srs_file():
-    filename = "/home/siva/PycharmProjects/dot_ring/tests/ark-vrf/bls12-381-srs-2-11-uncompressed-zcash.bin"
+    filename = "/home/siva/PycharmProjects/dot-ring/tests/ark-vrf/bls12-381-srs-2-11-uncompressed-zcash.bin"
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File {filename} not found.")
 

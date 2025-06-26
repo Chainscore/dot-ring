@@ -3,7 +3,7 @@ from concurrent.futures import ProcessPoolExecutor
 import time
 
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
-# from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
+# from dot-ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
 from dot_ring.ring_proof.constants import SeedPoint
 from dataclasses import dataclass, field
 from typing import Dict, List, Mapping, Sequence, Any
@@ -121,10 +121,7 @@ class RingConstraintBuilder:
     def _c1(self) -> List[int]:
         if "c1x" in self._cache:
             return self._cache["c1x"]
-        st_time=time.time()
         accip_w = _shift(self._accip4)
-        e_time=time.time()
-        # print("Each shift consumption:", e_time - st_time)
         constraint = vect_sub(
             vect_sub(accip_w, self._accip4, S_PRIME),
             vect_mul(self._b4, self._s4, S_PRIME),
@@ -138,21 +135,16 @@ class RingConstraintBuilder:
         if "c2x" in self._cache:
             return [self._cache["c2x"], self._cache["c3x"]]
         bx = self._b4
-        # print("bx radix 4:", self._b4)
         one_m_bx = vect_sub(1, bx, S_PRIME)
 
         accx_w = _shift(self._accx4)
         accy_w = _shift(self._accy4)
         te_coeff_a= BandersnatchParams.EDWARDS_A #BandersnatchParams.EDWARDS_A % S_PRIME
-
-        # for simplicity
         b=bx
         x1, x2,x3=self._accx4, self._px4, accx_w
         y1, y2, y3= self._accy4, self._py4, accy_w
-
         # b(x_3(y_1. y_2 + ax_1 .x_2) - x_1.y_1 - y_2.x_2) + (1 - b)(x_3 - x_1) = 0
         #=> b(x_3(y_1. y_2 + ax_1 .x_2) - (x_1.y_1 + y_2.x_2)) + (1 - b)(x_3 - x_1) = 0
-
 
         y1_y2= vect_mul(y1, y2, S_PRIME)
         a_x1_x2= vect_mul(te_coeff_a, vect_mul(x1, x2, S_PRIME), S_PRIME)
@@ -167,7 +159,6 @@ class RingConstraintBuilder:
         c2x= vect_mul(term3, _NOT_LAST, S_PRIME)
 
         # print("c2x here", c2x)
-
         # accx_m_px = vect_sub(self._accx4, self._px4, S_PRIME)
         # accx_m_px_sq = vect_mul(accx_m_px, accx_m_px, S_PRIME)
         # py_m_accy = vect_sub(self._py4, self._accy4, S_PRIME)

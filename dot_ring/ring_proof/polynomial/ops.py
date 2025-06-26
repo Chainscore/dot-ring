@@ -1,8 +1,4 @@
 from dot_ring.ring_proof.constants import S_PRIME, D_512 as D
-from sympy import symbols
-
-from dot_ring.ring_proof.polynomial.interpolation import fft, poly_interpolate_fft
-
 
 def mod_inverse(val, prime):
     """Find the modular multiplicative inverse of a under modulo m."""

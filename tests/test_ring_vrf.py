@@ -1,5 +1,3 @@
-
-
 import time
 import json
 import os
@@ -29,3 +27,6 @@ def test_ring_proof():
         assert ring_vrf_proof.hex()==item['gamma']+item['proof_pk_com']+item['proof_r']+ item['proof_ok']+item['proof_s']+ item['proof_sb']+item['ring_proof'], "Unexpected Proof"
         assert RVRF.ring_vrf_proof_verify(ad,ring_root,ring_vrf_proof, alpha), "Verification Failed"
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
+
+
+

@@ -1,10 +1,5 @@
 from __future__ import  annotations
 from typing import List, Sequence
-from dot_ring.ring_proof.helpers import Helpers as H
-from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
-from dot_ring.ring_proof.transcript.transcript import Transcript
-from dot_ring.ring_proof.transcript.phases import phase1_alphas
-from py_ecc.optimized_bls12_381 import normalize as nm
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     poly_multiply, vect_scalar_mul, vect_add,
@@ -27,7 +22,6 @@ def vanishing_poly(k: int, omega_root: int, prime: int = S_PRIME) -> List[int]:
     return vanishing_term
 
 
-
 def aggregate_constraints(
     polys: Sequence[Sequence[int]],
     alphas: Sequence[int],
@@ -40,13 +34,10 @@ def aggregate_constraints(
     for poly, alpha in zip(polys, alphas):
         weighted = vect_scalar_mul(poly, alpha, prime)
         result = vect_add(result, weighted, prime)
-    # print("intermediate_aggregation:", result)
     interpolated_result=poly_interpolate_fft(result, omega_root, prime)
 
     #get vanishing ply
     v_t= vanishing_poly(k, omega_root, prime)
-    # print("vanishing term:", v_t)
-
     #mul with c_agg
     final_cs_agg= poly_multiply(interpolated_result, v_t,prime)
 

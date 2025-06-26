@@ -2,9 +2,6 @@ from __future__ import annotations
 import time
 import math
 import sys
-
-from py_ecc.optimized_bls12_381 import multiply, add, neg, normalize, FQ2
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Sequence, Tuple, Any
@@ -13,7 +10,6 @@ from typing import List, Sequence, Tuple, Any
 #run change the directory to bindings/python , run make run.me and specify the path as below and import blst
 
 sys.path.append("/home/siva/blst/bindings/python")
-from blst import P1_Affine, P2_Affine, Pairing, P1
 import blst
 import time
 import py_ecc.optimized_bls12_381 as bls
@@ -37,7 +33,6 @@ G2Point = Tuple[FQ2, FQ2, FQ2]
 Point_G1=Any
 
 
-
 def _horner_eval(poly: CoeffVector, x: Scalar) -> Scalar:
     """Evaluate *poly* at *x* modulo the curve order using Horner’s rule."""
     acc = 0
@@ -57,7 +52,6 @@ def _synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
     if rem != y:
         raise ValueError("point/value pair inconsistent with polynomial")
     return q
-
 
 
 @dataclass(slots=True, frozen=True)

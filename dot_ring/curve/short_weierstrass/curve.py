@@ -17,9 +17,6 @@ from dot_ring.ring_proof.constants import (
 _mont_a =29978822694968839326280996386011761570173833766074948509196803838190355340952
 _mont_b = 25465760566081946422412445027709227188579564747101592991722834452325077642517
 
-print("Mont_A:", _mont_a)
-print("Mont_B:", _mont_b)
-
 
 class ShortWeierstrassCurve:
     """Encapsulates the Bandersnatch curve in short‑Weierstrass form."""
@@ -179,19 +176,6 @@ class ShortWeierstrassCurve:
             raise ValueError("invalid compressed point")
         return pt
 
-# ShortWeierstrassCurve.SEED_POINT = ShortWeierstrassCurve.from_twisted_edwards(_TE_SEED)
-# ShortWeierstrassCurve.PADDING_POINT = ShortWeierstrassCurve.from_twisted_edwards(_TE_PADDING)
-# ShortWeierstrassCurve.BLINDING_POINT = ShortWeierstrassCurve.from_twisted_edwards(_TE_BLIND)
-
-# print("point:", ShortWeierstrassCurve.SEED_POINT)
-# print("point2:", ShortWeierstrassCurve.PADDING_POINT)
-# print("SW 3:", ShortWeierstrassCurve.BLINDING_POINT)
-#
-# print("1",ShortWeierstrassCurve.add(ShortWeierstrassCurve.SEED_POINT, ShortWeierstrassCurve.BLINDING_POINT))
-# print("2", ShortWeierstrassCurve.add(ShortWeierstrassCurve.PADDING_POINT, ShortWeierstrassCurve.BLINDING_POINT))
-# print("3", ShortWeierstrassCurve.mul(ShortWeierstrassCurve.P,ShortWeierstrassCurve.PADDING_POINT))
-
 __all__ = [
     "ShortWeierstrassCurve",
 ]
-
