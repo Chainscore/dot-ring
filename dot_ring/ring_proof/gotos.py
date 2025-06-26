@@ -38,7 +38,7 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
     # signature = func() #make the call or logic u want
     # return signature
     if not isinstance(producer_key, bytes):
-        producer_key_point = BandersnatchPoint.string_to_point(bytes(producer_key))
+        producer_key_point = BandersnatchPoint.string_to_point(bytes.fromhex(producer_key))
     else:
         producer_key_point = BandersnatchPoint.string_to_point(producer_key)
 
@@ -97,10 +97,10 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
     obj = AggPoly(current_t, zeta, fixed_cols, ws, Q_p, C_q, rel_poly_evals, l_agg, zeta_omega, l_zw)
 
     cf_vs, proof_ptr, proof_bs = obj.construct_proof()
-    return proof_bs #bytess string
+    return bytes.fromhex(proof_bs) #bytess string
 
 # def construct_ring_root(keys: List[BandersnatchPublic]):
-def construct_ring_root(keys: List[Any]):
+def construct_ring_root(keys: List[Any])->bytes:
     """
     get the data needed and construct the rng root
     """
@@ -114,8 +114,8 @@ def construct_ring_root(keys: List[Any]):
     ring_root = PC()  # ring_root builder
     fixed_cols = ring_root.build(keys_as_bs_points)
 
-    fxd_col_cs = bytearray.fromhex(H.bls_g1_compress(fixed_cols[0].commitment))+ bytearray.fromhex(
-        H.bls_g1_compress(fixed_cols[1].commitment))+ bytearray.fromhex(
+    fxd_col_cs = bytes.fromhex(H.bls_g1_compress(fixed_cols[0].commitment))+ bytes.fromhex(
+        H.bls_g1_compress(fixed_cols[1].commitment))+ bytes.fromhex(
         H.bls_g1_compress(fixed_cols[2].commitment))
     return fxd_col_cs
 
