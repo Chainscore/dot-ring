@@ -139,7 +139,7 @@ class PedersenVRF(VRF):
         if not isinstance(alpha, bytes):
             alpha= bytes.fromhex(alpha)
 
-        secret_key=Helpers.l_endian_2_int(secret_key)
+        secret_key=Helpers.l_endian_2_int(secret_key)%self.curve.ORDER
         blinding_factor=Helpers.l_endian_2_int(blinding_factor)
         # Create generator point
         generator = self.point_type.generator_point()
