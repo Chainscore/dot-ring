@@ -30,7 +30,7 @@ from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 
 # def generate_bls_signature(secret_t,producer_key, keys: List[BandersnatchPublic]):
-def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List[Any]):
+def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List[Any])->bytes:
     """
     get the all the data needed and
     return the signature as an output
@@ -120,7 +120,7 @@ def construct_ring_root(keys: List[Any])->bytes:
     return fxd_col_cs
 
 
-def verify_signature(message:bytes|str, ring_root:bytes|str, proof:bytes|str):
+def verify_signature(message:bytes|str, ring_root:bytes|str, proof:bytes|str)->bool:
     """
     get the bls signature, other params if needed and verify it
     """
@@ -164,7 +164,7 @@ def verify_signature(message:bytes|str, ring_root:bytes|str, proof:bytes|str):
 
 
 # def ring_vrf_proof(alpha, add, blinding_factor, producer_key, keys:List[BandersnatchPublic]):
-def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any]):
+def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any])->bytes:
     """get the args u want and generate the
     ring_vrf_proof (pedersen vrf proof + ring_proof ) \
     which of length 784 bytes"""
@@ -191,7 +191,7 @@ def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, se
     return rvrf_proof
 
 
-def pedersen_proof_to_hash(pedersen_proof:bytes|str):
+def pedersen_proof_to_hash(pedersen_proof:bytes|str)->bytes:
     """get the pedersen proof alone and return the 32 bytes hash"""
     if not isinstance(pedersen_proof, bytes):
         pedersen_proof=bytes.fromhex(pedersen_proof)
@@ -209,7 +209,7 @@ def pedersen_proof_to_hash(pedersen_proof:bytes|str):
 
 #pedersen+ring_proof verification
 
-def ring_vrf_proof_verify(context:bytes|str, ring_root:bytes|str, proof:bytes|str, alpha:bytes|str=b""): #context(add), ring_root, signature, message(alpha)
+def ring_vrf_proof_verify(context:bytes|str, ring_root:bytes|str, proof:bytes|str, alpha:bytes|str=b"")->bool: #context(add), ring_root, signature, message(alpha)
     if not isinstance(context,bytes):
         context=bytes.fromhex(context)
     if not isinstance(ring_root, bytes):
