@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
 
-# from dot_ring.types.protocol.crypto import Hash
-# from dot_ring.utils.conv_helper import ConversionHelper
+# from dot-ring.types.protocol.crypto import Hash
+# from dot-ring.utils.conv_helper import ConversionHelper
 
 from ..curve.curve import Curve
 from ..curve.point import Point
