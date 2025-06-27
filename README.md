@@ -1,1 +1,85 @@
-# dot-ring
+# 🔐 dot-ring
+
+`dot-ring` is a Python library for generating and verifying advanced Verifiable Random Functions with Additional Data (VRF-AD), including:
+- ✅ IETF VRF  
+- ✅ Pedersen VRF  
+- ✅ Ring VRF with Signature Support  
+
+This follows the specification defined in the [`bandersnatch-vrf-spec`](https://github.com/davxy/bandersnatch-vrf-spec/blob/main/specification.md).
+It also includes **KZG Polynomial Commitment Schemes**, supporting both built-in and high-performance MSM (Multi Scalar Multiplication) using [`blst`](https://github.com/supranational/blst).
+---
+
+## 🚀 Installation & Setup
+
+###  Clone and install the library
+
+```bash
+git clone https://github.com/chainscore/dot-ring.git
+cd dot-ring
+pip install .
+```
+
+## Example Usage
+
+### For IETF VRF
+```python
+from dot_ring.curve.specs.bandersnatch import BandersnatchPoint, Bandersnatch_TE_Curve
+from dot_ring.vrf.ietf.ietf import IETF_VRF
+
+curve = Bandersnatch_TE_Curve
+point_type = BandersnatchPoint
+
+vrf = IETF_VRF(curve, point_type)
+
+public_key = vrf.get_public_key(secret_key)
+input_point = point_type.encode_to_curve(alpha, salt)
+proof = vrf.proof(alpha, secret_key, add)  # Generates Proof of length 96 bytes
+is_valid = vrf.verify(public_key, input_point, add, proof)
+```
+
+### For Pedersen VRF
+```python
+from dot_ring.vrf.ietf.pedersen import PedersenVRF
+from dot_ring.curve.specs.bandersnatch import BandersnatchPoint, Bandersnatch_TE_Curve
+
+curve = Bandersnatch_TE_Curve
+point_type = BandersnatchPoint
+
+vrf = PedersenVRF(curve, point_type)
+
+# Public key is not exposed by definition in Pedersen VRF
+input_point = point_type.encode_to_curve(alpha, salt)
+proof = vrf.proof(alpha, secret_key, add, blinding_factor)  # Generates Proof of length 192 bytes
+is_valid = vrf.verify(input_point, add, proof)
+```
+### For Ring VRF
+```python
+from dot_ring.vrf.ring.ring_vrf import RingVrf
+
+rvrf = RingVrf()
+# Generate ring root commitment
+ring_root = rvrf.construct_ring_root(list_of_bandersnatch_keys, third_party_msm=True/False)  # generate ring root of length 144 bytes
+# Generate Ring VRF proof
+ring_proof = rvrf.ring_vrf_proof(alpha,add,blinding,secret_key,public_key,B_keys,use_third_party_commit=True/False
+)  # Generates proof of length 784 bytes
+
+# Generate BLS Signature
+ring_sig = rvrf.generate_bls_signature(blinding, public_key, B_keys, use_third_party_commit=True/False)
+
+```
+
+
+## Note: Third-Party MSM
+To use third-party MSM optimizations in the KZG commitment (i.e., third_party_msm=True), you must install blst, which provides efficient multi-scalar multiplication support.
+### (Optional) Enable third-party MSM with blst
+To use third_party_msm=True (for fast multi-scalar multiplication):
+```bash
+git clone https://github.com/supranational/blst.git
+cd blst/bindings/python
+./run.me
+```
+
+
+
+
+
