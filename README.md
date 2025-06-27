@@ -60,12 +60,9 @@ rvrf = RingVrf()
 # Generate ring root commitment
 ring_root = rvrf.construct_ring_root(list_of_bandersnatch_keys, third_party_msm=True/False)  # generate ring root of length 144 bytes
 # Generate Ring VRF proof
-ring_proof = rvrf.ring_vrf_proof(alpha,add,blinding,secret_key,public_key,B_keys,use_third_party_commit=True/False
-)  # Generates proof of length 784 bytes
-
-# Generate BLS Signature
-ring_sig = rvrf.generate_bls_signature(blinding, public_key, B_keys, use_third_party_commit=True/False)
-
+ring_vrf_proof = rvrf.ring_vrf_proof(alpha,add,blinding,secret_key,public_key,B_keys,use_third_party_msm=True/False)  # Generates proof of length 784 bytes
+#verfiy Ring VRF Proof
+is_valid = rvrf.ring_vrf_proof_verify(add,ring_root,ring_vrf_proof, alpha)
 ```
 
 
