@@ -27,7 +27,11 @@ def test_prove_bandersnatch_ed_sha512_ell2_ietf():
 
                 secret_scalar = vector["sk"]
                 vrf = IETF_VRF(Bandersnatch_TE_Curve, BandersnatchPoint)
-                proof = vrf.prove(vector["alpha"],secret_scalar,vector["ad"])
+                public_key=vrf.get_public_key(vector['sk'])
+                assert public_key.hex()==vector['pk']
+                input_point=BandersnatchPoint.encode_to_curve(vector['alpha']).point_to_string()
+                assert input_point.hex()== vector['h']
+                proof = vrf.proof(vector["alpha"],secret_scalar,vector["ad"])
                 gamma,c, s=  proof[:32].hex(), proof[32:64].hex(), proof[-32:].hex()
                 assert gamma == vector["gamma"]
                 assert c == vector["proof_c"]
@@ -54,7 +58,7 @@ def test_verify_bandersnatch_ed_sha512_ell2_ietf():
 
                 secret_scalar = vector['sk']
                 vrf = IETF_VRF(Bandersnatch_TE_Curve, BandersnatchPoint)
-                proof = vrf.prove(vector["alpha"],secret_scalar,vector["ad"])
+                proof = vrf.proof(vector["alpha"],secret_scalar,vector["ad"])
                 pub_key = BandersnatchPoint.string_to_point(vector["pk"])
                 input_point = BandersnatchPoint.encode_to_curve(vector["alpha"], vector["salt"])
                 assert vrf.verify(pub_key,input_point,vector["ad"],proof)

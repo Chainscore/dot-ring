@@ -12,7 +12,7 @@ def test_single():
     secret_key = "3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18"
     alpha = b""
     add = b""
-    proof = vrf.prove(alpha, secret_key, add)
+    proof = vrf.proof(alpha, secret_key, add)
     print("IETF_Proof", proof)
 
     # Verify IETF Proof
@@ -28,7 +28,7 @@ def test_single():
     # proof
     vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
     blinding_factor = "01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
-    proof = vrf.prove(alpha, secret_key, add, blinding_factor)
+    proof = vrf.proof(alpha, secret_key, add, blinding_factor)
     print("Pedersen Proof", proof)
 
     # verfify pedersen proof
@@ -70,7 +70,7 @@ def test_single():
     Pedersen_proof = gamma + proof_pk_com + proof_r + proof_ok + proof_s + proof_sb
     signature = Pedersen_proof + Ring_Proof
     print("Is The Ring Proof_Valid:", RVRF.ring_vrf_proof_verify(add, RING_ROOT, signature, ALPHA))  # c, r,sign,alpha
-    # from dot-ring.types.base import ByteArray32
+    # from dot_ring.types.base import ByteArray32
 
     #For RIng Proof and Ring_VRF
     #1 To verify a signature

@@ -1,4 +1,6 @@
 #For IETF VRF
+import time
+
 from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchPoint
 from dot_ring.curve.specs.jubjub import JubJub_TE_Curve, JubJubPoint
 from dot_ring.ring_proof.helpers import Helpers
@@ -11,7 +13,7 @@ vrf = IETF_VRF(Bandersnatch_TE_Curve, BandersnatchPoint)
 secret_key="3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18"
 alpha=b""
 add=b""
-proof= vrf.prove(alpha,secret_key,add)
+proof= vrf.proof(alpha,secret_key,add)
 print("IETF_Proof", proof)
 
 
@@ -29,7 +31,7 @@ print("Is Signature Verified:", verified)
 #proof
 vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
 blinding_factor = "01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
-proof = vrf.prove(alpha,secret_key,add,blinding_factor)
+proof = vrf.proof(alpha,secret_key,add,blinding_factor)
 print("Pedersen Proof", proof)
 
 #verfify pedersen proof
@@ -52,8 +54,11 @@ p_k="a1b1da71cc4682e159b7da23050d8b6261eb11a3247c89b07ef56ccd002fd38b"
 alpha=b""
 ad=b""
 B_keys=[bytes.fromhex(i) for i in B_keys]
+start=time.time()
 ring_vrf_proof= RVRF.ring_vrf_proof(alpha, ad, blinding,p_k,s_k, B_keys)
 print("Ring_VRF_Proof:", ring_vrf_proof)
+end=time.time()
+print("To generate Proof:", end-start)
 
 
 
@@ -80,7 +85,7 @@ print("Is The Ring Proof_Valid:", RVRF.ring_vrf_proof_verify(add, RING_ROOT, sig
 
 # vrf= PedersenVRF(JubJub_TE_Curve,JubJubPoint)
 # blinding_factor = "01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
-# proof = vrf.prove(alpha,secret_key,add,blinding_factor)
+# proof = vrf.proof(alpha,secret_key,add,blinding_factor)
 # print("Pedersen Proof", proof)
 #
 # #verfify pedersen proof
@@ -97,6 +102,7 @@ print("Is The Ring Proof_Valid:", RVRF.ring_vrf_proof_verify(add, RING_ROOT, sig
 #to verify the proof
 #chenged the tests of pedersen and ietf
 #change the ring_vrf_tests as well
+
 
 
 #changes to be done
