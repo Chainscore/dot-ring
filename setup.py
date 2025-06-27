@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup script for dot-ring package."""
+"""Setup script for dot_ring package."""
 
 from setuptools import setup
 

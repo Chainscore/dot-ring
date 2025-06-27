@@ -21,7 +21,7 @@ keywords = [
     "bls12_381", "Bandersnatch", "fiat shamir", "pairings"
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -43,12 +43,9 @@ dependencies = [
     "numpy>=2.2.3",
     "sympy>=1.13.1",
     "pytest>=8.3.5",
-    "py-ecc>=8.0.0"]
-
-#+ blst
-# clone the https://github.com/supranational/blst.git
-#run change the directory to bindings/python , run make run.me and specify the path as below and import blst
-
+    "py-ecc>=8.0.0",
+    "pyblst>=0.3.13"
+]
 
 [project.optional-dependencies]
 dev = [
@@ -58,6 +55,10 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-timeout>=2.1.0",
     "pytest-xdist>=3.0.0"
+]
+
+blst = [
+    "pyblst>=0.3.13"
 ]
 
 [project.urls]
