@@ -3,16 +3,18 @@ start_time=time.time()
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ops import poly_add, poly_scalar
 from dot_ring.ring_proof.transcript.phases import phase3_nu_vector
-from dot_ring.ring_proof.pcs.kzg import KZG
+# from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.helpers import  Helpers as H
 
-kzg=KZG.default()
+# kzg=KZG.default()
+
 
 class AggPoly:
 
-    def __init__(self, cur_t, zta, fixed_cols, witness_cols, quotient_poly, quotient_cmt, poly_evals, l_Agg, zw, l_agg_zw):
+    def __init__(self, cur_t, zta, fixed_cols, witness_cols, quotient_poly, quotient_cmt, poly_evals, l_Agg, zw, l_agg_zw,kzg):
 
         self.zeta= zta
+        self.kzg = kzg
         (self.P_x_zeta, self.P_y_zeta, self.s_zeta, self.b_zeta,
          self.acc_ip_zeta, self.acc_x_zeta, self.acc_y_zeta)= list(poly_evals.values())
         self.l_agg = l_Agg
@@ -42,11 +44,11 @@ class AggPoly:
         output: Phi_zeta, phi_zeta_omega
         """
         agg_p=self.aggregated_poly()
-        phi_z_opening = kzg.open(agg_p, self.zeta)  # take only proof
-        phi_zw_opening= kzg.open(self.l_agg, self.zeta_omega)  # take only proof
+        phi_z_opening = self.kzg.open(agg_p, self.zeta)  # take only proof
+        phi_zw_opening= self.kzg.open(self.l_agg, self.zeta_omega)  # take only proof
         return phi_z_opening, phi_zw_opening,phi_z_opening.proof, phi_zw_opening.proof
 
-    def construct_proof(self):
+    def construct_proof(self ):
         """
         input: commitments, poly_evaluations
         output: proof

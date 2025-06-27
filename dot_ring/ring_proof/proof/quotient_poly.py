@@ -1,11 +1,18 @@
+from dataclasses import dataclass
+
 from py_ecc.optimized_bls12_381 import normalize as nm
 
 from dot_ring.ring_proof.constants import SIZE
-from dot_ring.ring_proof.pcs.kzg import KZG
+# from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.polynomial.ops import poly_division_general
-kzg=KZG.default()
+
+# kzg=KZG.default()
+
 
 class QuotientPoly:
+
+    def __init__(self, kzg):
+        self.kzg = kzg
 
     @staticmethod
     def poly_vector_xn_minus_1(n):
@@ -15,13 +22,13 @@ class QuotientPoly:
         # print("vect:", vec)
         return vec
 
-    @staticmethod
-    def quotient_poly_commitment(q_x):
+
+    def quotient_poly_commitment(self,q_x):
         """
         input: quotient polynomial
         output: commitment to quotient polynomial
         """
-        c_q =kzg.commit(q_x)
+        c_q =self.kzg.commit(q_x)
         return c_q
 
 
