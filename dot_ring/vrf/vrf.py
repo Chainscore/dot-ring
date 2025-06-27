@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
 
-# from dot-ring.types.protocol.crypto import Hash
-# from dot-ring.utils.conv_helper import ConversionHelper
+# from dot_ring.types.protocol.crypto import Hash
+# from dot_ring.utils.conv_helper import ConversionHelper
 
 from ..curve.curve import Curve
 from ..curve.point import Point
@@ -20,7 +20,7 @@ class VRFProtocol(Protocol[C, P]):
     point_type: Type[P]
 
     @abstractmethod
-    def prove(
+    def proof(
             self, alpha: bytes, secret_key: int, additional_data: bytes
     ) -> Tuple[P, Tuple[int, int]]:
         """Generate VRF proof."""
@@ -181,7 +181,7 @@ class VRF(ABC):
         return bytes(beta_string)
 
     @abstractmethod
-    def prove(self, *args) -> Tuple[Point, Tuple[int, int]]:
+    def proof(self, *args) -> Tuple[Point, Tuple[int, int]]:
         """
         Generate VRF proof.
 

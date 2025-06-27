@@ -122,7 +122,7 @@ class IETF_VRF(VRF):
     #     )
     #
     #     return c == expected_c
-    def prove(
+    def proof(
             self,
             alpha: bytes|str,
             secret_key: bytes|str,

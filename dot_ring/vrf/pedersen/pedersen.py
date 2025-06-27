@@ -113,7 +113,7 @@ class PedersenVRF(VRF):
     #     Theta1 = R + (public_key_cp * c) == generator * s + b_base * Sb
     #     return Theta0 == Theta1
 
-    def prove(
+    def proof(
         self,
         alpha: bytes|str,
         secret_key: bytes|str,

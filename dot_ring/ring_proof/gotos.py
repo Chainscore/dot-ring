@@ -1,13 +1,14 @@
-
+import time
 from typing import List, Any
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
-# from dot-ring.types.base import ByteArray32
-# from dot-ring.types.protocol.crypto import BandersnatchPublic
+# from dot_ring.types.base import ByteArray32
+# from dot_ring.types.protocol.crypto import BandersnatchPublic
 from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
+from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
 from dot_ring.ring_proof.transcript.phases import phase1_alphas
 from dot_ring.ring_proof.transcript.transcript import Transcript
-# from dot-ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
+# from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
 from dot_ring.ring_proof.constants import Blinding_Base, S_PRIME, OMEGA_2048, SeedPoint
 from dot_ring.ring_proof.columns.columns import WitnessColumnBuilder, PublicColumnBuilder
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
@@ -26,15 +27,15 @@ from dot_ring.curve.specs.bandersnatch import (
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 
-# from dot-ring.vrf.pedersen.pedersen import PedersenVRF
-
+# from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 # def generate_bls_signature(secret_t,producer_key, keys: List[BandersnatchPublic]):
-def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List[Any])->bytes:
+def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List[Any], third_party_msm:bool)->bytes:
     """
     get the all the data needed and
     return the signature as an output
     """
+    kzg = KZG.default(use_third_party_commit=third_party_msm)
     # signature = func() #make the call or logic u want
     # return signature
     if not isinstance(producer_key, bytes):
@@ -54,16 +55,14 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
         keys_as_bs_points.append((point.x, point.y))
 
     ring_root = PC()  # ring_root builder
-    fixed_cols = ring_root.build(keys_as_bs_points)
-
+    fixed_cols = ring_root.build(keys_as_bs_points, kzg)
     ring_root_bs = bytearray.fromhex(H.bls_g1_compress(fixed_cols[0].commitment)).hex() + bytearray.fromhex(
         H.bls_g1_compress(fixed_cols[1].commitment)).hex() + bytearray.fromhex(
         H.bls_g1_compress(fixed_cols[2].commitment)).hex()
-
     s_v = fixed_cols[-1].evals
     producer_index= keys_as_bs_points.index(producer_key_pt)
     witness_obj = WitnessColumnBuilder(keys_as_bs_points, s_v, producer_index, secret_t)
-    witness_res = witness_obj.build()
+    witness_res = witness_obj.build(kzg)
     witness_relation_res = witness_obj.result(Blinding_Base)
     Result_plus_Seed = witness_obj.result_p_seed(witness_relation_res)
     constraints = RingConstraintBuilder(Result_plus_Seed, fixed_cols[0].coeffs, fixed_cols[1].coeffs,
@@ -89,30 +88,31 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
     cd = constraint_dict
     c_polys = [cd[val] for val in cd]
     C_agg = aggregate_constraints(c_polys, alpha, OMEGA_2048, S_PRIME)
-    qp = QuotientPoly()
+    qp = QuotientPoly(kzg)
     Q_p, C_q = qp.quotient_poly(C_agg)
     C_q_nm = nm(C_q)
     l_obj = LAggPoly(t, H.to_int(C_q_nm), fixed_cols, ws, alpha)
     current_t, zeta, rel_poly_evals, l_agg, zeta_omega, l_zw = l_obj.l_agg_poly()
-    obj = AggPoly(current_t, zeta, fixed_cols, ws, Q_p, C_q, rel_poly_evals, l_agg, zeta_omega, l_zw)
+    obj = AggPoly(current_t, zeta, fixed_cols, ws, Q_p, C_q, rel_poly_evals, l_agg, zeta_omega, l_zw, kzg)
 
     cf_vs, proof_ptr, proof_bs = obj.construct_proof()
     return bytes.fromhex(proof_bs) #bytess string
 
 # def construct_ring_root(keys: List[BandersnatchPublic]):
-def construct_ring_root(keys: List[Any])->bytes:
+def construct_ring_root(keys: List[Any], third_party_msm:bool)->bytes:
     """
     get the data needed and construct the rng root
     """
+    kzg = KZG.default(use_third_party_commit=third_party_msm)
     # ring_root= func() make the call ore logic u want
     #return ring_root
     keys_as_bs_points = []
     for key in keys:
         point = BandersnatchPoint.string_to_point(bytes(key))  # or take key[2:] by skipping '0x'
         keys_as_bs_points.append((point.x, point.y))
-
+    t = time.time()
     ring_root = PC()  # ring_root builder
-    fixed_cols = ring_root.build(keys_as_bs_points)
+    fixed_cols = ring_root.build(keys_as_bs_points, kzg)
 
     fxd_col_cs = bytes.fromhex(H.bls_g1_compress(fixed_cols[0].commitment))+ bytes.fromhex(
         H.bls_g1_compress(fixed_cols[1].commitment))+ bytes.fromhex(
@@ -164,10 +164,12 @@ def verify_signature(message:bytes|str, ring_root:bytes|str, proof:bytes|str)->b
 
 
 # def ring_vrf_proof(alpha, add, blinding_factor, producer_key, keys:List[BandersnatchPublic]):
-def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any])->bytes:
+def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any], third_party_msm:bool)->bytes:
     """get the args u want and generate the
     ring_vrf_proof (pedersen vrf proof + ring_proof ) \
     which of length 784 bytes"""
+    kzg = KZG.default(use_third_party_commit=third_party_msm)
+
     if not isinstance(alpha, bytes):
         alpha=bytes.fromhex(alpha)
 
@@ -182,9 +184,9 @@ def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, se
 
     #pedersen_proof=get the pedersen proof
     vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
-    pedersen_proof = vrf.prove(alpha,secret_key,add,blinding_factor)
+    pedersen_proof = vrf.proof(alpha,secret_key,add,blinding_factor)
     #ring_proof= get the ring_signature
-    ring_proof= generate_bls_signature(blinding_factor,producer_key, keys)
+    ring_proof= generate_bls_signature(blinding_factor,producer_key, keys, third_party_msm)
     if not isinstance(ring_proof, bytes):
         ring_proof=bytes.fromhex(ring_proof)
     rvrf_proof= pedersen_proof +ring_proof
@@ -259,13 +261,3 @@ def ring_vrf_proof_verify(context:bytes|str, ring_root:bytes|str, proof:bytes|st
     #is ring_proof valid
     ring_proof_valid= valid.is_signtaure_valid()
     return p_proof_valid and ring_proof_valid
-
-
-
-
-#have to make these as interfaces and put the logic in diff area
-#have to make the preprocessing well in such a way that they should work as like ietf and pedersens
-#options
-# put the interface logic in the vrf file itself
-# or create a separate calls for ring_vrf inside the vrf file
-#we can include one more fun for verifying the ring_vrf proof (pedersen+ring_proof)
