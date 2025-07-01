@@ -6,7 +6,6 @@ from dot_ring.curve.specs.bandersnatch import (
     Bandersnatch_TE_Curve,
     BandersnatchPoint,
 )
-from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 
@@ -15,7 +14,6 @@ def test_prove_bandersnatch_ed_sha512_ell2_pedersen():
     data_dir = os.path.join(HERE,"ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
-        print(file)
         if i >= limit:
             break
         if not file.startswith("bandersnatch_ed_sha512_ell2_pedersen"):
@@ -43,7 +41,6 @@ def test_verify_bandersnatch_ed_sha512_ell2_ietf():
     data_dir = os.path.join(HERE,"ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
-        print(file)
         if i >= limit:
             break
         if not file.startswith("bandersnatch_ed_sha512_ell2_pedersen"):
@@ -58,3 +55,6 @@ def test_verify_bandersnatch_ed_sha512_ell2_ietf():
                 input_point = BandersnatchPoint.encode_to_curve(vector["alpha"],vector["salt"])
                 assert vrf.verify(input_point, vector["ad"],proof)
                 print(f"✅ Testcase {i + 1} of {file}")
+
+
+

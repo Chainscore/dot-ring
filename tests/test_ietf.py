@@ -16,7 +16,6 @@ def test_prove_bandersnatch_ed_sha512_ell2_ietf():
     data_dir = os.path.join(HERE, "ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
-        print(file)
         if i >= limit:
             break
         if not file.startswith("bandersnatch_ed_sha512_ell2_ietf"):
@@ -24,7 +23,6 @@ def test_prove_bandersnatch_ed_sha512_ell2_ietf():
         with open(os.path.join(data_dir, file), "r") as f:
             data = json.loads(f.read())
             for i, vector in enumerate(data):
-
                 secret_scalar = vector["sk"]
                 vrf = IETF_VRF(Bandersnatch_TE_Curve, BandersnatchPoint)
                 public_key=vrf.get_public_key(vector['sk'])
@@ -47,7 +45,6 @@ def test_verify_bandersnatch_ed_sha512_ell2_ietf():
     data_dir = os.path.join(HERE,"ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
-        print(file)
         if i >= limit:
             break
         if not file.startswith("bandersnatch_ed_sha512_ell2_ietf"):
@@ -55,7 +52,6 @@ def test_verify_bandersnatch_ed_sha512_ell2_ietf():
         with open(os.path.join(data_dir, file), "r") as f:
             data = json.loads(f.read())
             for i, vector in enumerate(data):
-
                 secret_scalar = vector['sk']
                 vrf = IETF_VRF(Bandersnatch_TE_Curve, BandersnatchPoint)
                 proof = vrf.proof(vector["alpha"],secret_scalar,vector["ad"])

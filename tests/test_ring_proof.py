@@ -24,11 +24,7 @@ def test_ring_proof():
         RVRF=RingVrf()
         ring_root = RVRF.construct_ring_root(B_keys, True)
         ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad, blinding,s_k,p_k,B_keys,True)
-        st = time.time()
-        print("from here")
         ring_proof_sign=RVRF.generate_bls_signature(blinding, p_k,B_keys, True)
-        e=time.time()
-        print("Sign Gen Time (R)", e-st)
         assert ring_root.hex()==item['ring_pks_com'], "Invalid Ring Root"
         assert ring_proof_sign.hex()==item['ring_proof'], "Unexpected Ring Proof"
         rltn_to_proove=ring_vrf_proof[32:64]

@@ -128,15 +128,12 @@ class KZG:
     #commitment generation using py_blst
     def in_built_commit(self, scalars:CoeffVector)->G1Point:
         # bases_py_ecc = self._srs.g1[:len(scalars)]
-        s=time.time()
         bases=self._blst_g1_cache[:len(scalars)]
         # bases = [self.py_ecc_point_to_blst(p) for p in bases_py_ecc]
         acc = BlstP1Element()
         for base, scalar in zip(bases, scalars):
             acc += base.scalar_mul(scalar)
         res=acc
-        e=time.time()
-        print(" Inside Built_In:", e-s)
         decompressed = Helpers.bls_g1_decompress(res.compress().hex()) #compress the blst to byte_string and then to bls g1 point type
         return decompressed
 
@@ -255,8 +252,6 @@ class KZG:
         except ImportError:
             raise ImportError("blst is not installed. Please install it or set use_third_party_commit=False.")
 
-        start_time = time.time()
-
         if len(coeffs) > len(self._srs.g1):
             raise ValueError("polynomial degree exceeds SRS size")
 
@@ -290,9 +285,6 @@ class KZG:
                 for coeff, g1_point in zip(coeffs, self._srs.g1):
                     if coeff:
                         result = add(result, multiply(g1_point, coeff))
-
-        end_time = time.time()
-        print("Inside third Party func:", end_time - start_time)
         return KZG.blst_p1_to_fq_tuple(result)
 
     @staticmethod
