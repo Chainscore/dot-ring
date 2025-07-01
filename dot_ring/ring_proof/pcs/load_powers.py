@@ -4,7 +4,7 @@ HERE = os.path.dirname(__file__)
 
 def read_srs_file():
     filename = os.path.abspath(
-        os.path.join(HERE, "..", "..", "..", "tests", "ark-vrf", "bls12-381-srs-2-11-uncompressed-zcash.bin")
+        os.path.join(HERE, "bls12-381-srs-2-11-uncompressed-zcash.bin")
     )
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File {filename} not found.")
