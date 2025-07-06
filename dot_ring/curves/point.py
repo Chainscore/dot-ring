@@ -3,9 +3,10 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 # pyright: reportGeneralTypeIssues=false
-from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union, overload, cast
+from typing import Protocol, TypeVar, Generic, Final, ClassVar, Union, overload, cast
 
-C = TypeVar("C", bound="CurveProtocol")
+CurveT = TypeVar("CurveT", bound="CurveProtocol")
+TP = TypeVar("TP", bound="Point[Any]")  # concrete point subtype
 
 
 class CurveProtocol(Protocol):
@@ -19,23 +20,23 @@ class CurveProtocol(Protocol):
     def Z(self) -> int: ...
 
 
-class PointProtocol(Protocol[C]):
+class PointProtocol(Protocol[CurveT]):
     x: int
     y: int
-    curve: C
+    curve: CurveT
 
-    def __add__(self, other: "PointProtocol[C]") -> Self: ...
+    def __add__(self, other: "PointProtocol[CurveT]") -> TP: ...
 
-    def __mul__(self, scalar: int) -> Self: ...
+    def __mul__(self, scalar: int) -> TP: ...
 
     def is_on_curve(self) -> bool: ...
 
 
 @dataclass(frozen=True)
-class Point(Generic[C]):
+class Point(Generic[CurveT]):
     x: Final[int]
     y: Final[int]
-    curve: Final[C]
+    curve: Final[CurveT]
 
     ENCODING_LENGTH: ClassVar[int] = 32
 
@@ -43,28 +44,28 @@ class Point(Generic[C]):
     # Minimal algebra interface – subclasses override fast versions
     # ------------------------------------------------------------------
 
-    def __add__(self, other: "Point[C]") -> "Point[C]":  # noqa: D401
+    def __add__(self: TP, other: TP) -> TP:  # noqa: D401
         """Point addition (must be implemented by subclass)."""
         raise NotImplementedError
 
-    def __neg__(self) -> "Point[C]":  # noqa: D401
+    def __neg__(self) -> TP:  # noqa: D401
         raise NotImplementedError
 
-    def __sub__(self, other: "Point[C]") -> "Point[C]":  # noqa: D401
-        return self.__add__(-other)  # type: ignore[arg-type]
+    def __sub__(self: TP, other: TP) -> TP:  # noqa: D401
+        return self.__add__(cast(TP, -other))
 
     @overload
-    def __mul__(self, k: int) -> Self: ...
+    def __mul__(self, k: int) -> TP: ...
 
     @overload
-    def __mul__(self, k: "Point[C]") -> Self: ...
+    def __mul__(self, k: TP) -> TP: ...
 
-    def __mul__(self, k: int | "Point[C]") -> Self:  # noqa: D401
+    def __mul__(self: TP, k: int | TP) -> TP:  # noqa: D401
         """Support scalar multiplication and fallback * as addition."""
         # Scalar multiplication (int * Point)
         if isinstance(k, int):
-            res: Self = cast(Self, self.identity_point())
-            addend: Self = cast(Self, self)
+            res: TP = cast(TP, self.identity_point())
+            addend: TP = self
             n = k
             while n:
                 if n & 1:
@@ -75,7 +76,7 @@ class Point(Generic[C]):
 
         # Point * Point -> use addition as syntactic sugar
         if isinstance(k, Point):
-            return self.__add__(cast(Self, k))
+            return self.__add__(cast(TP, k))
 
         raise TypeError("Unsupported operand type(s) for *: 'Point' and '{}'".format(type(k)))
 
@@ -84,10 +85,10 @@ class Point(Generic[C]):
     # These must be supplied by concrete subclasses -------------------
 
     @classmethod
-    def identity_point(cls) -> "Point[C]":
+    def identity_point(cls: type[TP]) -> TP:
         raise NotImplementedError
 
-    def double(self) -> "Point[C]":
+    def double(self: TP) -> TP:
         raise NotImplementedError
 
     def _validate_coordinates(self) -> bool:
@@ -111,7 +112,7 @@ class Point(Generic[C]):
         return bytes(y_bytes)
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> Self:
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> TP:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
@@ -127,7 +128,7 @@ class Point(Generic[C]):
         return self.point_to_string()
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> Self:
+    def from_bytes(cls, data: bytes) -> TP:
         return cls.string_to_point(data)
 
     @classmethod
