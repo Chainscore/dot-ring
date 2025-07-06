@@ -54,14 +54,30 @@ class Point(Generic[C]):
         return self.__add__(-other)  # type: ignore[arg-type]
 
     @overload
-    def __mul__(self, k: int) -> "Point[C]":  # noqa: D401
-        """Double-and-add fallback; override for efficient methods."""
-        ...
+    def __mul__(self, k: int) -> Self: ...
 
     @overload
-    def __mul__(self, k: int) -> "Point[C]":  # noqa: D401
-        """Double-and-add fallback; override for efficient methods."""
-        ...
+    def __mul__(self, k: "Point[C]") -> Self: ...
+
+    def __mul__(self, k: int | "Point[C]") -> Self:  # noqa: D401
+        """Support scalar multiplication and fallback * as addition."""
+        # Scalar multiplication (int * Point)
+        if isinstance(k, int):
+            res: Self = self.identity_point()  # type: ignore[assignment]
+            add: Self = Self(self.x, self.y, self.curve)  # recreate for proper Self type
+            n = k
+            while n:
+                if n & 1:
+                    res = res.__add__(add)
+                add = add.double()
+                n >>= 1
+            return res
+
+        # Point * Point -> use addition as syntactic sugar
+        if isinstance(k, Point):
+            return self.__add__(k)  # type: ignore[return-value,arg-type]
+
+        raise TypeError("Unsupported operand type(s) for *: 'Point' and '{}'".format(type(k)))
 
     __rmul__ = __mul__  # allows int * Point
 
