@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dot_ring-curves"
+dynamic = ["version"]
+description = "Elliptic curve primitives for Dot Ring Suite."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["cryptography", "elliptic-curves", "bandersnatch"]
+
+[tool.hatch.version]
+path = "dot_ring/curves/__init__.py"
+
+[project.optional-dependencies]
+# Native acceleration extras – empty placeholders for now.
+glv = []
+simd = []
+dev = ["ruff", "black", "isort", "pytest", "coverage[toml]"]

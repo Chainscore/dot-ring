@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dot_ring-fiat_shamir"
+dynamic = ["version"]
+description = "Fiat–Shamir transcript/XOF layer for Dot Ring Suite."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["cryptography", "fiat-shamir", "xof", "transcript"]
+
+[tool.hatch.version]
+path = "dot_ring/fiat_shamir/__init__.py"
+
+[project.optional-dependencies]
+dev = ["ruff", "black", "isort", "pytest", "coverage[toml]"]

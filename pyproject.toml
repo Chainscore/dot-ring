@@ -1,71 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "dot-ring"
-version = "0.1.0"
-description = "Serves as a library to generate and verify a signature using IETF, Pedersen and Ring VRF-AD Schemes"
-authors = [
-    {name = "chainscore-labs", email = "hello@chainscore.finance"},
-    {name = "Kona Siva Naga Malleswara Rao", email = "sivakona@chainscore.finance"},
-    {name = "prasad-kumkar", email = "prasad@chainscore.finance"}
-]
+name = "dot_ring"
+dynamic = ["version"]
+description = "Dot Ring Suite meta-package aggregating cryptographic sub-packages."
 readme = "README.md"
-license = "MIT"
-requires-python = ">=3.12"
-keywords = [
-    "VRF", "VRF-AD", "IETF VRF", "Pedersen VRF",
-    "Ring Proof", "Ring VRF", "Signature", "Proof",
-    "Verify", "Cryptography", "Zero Knowledge",
-    "PCS", "KZG", "FFT", "Polynomial",
-    "Interpolation","Ring Root", "Commitment", "Constraints",
-    "fflonk", "powers of tau", "string to point", "point to string",
-    "encode to curve","public key", "elliptic curve cryptography", "proof to hash",
-    "bls12_381", "Bandersnatch", "fiat shamir", "pairings"
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3 :: Only",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Software Development :: Libraries",
-    "Topic :: System :: Networking",
-    "Topic :: Internet :: WWW/HTTP",
-    "Topic :: Database",
-    "Topic :: Utilities",
-    "Topic :: System :: Archiving",
-    "Topic :: Communications",
-    "Typing :: Typed"
-]
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["cryptography", "vrf", "ring-vrf", "bandersnatch"]
+
+# Meta-package depends on its sub-packages pinned to identical versions.
 dependencies = [
-    "numpy>=2.2.3",
-    "sympy>=1.13.1",
-    "pytest>=8.3.5",
-    "py-ecc>=8.0.0",
-    "pyblst>=0.3.13"
+    "dot_ring-curves>=0.0.0.dev0",
+    "dot_ring-fiat_shamir>=0.0.0.dev0",
+    "dot_ring-ring_proof>=0.0.0.dev0",
+    "dot_ring-vrf>=0.0.0.dev0",
 ]
+
+[tool.hatch.version]
+path = "dot_ring/__init__.py"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-timeout>=2.1.0",
-    "pytest-xdist>=3.0.0"
+    "ruff>=0.3.0",
+    "black>=24.3.0",
+    "isort>=5.12.0",
+    "pytest>=7.4.0",
+    "coverage[toml]>=7.2.0",
 ]
 
-blst = [
-    "pyblst>=0.3.13"
-]
+[tool.black]
+line-length = 88
+target-version = ["py39"]
 
-[project.urls]
-Homepage = "https://github.com/chainscore/dot-ring"
-Repository = "https://github.com/chainscore/dot-ring"
-Issues = "https://github.com/chainscore/dot-ring/issues"
-Documentation = "https://github.com/chainscore/dot-ring#readme"
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["dot_ring"]
 
-[build-system]
-requires = ["setuptools>=65.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+select = ["E", "F", "I", "B", "UP", "C90"]
+ignore = ["E501"]

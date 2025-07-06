@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dot_ring-vrf"
+dynamic = ["version"]
+description = "Verifiable Random Functions for Dot Ring Suite."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+keywords = ["cryptography", "vrf", "ring-vrf", "bandersnatch"]
+
+[tool.hatch.version]
+path = "dot_ring/vrf/__init__.py"
+
+[project.optional-dependencies]
+ring = ["dot_ring-ring_proof>=0.0.0.dev0"]
+# development
+dev = ["ruff", "black", "isort", "pytest", "coverage[toml]"]
