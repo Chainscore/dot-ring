@@ -24,10 +24,11 @@ class TEAffinePoint(Point[TECurve]):
     # Validation helpers
     # ---------------------------------------------------------------------
 
-    def __post_init__(self) -> None:
-        super().__post_init__()
+    def __post_init__(self) -> None:  # noqa: D401
+        # Bypass dataclass variance by calling Point base directly
+        Point.__post_init__(self)
         if not isinstance(self.curve, TECurve):
-            raise TypeError("Curve must be a Twisted Edwards curve")
+            raise TypeError("curve must be a TECurve")
 
     def is_on_curve(self) -> bool:  # noqa: D401
         v, w = self.x, self.y
