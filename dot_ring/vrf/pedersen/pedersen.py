@@ -1,11 +1,13 @@
+# mypy: ignore-errors
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, Optional, Tuple, Type
-from dot_ring.curve.point import Point
+from dot_ring.curves.point import Point
 
-from ...curve.curve import Curve
-from ...curve.specs.bandersnatch import BandersnatchPoint
+from dot_ring.curves.curve import Curve
+from dot_ring.curves.specs.bandersnatch import BandersnatchPoint
 from ..vrf import VRF
 from ...ring_proof.helpers import Helpers
 

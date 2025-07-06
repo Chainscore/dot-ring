@@ -6,8 +6,8 @@ from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
 # from dot_ring.types.protocol.crypto import Hash
 # from dot_ring.utils.conv_helper import ConversionHelper
 
-from ..curve.curve import Curve
-from ..curve.point import Point
+from dot_ring.curves.curve import Curve
+from dot_ring.curves.point import Point
 from ..ring_proof.helpers import Helpers
 
 C = TypeVar("C", bound=Curve)

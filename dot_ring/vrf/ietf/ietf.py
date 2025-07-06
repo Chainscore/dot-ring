@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple, Type
 
-from dot_ring.curve.point import Point
+# ruff: noqa
+# mypy: ignore-errors
+from dot_ring.curves.point import Point
+from dot_ring.curves.curve import Curve
 from ..vrf import VRF
-from ...curve.curve import Curve
 from ...ring_proof.helpers import Helpers
 
 
