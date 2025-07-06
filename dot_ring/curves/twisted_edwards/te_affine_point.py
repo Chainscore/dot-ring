@@ -17,6 +17,7 @@ from dot_ring.curves.point import Point, PointProtocol
 from .te_curve import TECurve
 
 
+@dataclass(frozen=True)
 class TEAffinePoint(Point[TECurve]):
     """Twisted Edwards affine point implementation (migrated)."""
 

@@ -9,9 +9,14 @@ C = TypeVar("C", bound="CurveProtocol")
 
 
 class CurveProtocol(Protocol):
-    PRIME_FIELD: ClassVar[int]
-    ORDER: ClassVar[int]
-    Z: ClassVar[int]
+    @property
+    def PRIME_FIELD(self) -> int: ...
+
+    @property
+    def ORDER(self) -> int: ...
+
+    @property
+    def Z(self) -> int: ...
 
 
 class PointProtocol(Protocol[C]):
