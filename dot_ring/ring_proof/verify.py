@@ -45,13 +45,23 @@ class Verify:
         self.relation_to_proove= rl_to_proove
         self.Result_plus_Seed, self.sp, self.D =rps, seed_point, Domain
 
-        #can even put as separate function
-        self.t= Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
-        self.cur_t, self.alpha_list = phase1_alphas(self.t, self.verifier_key, self.relation_to_proove,list(H.to_int(nm(cmt)) for cmt in self.proof_ptr[:4]))  #cb, caccip, caccx, caccy
+        # Initialise transcript and derive Fiat-Shamir challenges
+        self.t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
 
+        self.alpha_list = phase1_alphas(
+            self.t,
+            self.verifier_key,
+            self.relation_to_proove,
+            list(H.to_int(nm(cmt)) for cmt in self.proof_ptr[:4]),
+        )
 
-        self.cur_t, self.zeta_p = phase2_eval_point(self.cur_t, H.to_int(nm(self.proof_ptr[-4])))
-        self.V_list = phase3_nu_vector(self.cur_t, self.proof_ptr[4:11], self.proof_ptr[-3])
+        self.zeta_p = phase2_eval_point(self.t, H.to_int(nm(self.proof_ptr[-4])))
+
+        self.V_list = phase3_nu_vector(
+            self.t,
+            self.proof_ptr[4:11],
+            self.proof_ptr[-3],
+        )
 
     def contributions_to_constraints_eval_at_zeta(self):
 
