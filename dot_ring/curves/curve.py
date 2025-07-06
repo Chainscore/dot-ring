@@ -1,0 +1,180 @@
+from __future__ import annotations
+
+from enum import Enum
+import math
+import hashlib
+from dataclasses import dataclass
+from typing import List, ClassVar, Final
+
+# Updated imports to new namespace
+from dot_ring.curves.e2c import E2C_Variant
+from dot_ring.curves.glv import GLVSpecs
+
+
+@dataclass(frozen=True)
+class Curve:
+    """
+    Base implementation of an elliptic curve (migrated to ``dot_ring.curves``).
+
+    Provides core functionality such as hash-to-curve primitives compatible
+    with RFC 9380 as well as helper utilities (square-root, modular inverse,
+    etc.). The implementation is copied verbatim from the former
+    ``dot_ring.curve.curve`` module with only import paths adjusted.
+    """
+
+    # Curve Parameters
+    PRIME_FIELD: Final[int]
+    ORDER: Final[int]
+    GENERATOR_X: Final[int]
+    GENERATOR_Y: Final[int]
+    COFACTOR: Final[int]
+    glv: GLVSpecs
+    Z: Final[int]
+    E2C: E2C_Variant
+
+    # Hash to Curve Parameters
+    M: ClassVar[int] = 1  # Degree of field extension
+    K: ClassVar[int] = 128  # Security parameter
+
+    # Suite String Parameters
+    SUITE_STRING: Final[bytes]
+    DST: Final[bytes]
+
+    # Blinding Base For Pedersen
+    BBx: Final[int]
+    BBy: Final[int]
+
+    def __post_init__(self) -> None:
+        if not self._validate_parameters():
+            raise ValueError("Invalid curve parameters")
+
+    def _validate_parameters(self) -> bool:
+        return (
+            self.PRIME_FIELD > 0
+            and self.ORDER > 0
+            and 0 <= self.GENERATOR_X < self.PRIME_FIELD
+            and 0 <= self.GENERATOR_Y < self.PRIME_FIELD
+            and self.COFACTOR > 0
+        )
+
+    # --- Hash-to-Field helpers -------------------------------------------------
+
+    @property
+    def L(self) -> int:
+        return math.ceil((math.ceil(math.log2(self.PRIME_FIELD)) + self.K) / 8)
+
+    def hash_to_field(self, msg: bytes, count: int) -> List[int]:
+        if count < 0:
+            raise ValueError("Count must be non-negative")
+        if msg is None:
+            raise ValueError("Message cannot be None")
+
+        len_in_bytes = count * self.M * self.L
+        uniform_bytes = self.expand_message_xmd(msg, len_in_bytes)
+
+        u_values: List[int] = []
+        for i in range(count):
+            for j in range(self.M):
+                elm_offset = self.L * (j + i * self.M)
+                tv = uniform_bytes[elm_offset : elm_offset + self.L]
+                e_j = int.from_bytes(tv, "big") % self.PRIME_FIELD
+                u_values.append(e_j)
+        return u_values
+
+    def expand_message_xmd(self, msg: bytes, len_in_bytes: int) -> bytes:
+        hash_fn = hashlib.sha512
+        b_in_bytes = hash_fn().digest_size
+        ell = math.ceil(len_in_bytes / b_in_bytes)
+
+        if ell > 255 or len_in_bytes > 65535 or len(self.DST) > 255:
+            raise ValueError("Invalid input size parameters")
+
+        DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
+        Z_pad = self.I2OSP(0, self.L)
+        l_i_b_str = self.I2OSP(len_in_bytes, 2)
+        msg_prime = Z_pad + msg + l_i_b_str + self.I2OSP(0, 1) + DST_prime
+        b_0 = hash_fn(msg_prime).digest()
+        b_1 = hash_fn(b_0 + self.I2OSP(1, 1) + DST_prime).digest()
+        b_values = [b_1]
+        for i in range(2, ell + 1):
+            b_i = hash_fn(self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime).digest()
+            b_values.append(b_i)
+        uniform_bytes = b"".join(b_values)
+        return uniform_bytes[:len_in_bytes]
+
+    # --- Finite-field helpers --------------------------------------------------
+
+    def mod_inverse(self, val: int) -> int:
+        if pow(val, self.PRIME_FIELD - 1, self.PRIME_FIELD) != 1:
+            raise ValueError("No inverse exists")
+        return pow(val, self.PRIME_FIELD - 2, self.PRIME_FIELD)
+
+    @staticmethod
+    def CMOV(a: int, b: int, cond: int) -> int:
+        return b if cond else a
+
+    @staticmethod
+    def sgn0(x: int) -> int:
+        return x % 2
+
+    def find_z_ell2(self) -> int:
+        return 5
+
+    def is_square(self, val: int) -> bool:
+        if val == 0:
+            return True
+        return pow(val, (self.PRIME_FIELD - 1) // 2, self.PRIME_FIELD) == 1
+
+    def mod_sqrt(self, val: int) -> int:
+        if val == 0:
+            return 0
+        if not self.is_square(val):
+            raise ValueError("No square root exists")
+        q = self.PRIME_FIELD - 1
+        s = 0
+        while q % 2 == 0:
+            q //= 2
+            s += 1
+        if s == 1:
+            return pow(val, (self.PRIME_FIELD + 1) // 4, self.PRIME_FIELD)
+        z = 2
+        while self.is_square(z):
+            z += 1
+        m = s
+        c = pow(z, q, self.PRIME_FIELD)
+        t = pow(val, q, self.PRIME_FIELD)
+        r = pow(val, (q + 1) // 2, self.PRIME_FIELD)
+        while t != 1:
+            i = 0
+            temp = t
+            while temp != 1:
+                temp = (temp * temp) % self.PRIME_FIELD
+                i += 1
+                if i == m:
+                    raise ValueError("No square root exists")
+            b = pow(c, 1 << (m - i - 1), self.PRIME_FIELD)
+            m = i
+            c = (b * b) % self.PRIME_FIELD
+            t = (t * c) % self.PRIME_FIELD
+            r = (r * b) % self.PRIME_FIELD
+        return r
+
+    # --- Utility helpers -------------------------------------------------------
+
+    @staticmethod
+    def sha512(data: bytes) -> bytes:
+        return hashlib.sha512(data).digest()
+
+    @staticmethod
+    def I2OSP(value: int, length: int) -> bytes:
+        if value >= 256 ** length:
+            raise ValueError("integer too large")
+        return value.to_bytes(length, "big")
+
+    @staticmethod
+    def OS2IP(octets: bytearray) -> int:
+        return int.from_bytes(octets, "big")
+
+    @staticmethod
+    def strxor(s1: bytes, s2: bytes) -> bytes:
+        return bytes(a ^ b for a, b in zip(s1, s2))

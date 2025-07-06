@@ -41,3 +41,15 @@ try:
     __all__.append("Curve")
 except Exception:  # pragma: no cover
     pass
+
+# Public re-exports for convenience
+from dot_ring.curves.e2c import E2C_Variant  # noqa: E402
+from dot_ring.curves.glv import GLVSpecs, DisabledGLV  # noqa: E402
+from dot_ring.curves.curve import Curve  # noqa: E402
+
+__all__ += [
+    "E2C_Variant",
+    "GLVSpecs",
+    "DisabledGLV",
+    "Curve",
+]
