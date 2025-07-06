@@ -66,7 +66,7 @@ class Point(Generic[C]):
         return bytes(y_bytes)
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> "Point[C]":
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> Self:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
