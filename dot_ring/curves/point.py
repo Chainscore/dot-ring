@@ -55,32 +55,25 @@ class Point(Generic[CurveT]):
         return self.__add__(cast(TP, -other))
 
     @overload
-    def __mul__(self, k: int) -> TP: ...
+    def __mul__(self: TP, k: int) -> TP: ...
 
-    @overload
-    def __mul__(self, k: TP) -> TP: ...
-
-    def __mul__(self: TP, k: int | TP) -> TP:  # noqa: D401
+    def __mul__(self: TP, k: int) -> TP:  # noqa: D401
         """Support scalar multiplication and fallback * as addition."""
-        # Scalar multiplication (int * Point)
-        if isinstance(k, int):
-            res: TP = cast(TP, self.identity_point())
-            addend: TP = self
-            n = k
-            while n:
-                if n & 1:
-                    res = res.__add__(addend)
-                addend = addend.double()
-                n >>= 1
-            return res
+        if not isinstance(k, int):
+            raise TypeError("Scalar multiplier must be int")
 
-        # Point * Point -> use addition as syntactic sugar
-        if isinstance(k, Point):
-            return self.__add__(cast(TP, k))
+        res: TP = cast(TP, self.identity_point())
+        addend: TP = self
+        n = k
+        while n:
+            if n & 1:
+                res = res.__add__(addend)
+            addend = cast(TP, addend.double())
+            n >>= 1
+        return res
 
-        raise TypeError("Unsupported operand type(s) for *: 'Point' and '{}'".format(type(k)))
-
-    __rmul__ = __mul__  # allows int * Point
+    def __rmul__(self: TP, k: int) -> TP:  # enable int * Point
+        return self.__mul__(k)
 
     # These must be supplied by concrete subclasses -------------------
 
