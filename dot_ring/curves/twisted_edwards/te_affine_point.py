@@ -40,7 +40,7 @@ class TEAffinePoint(Point[TECurve]):
     # Basic group operations (+, -, doubling, scalar-mul)
     # ---------------------------------------------------------------------
 
-    def __add__(self, other, /):  # type: ignore[override]
+    def __add__(self, other, /) -> "TEAffinePoint":  # type: ignore[override,return-value]
         if not isinstance(other, TEAffinePoint):
             raise TypeError("Can only add TEAffinePoints")
         if self == other:
@@ -64,7 +64,7 @@ class TEAffinePoint(Point[TECurve]):
     def __neg__(self) -> "TEAffinePoint":  # type: ignore[override]
         return self.__class__(-self.x % self.curve.PRIME_FIELD, self.y)  # type: ignore[arg-type]
 
-    def __sub__(self, other, /):  # type: ignore[override]
+    def __sub__(self, other, /) -> "TEAffinePoint":  # type: ignore[override,return-value]
         return self + (-other)  # type: ignore[arg-type]
 
     def double(self) -> Self:  # noqa: A003
@@ -87,7 +87,7 @@ class TEAffinePoint(Point[TECurve]):
             return self.glv_mul(scalar)
         return self.scalar_mul(scalar)
 
-    def scalar_mul(self, scalar: int) -> Self:
+    def scalar_mul(self, scalar: int) -> "TEAffinePoint":  # type: ignore[return-value]
         result = self.identity_point()
         addend = self
         scalar = scalar % self.curve.ORDER
@@ -98,7 +98,7 @@ class TEAffinePoint(Point[TECurve]):
             scalar >>= 1
         return result
 
-    def glv_mul(self, scalar: int) -> Self:
+    def glv_mul(self, scalar: int) -> "TEAffinePoint":  # type: ignore[return-value]
         n = self.curve.ORDER
         k1, k2 = self.curve.glv.decompose_scalar(scalar % n, n)
         phi = self.compute_endomorphism()
@@ -111,7 +111,7 @@ class TEAffinePoint(Point[TECurve]):
         P1,
         P2,
         w: int = 2,
-    ) -> "TEAffinePoint":
+    ) -> "TEAffinePoint":  # type: ignore[return-value]
         if not isinstance(P1, TEAffinePoint) or not isinstance(P2, TEAffinePoint):
             raise TypeError("Points must be TEAffinePoints")
         if P1.curve != self.curve or P2.curve != self.curve:
@@ -166,10 +166,10 @@ class TEAffinePoint(Point[TECurve]):
     # Cofactor clearing, encoding, etc.
     # ---------------------------------------------------------------------
 
-    def identity_point(self) -> Self:
+    def identity_point(self) -> "TEAffinePoint":  # type: ignore[return-value]
         return self.__class__(0, 1)  # type: ignore[arg-type]
 
-    def clear_cofactor(self) -> Self:
+    def clear_cofactor(self) -> "TEAffinePoint":  # type: ignore[return-value]
         return self * self.curve.COFACTOR
 
     # -- Encode-to-curve --------------------------------------------------------

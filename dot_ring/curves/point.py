@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
+# pyright: reportGeneralTypeIssues=false
 from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
 
 C = TypeVar("C", bound="CurveProtocol")
 
 
 class CurveProtocol(Protocol):
-    PRIME_FIELD: int
-    ORDER: int
-    Z: int
+    PRIME_FIELD: ClassVar[int]
+    ORDER: ClassVar[int]
+    Z: ClassVar[int]
 
 
 class PointProtocol(Protocol[C]):
