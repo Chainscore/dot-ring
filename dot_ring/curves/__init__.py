@@ -47,9 +47,13 @@ from dot_ring.curves.e2c import E2C_Variant  # noqa: E402
 from dot_ring.curves.glv import GLVSpecs, DisabledGLV  # noqa: E402
 from dot_ring.curves.curve import Curve  # noqa: E402
 
-__all__ += [
+__all__ = list(dict.fromkeys(__all__ + [
     "E2C_Variant",
     "GLVSpecs",
     "DisabledGLV",
     "Curve",
-]
+    "twisted_edwards",
+    "short_weierstrass",
+    "specs",
+    "bls12_381",
+]))
