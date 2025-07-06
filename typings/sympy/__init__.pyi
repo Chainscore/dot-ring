@@ -1,0 +1,3 @@
+from typing import Any
+
+def mod_inverse(a: int, m: int) -> int: ...

@@ -1,0 +1,13 @@
+from typing import Any
+
+# Minimal stub
+class EccPoint: ...
+
+def normalize(point: Any) -> Any: ...
+
+def multiply(point: Any, k: int) -> Any: ...
+
+def add(p1: Any, p2: Any) -> Any: ...
+
+Z1: Any
+curve_order: int

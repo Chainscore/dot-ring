@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 # pyright: reportGeneralTypeIssues=false
-from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
+from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union, overload
 
 C = TypeVar("C", bound="CurveProtocol")
 
@@ -53,16 +53,15 @@ class Point(Generic[C]):
     def __sub__(self, other: "Point[C]") -> "Point[C]":  # noqa: D401
         return self.__add__(-other)  # type: ignore[arg-type]
 
+    @overload
     def __mul__(self, k: int) -> "Point[C]":  # noqa: D401
         """Double-and-add fallback; override for efficient methods."""
-        result: Point[C] = self.identity_point()  # type: ignore[assignment]
-        addend: Point[C] = self  # type: ignore[assignment]
-        while k:
-            if k & 1:
-                result = result.__add__(addend)  # type: ignore[operator]
-            addend = addend.double()              # type: ignore[operator]
-            k >>= 1
-        return result
+        ...
+
+    @overload
+    def __mul__(self, k: int) -> "Point[C]":  # noqa: D401
+        """Double-and-add fallback; override for efficient methods."""
+        ...
 
     __rmul__ = __mul__  # allows int * Point
 
