@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 # pyright: reportGeneralTypeIssues=false
-from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union, overload
+from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union, overload, cast
 
 C = TypeVar("C", bound="CurveProtocol")
 
@@ -63,19 +63,19 @@ class Point(Generic[C]):
         """Support scalar multiplication and fallback * as addition."""
         # Scalar multiplication (int * Point)
         if isinstance(k, int):
-            res: Self = self.identity_point()  # type: ignore[assignment]
-            add: Self = Self(self.x, self.y, self.curve)  # recreate for proper Self type
+            res: Self = cast(Self, self.identity_point())
+            addend: Self = cast(Self, self)
             n = k
             while n:
                 if n & 1:
-                    res = res.__add__(add)
-                add = add.double()
+                    res = res.__add__(addend)
+                addend = addend.double()
                 n >>= 1
             return res
 
         # Point * Point -> use addition as syntactic sugar
         if isinstance(k, Point):
-            return self.__add__(k)  # type: ignore[return-value,arg-type]
+            return self.__add__(cast(Self, k))
 
         raise TypeError("Unsupported operand type(s) for *: 'Point' and '{}'".format(type(k)))
 
