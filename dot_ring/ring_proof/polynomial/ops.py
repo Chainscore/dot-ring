@@ -1,17 +1,23 @@
+from __future__ import annotations
+
+from typing import Sequence, Iterable, List
 from dot_ring.ring_proof.constants import S_PRIME, D_512 as D
 
-def mod_inverse(val, prime):
-    """Find the modular multiplicative inverse of a under modulo m."""
+Prime = int
+Vector = Sequence[int]
+Poly = List[int]
+
+def mod_inverse(val: int, prime: Prime) -> int:
+    """Modular inverse via Fermat's theorem."""
     if pow(val, prime - 1, prime) != 1:
         raise ValueError("No inverse exists")
     return pow(val, prime - 2, prime)
 
 
-def poly_add(poly1, poly2, prime):
-    """Add two polynomials in a prime field."""
-    # Make them the same length
+def poly_add(poly1: Vector, poly2: Vector, prime: Prime) -> Poly:
+    """Add two polynomials in GF(p)."""
     result_len = max(len(poly1), len(poly2))
-    result = [0] * result_len
+    result: Poly = [0] * result_len
 
     for i in range(len(poly1)):
         result[i] = poly1[i]
@@ -20,7 +26,7 @@ def poly_add(poly1, poly2, prime):
     return result
 
 
-def poly_subtract(poly1, poly2, prime):
+def poly_subtract(poly1: Vector, poly2: Vector, prime: Prime) -> Poly:
     """Subtract poly2 from poly1 in a prime field."""
     # Make them the same length
     result_len = max(len(poly1), len(poly2))
@@ -35,7 +41,7 @@ def poly_subtract(poly1, poly2, prime):
 
 
 #(On^2)
-def poly_multiply(poly1, poly2, prime):
+def poly_multiply(poly1: Vector, poly2: Vector, prime: Prime) -> Poly:
     """Multiply two polynomials in a prime field."""
     result_len = len(poly1) + len(poly2) - 1
     result = [0] * result_len
@@ -47,7 +53,7 @@ def poly_multiply(poly1, poly2, prime):
 
 import time
 
-def poly_division_general(c, d, p=S_PRIME):
+def poly_division_general(c: Vector, d: Vector, p: Prime = S_PRIME):
     """
     c: list of coefficients for numerator (highest degree last)
     d: list of coefficients for denominator
@@ -89,7 +95,7 @@ def poly_division_general(c, d, p=S_PRIME):
     return quotient#, c
 
 
-def poly_scalar(poly, scalar, prime):
+def poly_scalar(poly: Vector, scalar: int, prime: Prime) -> Poly:
     """Multiply a polynomial by a scalar in a prime field."""
     result = [(coef * scalar) % prime for coef in poly]
     return result
@@ -114,14 +120,14 @@ def poly_scalar(poly, scalar, prime):
 #70%
 from multiprocessing import Pool, cpu_count
 
-def poly_evaluate_single(args):
+def poly_evaluate_single(args: tuple[Vector, int, Prime]) -> int:
     poly, x, prime = args
     result=0
     for coef in reversed(poly):
         result = (result * x + coef) % prime
     return result  # Ensure plain Python int
 
-def poly_evaluate(poly, xs, prime):
+def poly_evaluate(poly: Vector, xs: int | Iterable[int], prime: Prime) -> int | List[int]:
     prime = int(prime)
     # Single-point evaluation
     if isinstance(xs, int):
@@ -163,7 +169,10 @@ def lagrange_basis_polynomial(x_coords, i, prime=S_PRIME):
 
 
 #vector subtraction
-def vect_sub(a,b, prime):
+from typing import Union
+
+
+def vect_sub(a: Union[int, Vector], b: Union[int, Vector], prime: Prime) -> Poly:
     if isinstance(a, int) and isinstance(b, list):
         n=len(b)
         a=[a]*n
@@ -179,7 +188,7 @@ def vect_sub(a,b, prime):
         return result
 
 #vector addition
-def vect_add(a, b, prime):
+def vect_add(a: Union[int, Vector], b: Union[int, Vector], prime: Prime) -> Poly:
     if isinstance(a, int) and isinstance(b, list):
         n=len(b)
         a=[a]*n
@@ -195,7 +204,7 @@ def vect_add(a, b, prime):
         return result
 
 #vector multiplication
-def vect_mul(a, b, prime):
+def vect_mul(a: Union[int, Vector], b: Union[int, Vector], prime: Prime) -> Poly:
     if isinstance(a, int) and isinstance(b, list):
         n=len(b)
         a=[a]*n

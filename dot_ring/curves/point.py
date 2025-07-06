@@ -63,7 +63,7 @@ class Point(Generic[CurveT]):
             raise TypeError("Scalar multiplier must be int")
 
         res: TP = cast(TP, self.identity_point())
-        addend: TP = self
+        addend: TP = cast(TP, self)
         n = k
         while n:
             if n & 1:
