@@ -7,7 +7,6 @@ import hashlib
 import math
 from dataclasses import dataclass
 # pyright: reportGeneralTypeIssues=false
-from typing import Self
 
 from sympy import mod_inverse  # type: ignore
 
@@ -41,7 +40,7 @@ class TEAffinePoint(Point[TECurve]):
     # Basic group operations (+, -, doubling, scalar-mul)
     # ---------------------------------------------------------------------
 
-    def __add__(self, other, /) -> Self:  # type: ignore[override]
+    def __add__(self, other, /) -> "TEAffinePoint":  # type: ignore[override]
         if not isinstance(other, TEAffinePoint):
             raise TypeError("Can only add TEAffinePoints")
         if self == other:
@@ -62,13 +61,13 @@ class TEAffinePoint(Point[TECurve]):
         y3 = ((y1y2 - self.curve.EdwardsA * x1x2) * self.curve.mod_inverse(1 - dx1x2y1y2)) % p
         return self.__class__(x3, y3)  # type: ignore[arg-type]
 
-    def __neg__(self) -> Self:  # type: ignore[override]
+    def __neg__(self) -> "TEAffinePoint":  # type: ignore[override]
         return self.__class__(-self.x % self.curve.PRIME_FIELD, self.y)  # type: ignore[arg-type]
 
-    def __sub__(self, other, /) -> Self:  # type: ignore[override]
+    def __sub__(self, other, /) -> "TEAffinePoint":  # type: ignore[override]
         return self + (-other)  # type: ignore[arg-type]
 
-    def double(self) -> Self:  # noqa: A003
+    def double(self) -> "TEAffinePoint":  # noqa: A003
         x1, y1 = self.x, self.y
         p = self.curve.PRIME_FIELD
         if y1 == 0:
@@ -83,12 +82,12 @@ class TEAffinePoint(Point[TECurve]):
 
     # ---- Scalar multiplication ------------------------------------------------
 
-    def __mul__(self, scalar: int) -> Self:  # type: ignore[override]
+    def __mul__(self, scalar: int) -> "TEAffinePoint":  # type: ignore[override]
         if self.curve.glv.is_enabled:
             return self.glv_mul(scalar)
         return self.scalar_mul(scalar)
 
-    def scalar_mul(self, scalar: int) -> Self:
+    def scalar_mul(self, scalar: int) -> "TEAffinePoint":
         result = self.identity_point()
         addend = self
         scalar = scalar % self.curve.ORDER
@@ -99,7 +98,7 @@ class TEAffinePoint(Point[TECurve]):
             scalar >>= 1
         return result
 
-    def glv_mul(self, scalar: int) -> Self:
+    def glv_mul(self, scalar: int) -> "TEAffinePoint":
         n = self.curve.ORDER
         k1, k2 = self.curve.glv.decompose_scalar(scalar % n, n)
         phi = self.compute_endomorphism()
@@ -112,7 +111,7 @@ class TEAffinePoint(Point[TECurve]):
         P1,
         P2,
         w: int = 2,
-    ) -> Self:
+    ) -> "TEAffinePoint":
         if not isinstance(P1, TEAffinePoint) or not isinstance(P2, TEAffinePoint):
             raise TypeError("Points must be TEAffinePoints")
         if P1.curve != self.curve or P2.curve != self.curve:
@@ -146,7 +145,7 @@ class TEAffinePoint(Point[TECurve]):
 
     # ---- Endomorphism ---------------------------------------------------------
 
-    def compute_endomorphism(self) -> Self:
+    def compute_endomorphism(self) -> "TEAffinePoint":
         p = self.curve.PRIME_FIELD
         B = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
         C = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
@@ -167,16 +166,16 @@ class TEAffinePoint(Point[TECurve]):
     # Cofactor clearing, encoding, etc.
     # ---------------------------------------------------------------------
 
-    def identity_point(self) -> Self:
+    def identity_point(self) -> "TEAffinePoint":
         return self.__class__(0, 1)  # type: ignore[arg-type]
 
-    def clear_cofactor(self) -> Self:
+    def clear_cofactor(self) -> "TEAffinePoint":
         return self * self.curve.COFACTOR
 
     # -- Encode-to-curve --------------------------------------------------------
 
     @classmethod
-    def encode_to_curve(cls, alpha_string: bytes | str, *, salt: bytes | str = b"") -> Self:  # noqa: D401,E501
+    def encode_to_curve(cls, alpha_string: bytes | str, *, salt: bytes | str = b"") -> "TEAffinePoint":  # noqa: D401,E501
         if not isinstance(alpha_string, bytes):
             alpha_string = bytes.fromhex(alpha_string)  # type: ignore[arg-type]
         if not isinstance(salt, bytes):
@@ -188,7 +187,7 @@ class TEAffinePoint(Point[TECurve]):
         raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"") -> Self:
+    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"") -> "TEAffinePoint":
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2)
         q0 = cls.map_to_curve(u[0])
@@ -196,7 +195,7 @@ class TEAffinePoint(Point[TECurve]):
         return (q0 + q1).clear_cofactor()  # type: ignore[operator]
 
     @classmethod
-    def encode_to_curve_tai(cls, alpha_string: bytes, salt: bytes = b"") -> Self:
+    def encode_to_curve_tai(cls, alpha_string: bytes, salt: bytes = b"") -> "TEAffinePoint":
         ctr = 0
         H: "TEAffinePoint | str" = "INVALID"
         front = b"\x01"
@@ -214,12 +213,12 @@ class TEAffinePoint(Point[TECurve]):
         return H  # type: ignore[return-value]
 
     @classmethod
-    def map_to_curve(cls, u: int) -> Self:
+    def map_to_curve(cls, u: int) -> "TEAffinePoint":
         s, t = cls.curve.map_to_curve_ell2(u)
         return cls.from_mont(s, t)
 
     @classmethod
-    def from_mont(cls, s: int, t: int) -> Self:
+    def from_mont(cls, s: int, t: int) -> "TEAffinePoint":
         field = cls.curve.PRIME_FIELD
         tv1 = (s + 1) % field
         tv2 = (tv1 * t) % field
