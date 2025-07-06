@@ -39,11 +39,41 @@ class Point(Generic[C]):
 
     ENCODING_LENGTH: ClassVar[int] = 32
 
-    def __post_init__(self) -> None:
-        if not self._validate_coordinates():
-            raise ValueError("Invalid point coordinates")
-        if not self.is_on_curve():
-            raise ValueError("Point is not on the curve")
+    # ------------------------------------------------------------------
+    # Minimal algebra interface – subclasses override fast versions
+    # ------------------------------------------------------------------
+
+    def __add__(self, other: "Point[C]") -> "Point[C]":  # noqa: D401
+        """Point addition (must be implemented by subclass)."""
+        raise NotImplementedError
+
+    def __neg__(self) -> "Point[C]":  # noqa: D401
+        raise NotImplementedError
+
+    def __sub__(self, other: "Point[C]") -> "Point[C]":  # noqa: D401
+        return self.__add__(-other)  # type: ignore[arg-type]
+
+    def __mul__(self, k: int) -> "Point[C]":  # noqa: D401
+        """Double-and-add fallback; override for efficient methods."""
+        result: Point[C] = self.identity_point()  # type: ignore[assignment]
+        addend: Point[C] = self  # type: ignore[assignment]
+        while k:
+            if k & 1:
+                result = result.__add__(addend)  # type: ignore[operator]
+            addend = addend.double()              # type: ignore[operator]
+            k >>= 1
+        return result
+
+    __rmul__ = __mul__  # allows int * Point
+
+    # These must be supplied by concrete subclasses -------------------
+
+    @classmethod
+    def identity_point(cls) -> "Point[C]":
+        raise NotImplementedError
+
+    def double(self) -> "Point[C]":
+        raise NotImplementedError
 
     def _validate_coordinates(self) -> bool:
         return 0 <= self.x < self.curve.PRIME_FIELD and 0 <= self.y < self.curve.PRIME_FIELD
