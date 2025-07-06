@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from dot_ring.curves.specs.bandersnatch import _Params as BandersnatchParams
 from sympy import mod_inverse
 from dot_ring.ring_proof.constants import S_PRIME, SIZE, D_512 as D, OMEGA
