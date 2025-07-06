@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+from dot_ring.curves.specs.bandersnatch import _Params as BandersnatchParams
 
 
 S_PRIME: int = BandersnatchParams.PRIME_FIELD  # Finite‑field modulus p

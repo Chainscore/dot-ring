@@ -1,8 +1,12 @@
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+from dot_ring.curves.specs.bandersnatch import _Params as BandersnatchParams
 from sympy import mod_inverse
 from dot_ring.ring_proof.constants import S_PRIME, SIZE, D_512 as D, OMEGA
-from dot_ring.ring_proof.transcript.transcript import Transcript
-from dot_ring.ring_proof.transcript.phases import phase1_alphas, phase2_eval_point, phase3_nu_vector
+from dot_ring.fiat_shamir.transcript import Transcript
+from dot_ring.fiat_shamir.phases import (
+    phase1_alphas,
+    phase2_eval_point,
+    phase3_nu_vector,
+)
 from dot_ring.ring_proof.polynomial.ops import lagrange_basis_polynomial, poly_evaluate
 from py_ecc.optimized_bls12_381 import  normalize as nm
 from dot_ring.ring_proof.pcs.kzg import KZG
@@ -62,7 +66,7 @@ class Verify:
 
         # Constraint 1
         term1 = (self.b_zeta * self.s_zeta) % MOD
-        inner_sum = (self.accip_zeta + term1) % MOD
+        inner_sum = (self.accip_zeta + term1) % MOD  # Ensures result is positive in the field
         negated = (-inner_sum) % MOD  # Ensures result is positive in the field
         vanishing_term = (zeta - D[-4]) % MOD
         c1_zeta = (negated * vanishing_term) % MOD
