@@ -7,19 +7,22 @@ location so external imports can switch immediately.
 
 from importlib import import_module as _import_module
 
-_bsn_mod = _import_module("dot_ring.curve.specs.bandersnatch")
-_jub_mod = _import_module("dot_ring.curve.specs.jubjub")
-_ed_mod = _import_module("dot_ring.curve.specs.ed25519")
-_bjb_mod = _import_module("dot_ring.curve.specs.baby_jubjub")
+Bander = _import_module("dot_ring.curves.specs.bandersnatch")
+Jub = _import_module("dot_ring.curves.specs.jubjub")
+Ed = _import_module("dot_ring.curves.specs.ed25519")
 
-BandersnatchCurve = _bsn_mod.BandersnatchCurve  # type: ignore[attr-defined]
-JubJubCurve = _jub_mod.JubJubCurve  # type: ignore[attr-defined]
-Ed25519Curve = _ed_mod.Ed25519Curve  # type: ignore[attr-defined]
-BabyJubJubCurve = _bjb_mod.BabyJubJubCurve  # type: ignore[attr-defined]
+BandersnatchCurve = Bander.BandersnatchCurve
+BandersnatchPoint = Bander.BandersnatchPoint
+JubJubCurve = Jub.JubJubCurve
+JubJubPoint = Jub.JubJubPoint
+Ed25519Curve = Ed.Ed25519Curve
+Ed25519Point = Ed.Ed25519Point
 
 __all__ = [
     "BandersnatchCurve",
+    "BandersnatchPoint",
     "JubJubCurve",
+    "JubJubPoint",
     "Ed25519Curve",
-    "BabyJubJubCurve",
+    "Ed25519Point",
 ]

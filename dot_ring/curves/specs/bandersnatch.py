@@ -72,10 +72,10 @@ _BS_CURVE = BandersnatchCurve()
 
 @dataclass(frozen=True)
 class BandersnatchPoint(TEAffinePoint):
-    curve: Final[BandersnatchCurve] = _BS_CURVE
+    """Point on Bandersnatch curve; curve singleton injected at init."""
 
     def __init__(self, x: int, y: int) -> None:  # noqa: D401
-        super().__init__(x, y, self.curve)
+        super().__init__(x, y, _BS_CURVE)
 
     @classmethod
     def generator_point(cls) -> Self:
