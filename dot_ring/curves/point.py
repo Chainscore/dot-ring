@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 # pyright: reportGeneralTypeIssues=false
-from typing import Protocol, TypeVar, Generic, Final, ClassVar, Union, overload, cast
+from typing import Any, Protocol, TypeVar, Generic, Final, ClassVar, Union, overload, cast
 
 CurveT = TypeVar("CurveT", bound="CurveProtocol")
 TP = TypeVar("TP", bound="Point[Any]")  # concrete point subtype

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
+from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar, Generic
 
 # from dot_ring.types.protocol.crypto import Hash
 # from dot_ring.utils.conv_helper import ConversionHelper
@@ -10,46 +10,46 @@ from dot_ring.curves.curve import Curve
 from dot_ring.curves.point import Point
 from ..ring_proof.helpers import Helpers
 
-C = TypeVar("C", bound=Curve)
-P = TypeVar("P", bound=Point)
+CurveType = TypeVar("CurveType", bound=Curve)
+PointType = TypeVar("PointType", bound=Point)
 
 
-class VRFProtocol(Protocol[C, P]):
+class VRFProtocol(Generic[CurveType, PointType], Protocol):
     """Protocol defining the interface for VRF implementations."""
-    curve: C
-    point_type: Type[P]
+    curve: CurveType
+    point_type: Type[PointType]
 
     @abstractmethod
     def proof(
             self, alpha: bytes, secret_key: int, additional_data: bytes
-    ) -> Tuple[P, Tuple[int, int]]:
+    ) -> Tuple[PointType, Tuple[int, int]]:
         """Generate VRF proof."""
         ...
 
     @abstractmethod
     def verify(
             self,
-            public_key: P,
-            input_point: P,
+            public_key: PointType,
+            input_point: PointType,
             additional_data: bytes,
-            output_point: P,
+            output_point: PointType,
             proof: Tuple[int, int],
     ) -> bool:
         """Verify VRF proof."""
         ...
 
 
-class VRF(ABC):
+class VRF(Generic[CurveType, PointType], ABC):
     """
     Base VRF (Verifiable Random Function) implementation.
 
     This class provides the core functionality for VRF operations,
     following the IETF specification.
     """
-    curve: C
-    point_type: Type[P]
+    curve: CurveType
+    point_type: Type[PointType]
 
-    def __init__(self, curve: C, point_type: Type[P]):
+    def __init__(self, curve: CurveType, point_type: Type[PointType]):
         """
         Initialize VRF with a curve.
 
