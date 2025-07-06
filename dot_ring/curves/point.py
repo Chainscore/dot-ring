@@ -57,10 +57,17 @@ class Point(Generic[CurveT]):
     @overload
     def __mul__(self: TP, k: int) -> TP: ...
 
-    def __mul__(self: TP, k: int) -> TP:  # noqa: D401
+    @overload
+    def __mul__(self: TP, k: "Point[Any]") -> TP: ...
+
+    def __mul__(self: TP, k: int | "Point[Any]") -> TP:  # noqa: D401
         """Support scalar multiplication and fallback * as addition."""
+        if isinstance(k, Point):
+            # reuse addition when both operands are points of same subtype
+            return self.__add__(cast(TP, k))
+
         if not isinstance(k, int):
-            raise TypeError("Scalar multiplier must be int")
+            raise TypeError("Scalar multiplier must be int or Point")
 
         res: TP = cast(TP, self.identity_point())
         addend: TP = cast(TP, self)
