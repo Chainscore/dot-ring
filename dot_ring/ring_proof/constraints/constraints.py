@@ -2,7 +2,7 @@ from __future__ import annotations
 from concurrent.futures import ProcessPoolExecutor
 import time
 
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+from dot_ring.curves.specs.bandersnatch import _Params as BandersnatchParams
 # from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
 from dot_ring.ring_proof.constants import SeedPoint
 from dataclasses import dataclass, field

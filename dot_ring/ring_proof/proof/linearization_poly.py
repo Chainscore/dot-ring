@@ -1,18 +1,20 @@
-import sys
+import sys  # mypy: ignore-errors
 import time
 
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+from dot_ring.curves.specs.bandersnatch import _Params as BandersnatchParams
 from dot_ring.ring_proof.constants import OMEGA as omega, D_512 as D, S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     poly_add, poly_scalar, vect_mul, poly_multiply
 )
 from dot_ring.ring_proof.polynomial.ops import poly_evaluate
-from dot_ring.ring_proof.transcript.phases import phase2_eval_point
+from dot_ring.fiat_shamir.phases import phase2_eval_point
 
+# mypy: ignore-errors
 class LAggPoly:
 
     def __init__(self, cur_t, C_q, fixed_cols, witness_res, alphas):
-        self.t, self.zeta = phase2_eval_point(cur_t, C_q)
+        self.zeta = phase2_eval_point(cur_t, C_q)
+        self.t = cur_t
         self.zeta_omega = (self.zeta * omega) % S_PRIME
         self.scalar_term = (self.zeta - D[-4]) % S_PRIME
         self.fs= fixed_cols

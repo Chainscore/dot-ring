@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any, List, Sequence
 
-from dot_ring.ring_proof.transcript.serialize import serialize
-from dot_ring.ring_proof.transcript.transcript import Transcript
+from dot_ring.fiat_shamir.serialize import serialize
+from dot_ring.fiat_shamir.transcript import Transcript
 
 __all__ = [
     "phase1_alphas",

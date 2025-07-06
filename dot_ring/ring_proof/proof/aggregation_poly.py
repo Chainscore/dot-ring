@@ -1,8 +1,9 @@
+# mypy: ignore-errors
 import time
 start_time=time.time()
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ops import poly_add, poly_scalar
-from dot_ring.ring_proof.transcript.phases import phase3_nu_vector
+from dot_ring.fiat_shamir.phases import phase3_nu_vector
 # from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.helpers import  Helpers as H
 

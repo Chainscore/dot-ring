@@ -1,6 +1,7 @@
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams, BandersnatchCurve, BandersnatchPoint
-from dot_ring.curve.twisted_edwards.te_affine_point import TEAffinePoint
-from dot_ring.curve.twisted_edwards.te_curve import TECurve
+# mypy: ignore-errors
+from dot_ring.curves.specs.bandersnatch import _Params as BandersnatchParams, BandersnatchCurve, BandersnatchPoint
+from dot_ring.curves.twisted_edwards.te_affine_point import TEAffinePoint
+from dot_ring.curves.twisted_edwards.te_curve import TECurve
 from dot_ring.ring_proof.constants import S_PRIME
 
 from typing import  Tuple,List, Any

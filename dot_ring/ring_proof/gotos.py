@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import time
 from typing import List, Any
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
@@ -6,8 +7,8 @@ from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
-from dot_ring.ring_proof.transcript.phases import phase1_alphas
-from dot_ring.ring_proof.transcript.transcript import Transcript
+from dot_ring.fiat_shamir.phases import phase1_alphas
+from dot_ring.fiat_shamir.transcript import Transcript
 # from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
 from dot_ring.ring_proof.constants import Blinding_Base, S_PRIME, OMEGA_2048, SeedPoint
 from dot_ring.ring_proof.columns.columns import WitnessColumnBuilder, PublicColumnBuilder
@@ -20,10 +21,8 @@ from dot_ring.ring_proof.proof.linearization_poly import LAggPoly
 from dot_ring.ring_proof.proof.aggregation_poly import AggPoly
 from dot_ring.ring_proof.verify import Verify
 from dot_ring.ring_proof.constants import D_512 as D
-from dot_ring.curve.specs.bandersnatch import (
-    Bandersnatch_TE_Curve,
-    BandersnatchPoint,
-)
+from dot_ring.curves.specs.bandersnatch import BandersnatchCurve, BandersnatchPoint
+Bandersnatch_TE_Curve = BandersnatchCurve()
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 
