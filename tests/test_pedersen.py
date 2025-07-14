@@ -25,7 +25,6 @@ def test_prove_bandersnatch_ed_sha512_ell2_pedersen():
                 vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
                 proof = vrf.proof(vector["alpha"], secret_scalar, vector["ad"])
                 output_point,public_key_cp, R, Ok, S, Sb = (proof[32*0:32*1],proof[32 * 1:32 * 2],proof[32 * 2:32 * 3],proof[32 * 3:32 * 4],proof[32 * 4:32 * 5],proof[32 * 5:32 * 6])
-                print("3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18")
                 assert output_point.hex()== vector["gamma"]
                 assert public_key_cp.hex() == vector["proof_pk_com"]
                 assert R.hex() == vector["proof_r"]
@@ -50,8 +49,7 @@ def test_verify_bandersnatch_ed_sha512_ell2_ietf():
             for i, vector in enumerate(data):
                 secret_scalar =vector["sk"]
                 vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
-                blinding_factor = vector["blinding"]
-                proof = vrf.proof(vector["alpha"],secret_scalar,vector["ad"],blinding_factor)
+                proof = vrf.proof(vector["alpha"],secret_scalar,vector["ad"])
                 input_point = BandersnatchPoint.encode_to_curve(vector["alpha"],vector["salt"])
                 assert vrf.verify(input_point, vector["ad"],proof)
                 print(f"✅ Testcase {i + 1} of {file}")
