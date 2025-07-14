@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
-from typing import Final, Optional, Tuple, Type
+from typing import Final, Optional, Tuple, Type, Any
 from dot_ring.curve.point import Point
 
 from ...curve.curve import Curve
@@ -113,14 +114,26 @@ class PedersenVRF(VRF):
     #     Theta1 = R + (public_key_cp * c) == generator * s + b_base * Sb
     #     return Theta0 == Theta1
 
+    def blinding(self,secret: bytes, input_point: bytes, add: bytes) -> int:
+        DOM_SEP_START = b'\xCC'
+        DOM_SEP_END = b'\x00'
+        buf = self.curve.SUITE_STRING + DOM_SEP_START
+        buf += secret
+        buf += input_point
+        buf += add
+        buf += DOM_SEP_END
+        hashed = hashlib.sha512(buf).digest()
+        return  int.from_bytes(hashed) % self.curve.ORDER
+
+
     def proof(
         self,
         alpha: bytes|str,
         secret_key: bytes|str,
         additional_data: bytes|str,
-        blinding_factor: bytes|str,
-        salt: bytes = b"",
-    ) -> bytes:
+        need_blinding=False,
+        salt: bytes = b""
+    ) -> bytes| tuple[Any, bytes]:
         """
         Generate Pedersen VRF proof.
 
@@ -134,19 +147,21 @@ class PedersenVRF(VRF):
         Returns:
             Tuple[Point, Tuple[Point,Point,Point,int,int]]: (output_point, (public_key_cp_proof,r_proof,Ok_proof,s,sb))
         """
+
         if not isinstance(additional_data, bytes):
             additional_data= bytes.fromhex(additional_data)
         if not isinstance(alpha, bytes):
             alpha= bytes.fromhex(alpha)
 
         secret_key=Helpers.l_endian_2_int(secret_key)%self.curve.ORDER
-        blinding_factor=Helpers.l_endian_2_int(blinding_factor)
+
         # Create generator point
         generator = self.point_type.generator_point()
 
         b_base = self.point_type(self.curve.BBx, self.curve.BBy)
         input_point = self.point_type.encode_to_curve(alpha, salt)
-
+        blinding = Helpers.to_l_endian(self.blinding(secret_key.to_bytes(32,'little'), input_point.point_to_string(),additional_data))
+        blinding_factor = Helpers.l_endian_2_int(blinding)
         output_point = input_point * secret_key
         k = self.generate_nonce(secret_key, input_point)
         Kb = self.generate_nonce(blinding_factor, input_point)
@@ -159,6 +174,8 @@ class PedersenVRF(VRF):
         s = (k + c * secret_key) % self.curve.ORDER
         Sb = (Kb + c * blinding_factor) % self.curve.ORDER
         proof= output_point.point_to_string() + public_key_cp.point_to_string()+ R.point_to_string() +Ok.point_to_string()+ Helpers.to_l_endian(s)+ Helpers.to_l_endian(Sb)
+        if need_blinding:
+            return proof, blinding
         return proof
 
 
