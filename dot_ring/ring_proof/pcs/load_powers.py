@@ -1,14 +1,9 @@
 import os
-
-HERE = os.path.dirname(__file__)
+from pathlib import Path
 
 def read_srs_file():
-    filename = os.path.abspath(
-        os.path.join(HERE, "bls12-381-srs-2-11-uncompressed-zcash.bin")
-    )
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"File {filename} not found.")
-
+    base_dir = Path(__file__).resolve().parent
+    filename = base_dir.parent.parent / "vrf" / "data" / "bls12-381-srs-2-11-uncompressed-zcash.bin"
     with open(filename, "rb") as f:
         data = f.read()
 
