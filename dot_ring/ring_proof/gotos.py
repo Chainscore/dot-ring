@@ -108,9 +108,26 @@ def construct_ring_root(keys: List[Any], third_party_msm:bool)->bytes:
     #return ring_root
     keys_as_bs_points = []
     for key in keys:
-        point = BandersnatchPoint.string_to_point(bytes(key))  # or take key[2:] by skipping '0x'
-        keys_as_bs_points.append((point.x, point.y))
-    t = time.time()
+        if int.from_bytes(bytes(key))!=0:
+            point = BandersnatchPoint.string_to_point(bytes(key))
+            if point:
+                keys_as_bs_points.append((point.x, point.y))
+            else:
+        #         # point=BandersnatchPoint(0, int.from_bytes(bytes(key)))#.clear_cofactor()
+        #         # keys_as_bs_points.append((point.x, point.y))
+        #             # 'new_value': 'a6c2f622ccf61a6df6de4984466b9392265efb6d0fe77fe7b89ef9585291bac4263fe5227f381d0247873b52a3693c86acd94b925ac12458724358c0646159763ccc93234a896bc3ca1fd2b20ce4f58c1bbdabbe96a7eb9bd3e29cf9ab3cb0cf92e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf',
+        #         # 'old_value': 'b87fcb0245936c1bc2c5d04b4e4af0227afb1bca172ef2d9ca3058dd1755ca4f22a62bdfeddb111aec5a290c95d13073867f063435d918330e02fbfb146877f626da39596079bc032ca9fba3dd734008cef6b9235be58904ec220296b952c9fe92e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf'}}}
+                keys_as_bs_points.append((1,0))
+        #         break
+        #         continue
+        #
+                # keys_as_bs_points.append((Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y))
+        else:
+            # break
+            #continue
+            keys_as_bs_points.append((0, 1))
+            # keys_as_bs_points.append((Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y))
+            # print("added :", int.from_bytes(bytes(key)))
     ring_root = PC()  # ring_root builder
     fixed_cols = ring_root.build(keys_as_bs_points, kzg)
 
@@ -164,7 +181,7 @@ def verify_signature(message:bytes|str, ring_root:bytes|str, proof:bytes|str)->b
 
 
 # def ring_vrf_proof(alpha, add, blinding_factor, producer_key, keys:List[BandersnatchPublic]):
-def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any], third_party_msm:bool)->bytes:
+def ring_vrf_proof(alpha:bytes|str, add:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any], third_party_msm:bool)->bytes:
     """get the args u want and generate the
     ring_vrf_proof (pedersen vrf proof + ring_proof ) \
     which of length 784 bytes"""
@@ -177,14 +194,12 @@ def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, se
         add= bytes.fromhex(add)
     if not isinstance(add, bytes):
         add = bytes.fromhex(add)
-    if not isinstance(blinding_factor, bytes):
-        blinding_factor = bytes.fromhex(blinding_factor)
     if not isinstance(add, bytes):
         secret_key = bytes.fromhex(secret_key)
 
     #pedersen_proof=get the pedersen proof
     vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
-    pedersen_proof = vrf.proof(alpha,secret_key,add,blinding_factor)
+    pedersen_proof, blinding_factor = vrf.proof(alpha,secret_key,add, True)
     #ring_proof= get the ring_signature
     ring_proof= generate_bls_signature(blinding_factor,producer_key, keys, third_party_msm)
     if not isinstance(ring_proof, bytes):
