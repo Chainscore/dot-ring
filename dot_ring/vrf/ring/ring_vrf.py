@@ -7,12 +7,12 @@ from dot_ring.ring_proof.gotos import*
 class RingVrf:
 
     @staticmethod
-    def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List[Any], third_party_msm:bool=False)->bytes:
+    def generate_bls_signature(blinding: bytes|str,producer_key:bytes|str, keys: List[Any], third_party_msm:bool=False)->bytes:
         """
             get the all the data needed and
             return the signature as an output"
             """
-        return generate_bls_signature(secret_t, producer_key, keys, third_party_msm)
+        return generate_bls_signature(blinding, producer_key, keys, third_party_msm)
 
     @staticmethod
     def construct_ring_root(keys: List[Any], third_party_msm:bool=False)->bytes:
@@ -29,11 +29,11 @@ class RingVrf:
         return verify_signature(message,ring_root, ring_signature)
 
     @staticmethod
-    def ring_vrf_proof(alpha:bytes|str, add:bytes|str, blinding_factor:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any], third_party_msm:bool=False)->bytes:
+    def ring_vrf_proof(alpha:bytes|str, add:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any], third_party_msm:bool=False)->bytes:
         """get the args u want and generate the
         ring_vrf_proof (pedersen vrf proof + ring_proof ) \
         which of length 784 bytes"""
-        return ring_vrf_proof(alpha, add, blinding_factor, secret_key,producer_key, keys, third_party_msm)
+        return ring_vrf_proof(alpha, add, secret_key,producer_key, keys, third_party_msm)
 
     @staticmethod
     def ring_vrf_proof_verify(ad_data:bytes|str, ring_root:bytes|str, signature:bytes|str, message:bytes|str=b"")->bool:
