@@ -27,8 +27,7 @@ def test_single():
     # For Pedersen VRF
     # proof
     vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
-    blinding_factor = "01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
-    proof = vrf.proof(alpha, secret_key, add, blinding_factor)
+    proof = vrf.proof(alpha, secret_key, add)
     print("Pedersen Proof", proof)
 
     # verfify pedersen proof
@@ -44,13 +43,12 @@ def test_single():
               "48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3",
               "f16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d"]
 
-    blinding = "01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
     s_k = "3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18"
     p_k = "a1b1da71cc4682e159b7da23050d8b6261eb11a3247c89b07ef56ccd002fd38b"
     alpha = b""
     ad = b""
     B_keys = [bytes.fromhex(i) for i in B_keys]
-    ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad, blinding, p_k, s_k, B_keys)
+    ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad, p_k, s_k, B_keys)
     print("Ring_VRF_Proof:", ring_vrf_proof)
 
     # 5 RingVrf Proof Verify using (add, ring_root, ring_vrf_proof, message)
@@ -124,13 +122,12 @@ def test_single():
     "48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3",
     "f16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d"]
 
-    blinding="01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
     s_k="3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18"
     p_k="a1b1da71cc4682e159b7da23050d8b6261eb11a3247c89b07ef56ccd002fd38b"
     alpha=b""
     ad=b""
     B_keys=[bytes.fromhex(i) for i in B_keys]
-    ring_vrf_proof= RVRF.ring_vrf_proof(alpha, ad, bytes.fromhex(blinding),bytes.fromhex(p_k),bytes.fromhex(s_k), B_keys)
+    ring_vrf_proof= RVRF.ring_vrf_proof(alpha, ad,bytes.fromhex(p_k),bytes.fromhex(s_k), B_keys)
     print("Ring_VRF_Proof:", ring_vrf_proof)
 
     #4 Proof to hash
