@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import TypeVar, Self
 
-from sympy import mod_inverse
+from sympy import mod_inverse, sqrt_mod
 
 from dot_ring.curve.e2c import E2C_Variant
 
@@ -370,9 +370,7 @@ class TEAffinePoint(Point[C]):
         front = b'\x01'
         back = b'\x00'
         salt = salt.encode() if isinstance(salt, str) else salt
-
         suite_string = b''  # cls.curve.SUITE_STRING.encode()
-
         while H == "INVALID" or H == (0, 1):
             ctr_string = ctr.to_bytes(1, "big")
             hash_input = (suite_string + front + b"" + alpha_string + ctr_string + back)
@@ -381,7 +379,6 @@ class TEAffinePoint(Point[C]):
             if H != "INVALID" and cls.curve.COFACTOR > 1:
                 H = cls.scalar_mul(H, cls.curve.COFACTOR)
             ctr += 1
-
         return H
 
     def clear_cofactor(self) -> Self:
@@ -447,5 +444,7 @@ class TEAffinePoint(Point[C]):
         rhs = cls.curve.EdwardsA - (cls.curve.EdwardsD * (y ** 2)) % cls.curve.PRIME_FIELD
         val = cls.curve.mod_inverse(rhs)
         do_sqrt = lhs * val % cls.curve.PRIME_FIELD
-        x = cls.curve.mod_sqrt(do_sqrt) % cls.curve.PRIME_FIELD
-        return x
+        x = sqrt_mod(do_sqrt, cls.curve.PRIME_FIELD)
+        if not x:
+            return 0
+        return x%cls.curve.PRIME_FIELD

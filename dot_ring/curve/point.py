@@ -121,6 +121,8 @@ class Point(Generic[C]):
 
         # Recover x-coordinate
         x = cls._x_recover(y)
+        if not x:
+            return None
         x_parity = (octet_string[-1] >> 7)
         p_half = (cls.curve.PRIME_FIELD - 1) // 2
 

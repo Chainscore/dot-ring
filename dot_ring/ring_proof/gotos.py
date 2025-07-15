@@ -9,7 +9,7 @@ from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
 from dot_ring.ring_proof.transcript.phases import phase1_alphas
 from dot_ring.ring_proof.transcript.transcript import Transcript
 # from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
-from dot_ring.ring_proof.constants import Blinding_Base, S_PRIME, OMEGA_2048, SeedPoint
+from dot_ring.ring_proof.constants import Blinding_Base, S_PRIME, OMEGA_2048, SeedPoint, PaddingPoint
 from dot_ring.ring_proof.columns.columns import WitnessColumnBuilder, PublicColumnBuilder
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.helpers import Helpers as H, Helpers
@@ -40,8 +40,12 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
     # return signature
     if not isinstance(producer_key, bytes):
         producer_key_point = BandersnatchPoint.string_to_point(bytes.fromhex(producer_key))
+        if not producer_key_point:
+            producer_key_point= BandersnatchPoint(PaddingPoint[0], PaddingPoint[1])
     else:
         producer_key_point = BandersnatchPoint.string_to_point(producer_key)
+        if not producer_key_point:
+            producer_key_point= BandersnatchPoint(PaddingPoint[0], PaddingPoint[1])
 
     secret_t=Helpers.l_endian_2_int(secret_t)
     producer_key_pt= (producer_key_point.x, producer_key_point.y)
@@ -108,26 +112,12 @@ def construct_ring_root(keys: List[Any], third_party_msm:bool)->bytes:
     #return ring_root
     keys_as_bs_points = []
     for key in keys:
-        if int.from_bytes(bytes(key))!=0:
-            point = BandersnatchPoint.string_to_point(bytes(key))
-            if point:
-                keys_as_bs_points.append((point.x, point.y))
-            else:
-        #         # point=BandersnatchPoint(0, int.from_bytes(bytes(key)))#.clear_cofactor()
-        #         # keys_as_bs_points.append((point.x, point.y))
-        #             # 'new_value': 'a6c2f622ccf61a6df6de4984466b9392265efb6d0fe77fe7b89ef9585291bac4263fe5227f381d0247873b52a3693c86acd94b925ac12458724358c0646159763ccc93234a896bc3ca1fd2b20ce4f58c1bbdabbe96a7eb9bd3e29cf9ab3cb0cf92e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf',
-        #         # 'old_value': 'b87fcb0245936c1bc2c5d04b4e4af0227afb1bca172ef2d9ca3058dd1755ca4f22a62bdfeddb111aec5a290c95d13073867f063435d918330e02fbfb146877f626da39596079bc032ca9fba3dd734008cef6b9235be58904ec220296b952c9fe92e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf'}}}
-                keys_as_bs_points.append((1,0))
-        #         break
-        #         continue
-        #
-                # keys_as_bs_points.append((Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y))
+        point = BandersnatchPoint.string_to_point(bytes(key))
+        if point:
+            keys_as_bs_points.append((point.x, point.y))
         else:
-            # break
-            #continue
-            keys_as_bs_points.append((0, 1))
-            # keys_as_bs_points.append((Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y))
-            # print("added :", int.from_bytes(bytes(key)))
+            keys_as_bs_points.append((PaddingPoint[0], PaddingPoint[1]))
+
     ring_root = PC()  # ring_root builder
     fixed_cols = ring_root.build(keys_as_bs_points, kzg)
 
