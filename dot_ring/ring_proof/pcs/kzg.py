@@ -5,18 +5,17 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Sequence, Tuple, Any
 
-
 import time
 import py_ecc.optimized_bls12_381 as bls
 from py_ecc.optimized_bls12_381 import (
     G1,
     add,
     multiply,
-    neg,
-    pairing, Z1, optimized_pairing, normalize, double)
+    neg, Z1, pairing, normalize, double)
+from py_ecc.optimized_bls12_381.optimized_pairing import miller_loop
 from py_ecc.optimized_bls12_381 import FQ, FQ2
 #use either of pyblst or blst from github
-from pyblst import BlstP1Element #1
+from pyblst import BlstP1Element, final_verify, BlstP2Element
 
 from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.ring_proof.pcs.load_powers import (
@@ -404,15 +403,14 @@ class KZG:
         g1_value = multiply(G1, value)  # G1->G
         commitment_minus_value = add(commitment, neg(g1_value))
         # Right pairing: e(commitment - [value]G1, G2)
-        right_pairing = pairing(srs_g2[0], commitment_minus_value)
-
+        right_pairing = miller_loop(srs_g2[0],commitment_minus_value)
         # Left pairing: e(proof, [tau]G2 - [point]G2)
         # Compute left side: e(proof, [tau]G2 - [point]G2)
         g2_point = multiply(srs_g2[0], point)  # G2->H.i
         shifted_g2 = add(srs_g2[1], neg(g2_point))  # srs_g2[1]->H.t
-        left_pairing = pairing(shifted_g2, proof)
-
+        left_pairing =miller_loop(shifted_g2,proof)
         return left_pairing == right_pairing
+
 
     @classmethod
     def default(cls, *, max_deg: int = 2048, use_third_party_commit=True) -> "KZG":
@@ -420,4 +418,44 @@ class KZG:
         kzg = cls(srs)
         kzg.use_third_party_commit = use_third_party_commit  # <== Add this flag to instance
         return kzg
+
+
+    # def verify(self, commitment: Point_G1,proof: Point_G1,point: Scalar,value: Scalar):
+    #     """
+    #     input: commitment, proof, point, value
+    #     output:verify the proof and tell whether its true/false
+    #     """
+        #To see the miller loop implementation approach and
+        #To use the rust implementation approach
+        #To use the AI approach
+        #To see the blst library implementation appraoch
+        #To see if there are any other ways to implement the pairing
+
+
+    # def verify(self,commitment: Point_G1,proof: Point_G1,point: Scalar,value: Scalar) -> bool:
+    #
+    #     srs_g2 = [(FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0])) for (x, y) in g2_points]
+    #     # commitment - value * G1
+    #     g1_val = multiply(G1, value)
+    #     commitment_minus_y = add(commitment, neg(g1_val))
+    #
+    #     # Convert G1 elements
+    #     blst_commit = BlstP1Element().from_affine(commitment_minus_y[0].n, commitment_minus_y[1].n)
+    #     blst_proof = BlstP1Element().from_affine(proof[0].n, proof[1].n)
+    #
+    #     # [τ]G2 - [x]G2
+    #     x_g2 = multiply(g2_0, point)
+    #     tau_minus_x = add(g2_1, neg(x_g2))
+    #
+    #     # Convert G2 elements
+    #     blst_g2_0 = BlstP2Element().from_affine([g2_0[0][0].n, g2_0[0][1].n],[g2_0[1][0].n, g2_0[1][1].n])
+    #     blst_shifted_g2 = BlstP2Element().from_affine([tau_minus_x[0][0].n, tau_minus_x[0][1].n],[tau_minus_x[1][0].n, tau_minus_x[1][1].n])
+    #
+    #     # Pairings
+    #     e1 = miller_loop(blst_g2_0, blst_commit)
+    #     e2 = miller_loop(blst_shifted_g2, blst_proof)
+    #
+    #     # Final verify
+    #     return final_verify([e1, e2])
+
 
