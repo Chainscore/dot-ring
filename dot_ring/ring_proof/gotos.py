@@ -262,10 +262,7 @@ def ring_vrf_proof_verify(context:bytes|str, ring_root:bytes|str, proof:bytes|st
     input_point = BandersnatchPoint.encode_to_curve(alpha)
 
     #is pedersen proof valid
-    pedersen_verify=time.time()
     p_proof_valid= vrf.verify(input_point, context , pedersen_proof)
-    pedersen_end=time.time()
-    print("Pedersen alone:", pedersen_end-pedersen_verify)
     rel_to_proove=BandersnatchPoint.string_to_point(pedersen_proof[32:64])
     #Extract and verify the Ring proof
     ring_proof=proof[192:]
