@@ -45,3 +45,8 @@ class RingVrf:
     def pedersen_proof_to_hash(pedersen_proof:bytes|str)->bytes:
         """get the pedersen proof alone and return the 32 bytes hash"""
         return pedersen_proof_to_hash(pedersen_proof)
+
+    @staticmethod
+    def get_public_key(secret_key:bytes|str)->bytes:
+        """Take the Secret_Key and return Public Key"""
+        return get_public_key(secret_key)
