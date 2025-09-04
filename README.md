@@ -1,5 +1,3 @@
-from tests.single_tests import secret_key
-
 # 🔐 dot-ring
 
 `dot-ring` is a Python library for generating and verifying advanced Verifiable Random Functions with Additional Data (VRF-AD), including:
