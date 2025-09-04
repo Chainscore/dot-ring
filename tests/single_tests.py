@@ -79,31 +79,3 @@ proof_sb= "e2ca83136143e0cac3f7ee863edd3879ed753b995b1ff8d58305d3b1f323630b"
 Pedersen_proof=gamma+proof_pk_com+proof_r+proof_ok+ proof_s+proof_sb
 signature=Pedersen_proof+Ring_Proof
 print("Is The Ring Proof_Valid:", RVRF.ring_vrf_proof_verify(add, RING_ROOT, signature, ALPHA)) #c, r,sign,alpha
-
-
-
-# vrf= PedersenVRF(JubJub_TE_Curve,JubJubPoint)
-# blinding_factor = "01371ac62e04d1faaadbebaa686aaf122143e2cda23aacbaa4796d206779a501"
-# proof = vrf.proof(alpha,secret_key,add,blinding_factor)
-# print("Pedersen Proof", proof)
-#
-# #verfify pedersen proof
-# p_proof_valid= vrf.verify(input_point, add, proof)
-# print("is Pedersen Proof valid:", p_proof_valid)
-
-
-# vrf= PedersenVRF(Ed25519_TE_Curve,Ed25519Point)
-# vrf = PedersenVRF(BabyJubJub_TE_Curve,BabyJubJubPoint )
-
-
-
-#to get the proof
-#to verify the proof
-#chenged the tests of pedersen and ietf
-#change the ring_vrf_tests as well
-
-
-
-#changes to be done
-#to get the output point, input point, secret_key
-#to make the point inside the verify logic as a dynamic point type(for now its Bandersnatch)
