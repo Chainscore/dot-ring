@@ -266,3 +266,8 @@ def ring_vrf_proof_verify(context:bytes|str, ring_root:bytes|str, proof:bytes|st
     #is ring_proof valid
     ring_proof_valid= valid.is_signtaure_valid()
     return p_proof_valid and ring_proof_valid
+
+#To geenerate the public_key from secret key
+def get_public_key(secret_key:bytes|str)->bytes:
+    vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
+    return vrf.get_public_key(secret_key)
