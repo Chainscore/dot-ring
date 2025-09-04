@@ -50,8 +50,3 @@ class RingVrf:
     def get_public_key(secret_key:bytes|str)->bytes:
         """Take the Secret_Key and return Public Key"""
         return get_public_key(secret_key)
-
-    @staticmethod
-    def get_public_key(secret_key:bytes|str)->bytes:
-        """Take the Secret_Key and return Public Key"""
-        return get_public_key(secret_key)
