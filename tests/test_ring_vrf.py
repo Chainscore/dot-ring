@@ -17,8 +17,9 @@ def test_ring_proof():
         s_k =item['sk']
         alpha = item['alpha']
         ad = item['ad']
-        B_keys_ring = bytes.fromhex(item['ring_pks'])
-        B_keys=[B_keys_ring[32*i:32*(i+1)] for i in range(len(B_keys_ring)//32)]
+        # B_keys_ring = bytes.fromhex(item['ring_pks'])
+        # B_keys=[B_keys_ring[32*i:32*(i+1)] for i in range(len(B_keys_ring)//32)]
+        B_keys=item['ring_pks']
         ring_root = RVRF.construct_ring_root(B_keys)
         start_time=time.time()
         p_k = RVRF.get_public_key(s_k)
