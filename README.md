@@ -67,10 +67,10 @@ from dot_ring.vrf.ring.ring_vrf import RingVrf
 
 rvrf = RingVrf()
 # Generate ring root commitment
-ring_root = rvrf.construct_ring_root(list_of_bandersnatch_keys, third_party_msm=True/False)  # generate ring root of length 144 bytes
+ring_root = rvrf.construct_ring_root(ring_pks, third_party_msm=True/False)  # generate ring root of length 144 bytes
 # Generate Ring VRF proof
 public_key = vrf.get_public_key(secret_key)
-ring_vrf_proof = rvrf.ring_vrf_proof(alpha,add,secret_key,public_key,ring_pks,use_third_party_msm=True/False)  # Generates proof of length 784 bytes
+ring_vrf_proof = rvrf.ring_vrf_proof(alpha,add,secret_key,public_key,ring_pks,third_party_msm=True/False)  # Generates proof of length 784 bytes
 #verfiy Ring VRF Proof
 is_valid = rvrf.ring_vrf_proof_verify(add,ring_root,ring_vrf_proof, alpha)
 ```
