@@ -39,7 +39,8 @@ point_type = BandersnatchPoint
 
 vrf = IETF_VRF(curve, point_type)
 
-public_key = vrf.get_public_key(secret_key)
+
+public_key = point_type.string_to_point(rvrf.get_public_key(secret_key))
 input_point = point_type.encode_to_curve(alpha, salt)
 proof = vrf.proof(alpha, secret_key, add)  # Generates Proof of length 96 bytes
 is_valid = vrf.verify(public_key, input_point, add, proof)
@@ -68,7 +69,7 @@ rvrf = RingVrf()
 # Generate ring root commitment
 ring_root = rvrf.construct_ring_root(list_of_bandersnatch_keys, third_party_msm=True/False)  # generate ring root of length 144 bytes
 # Generate Ring VRF proof
-public_key = point_type.string_to_point(rvrf.get_public_key(secret_key))
+public_key = vrf.get_public_key(secret_key)
 ring_vrf_proof = rvrf.ring_vrf_proof(alpha,add,secret_key,public_key,ring_pks,use_third_party_msm=True/False)  # Generates proof of length 784 bytes
 #verfiy Ring VRF Proof
 is_valid = rvrf.ring_vrf_proof_verify(add,ring_root,ring_vrf_proof, alpha)
