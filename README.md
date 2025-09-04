@@ -49,7 +49,7 @@ vrf = PedersenVRF(curve, point_type)
 
 # Public key is not exposed by definition in Pedersen VRF
 input_point = point_type.encode_to_curve(alpha, salt)
-proof = vrf.proof(alpha, secret_key, add, blinding_factor)  # Generates Proof of length 192 bytes
+proof = vrf.proof(alpha, secret_key, add)  # Generates Proof of length 192 bytes
 is_valid = vrf.verify(input_point, add, proof)
 ```
 ### For Ring VRF
@@ -60,7 +60,7 @@ rvrf = RingVrf()
 # Generate ring root commitment
 ring_root = rvrf.construct_ring_root(list_of_bandersnatch_keys, third_party_msm=True/False)  # generate ring root of length 144 bytes
 # Generate Ring VRF proof
-ring_vrf_proof = rvrf.ring_vrf_proof(alpha,add,blinding,secret_key,public_key,B_keys,use_third_party_msm=True/False)  # Generates proof of length 784 bytes
+ring_vrf_proof = rvrf.ring_vrf_proof(alpha,add,secret_key,public_key,B_keys,use_third_party_msm=True/False)  # Generates proof of length 784 bytes
 #verfiy Ring VRF Proof
 is_valid = rvrf.ring_vrf_proof_verify(add,ring_root,ring_vrf_proof, alpha)
 ```
