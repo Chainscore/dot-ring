@@ -44,7 +44,7 @@ You can run the entire suite or individual files as follows:
 ```bash
 pytest tests/
 ```
--Run a specific test file (e.g., Pedersen VRF tests):
+- Run a specific test file (e.g., Pedersen VRF tests):
 ```
 pytest tests/test_pedersen.py -v
 ```
