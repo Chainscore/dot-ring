@@ -10,12 +10,11 @@ def test_ring_proof():
     file_path = os.path.join(HERE, "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
     with open(file_path, 'r') as f:
         data = json.load(f)
-    for index in range(6,len(data)):
+    for index in range(len(data)):
         if index < 0 or index >= len(data):
             raise IndexError("Index out of range")
         item = data[index]
         blinding = item['blinding']
-        print("blinding :", blinding)
         s_k =item['sk']
         alpha = item['alpha']
         ad = item['ad']

@@ -10,7 +10,7 @@ def test_ring_proof():
     file_path = os.path.join(HERE, "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
     with open(file_path, 'r') as f:
         data = json.load(f)
-    for index in range(len(data)-4):
+    for index in range(len(data)):
         if index < 0 or index >= len(data):
             raise IndexError("Index out of range")
         item = data[index]
@@ -21,16 +21,11 @@ def test_ring_proof():
         # B_keys=[B_keys_ring[32*i:32*(i+1)] for i in range(len(B_keys_ring)//32)]
         B_keys=item['ring_pks']
         ring_root = RVRF.construct_ring_root(B_keys)
-        start_time=time.time()
         p_k = RVRF.get_public_key(s_k)
         ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad,s_k,p_k,B_keys)
-        end_time=time.time()
-        print("Each Signature Genration(P+R):", end_time-start_time)
         assert p_k.hex()==item['pk'], "Invalid Public Key"
         assert ring_root.hex()==item['ring_pks_com'], "Invalid Ring Root"
         assert ring_vrf_proof.hex()==item['gamma']+item['proof_pk_com']+item['proof_r']+ item['proof_ok']+item['proof_s']+ item['proof_sb']+item['ring_proof'], "Unexpected Proof"
-        s_t=time.time()
         assert RVRF.ring_vrf_proof_verify(ad,ring_root,ring_vrf_proof, alpha), "Verification Failed"
-        e_t=time.time()
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
-        print("Proof Verify:",e_t-s_t)
+

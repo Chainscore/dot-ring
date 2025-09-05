@@ -1,4 +1,3 @@
-#create the ring vrf class and put in the signature generation and verification logics
 
 from typing import List
 
@@ -9,22 +8,21 @@ class RingVrf:
     @staticmethod
     def generate_bls_signature(blinding: bytes|str,producer_key:bytes|str, keys: List[Any]|str|bytes, third_party_msm:bool=False)->bytes:
         """
-            get the all the data needed and
-            return the signature as an output"
-            """
+            Returns the Ring Proof as an output
+        """
         return generate_bls_signature(blinding, producer_key, keys, third_party_msm)
 
     @staticmethod
     def construct_ring_root(keys: List[Any]|str|bytes, third_party_msm:bool=False)->bytes:
         """
-        get the data needed and construct the rng root
+        Constructs the Ring Root
         """
         return construct_ring_root(keys, third_party_msm)
 
     @staticmethod
     def verify_signature(message:bytes|str,ring_root:bytes|str, ring_signature:bytes|str)->bool:
         """
-        get the bls signature, other params if needed and verify it
+        Verifies the Ring Proof
         """
         return verify_signature(message,ring_root, ring_signature)
 
