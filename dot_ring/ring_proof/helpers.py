@@ -148,11 +148,3 @@ class Helpers:
         if not isinstance(data, bytes):
             data = bytes(data)
         return sha512(data).digest()
-
-
-#Requirements for safrole
-#byteArray32
-#byteArray64
-#bandersnatchPublic
-#Bandersnatchringvrfsignature
-#BandersnatchvrfSignature

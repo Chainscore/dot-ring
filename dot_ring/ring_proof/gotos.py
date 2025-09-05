@@ -29,7 +29,6 @@ from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 # from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
-# def generate_bls_signature(secret_t,producer_key, keys: List[BandersnatchPublic]):
 def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List[Any]|bytes|str, third_party_msm:bool)->bytes:
     """
     get the all the data needed and
@@ -110,7 +109,6 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
     cf_vs, proof_ptr, proof_bs = obj.construct_proof()
     return bytes.fromhex(proof_bs) #bytess string
 
-# def construct_ring_root(keys: List[BandersnatchPublic]):
 def construct_ring_root(keys: List[Any]|str|bytes, third_party_msm:bool)->bytes:
     """
     get the data needed and construct the rng root
@@ -185,8 +183,6 @@ def verify_signature(message:bytes|str, ring_root:bytes|str, proof:bytes|str)->b
     valid = Verify(proof_ptr, verifier_key, fixed_cols_cmts, rltn, res_plus_seed, SeedPoint, D)
     return valid.is_signtaure_valid()
 
-
-# def ring_vrf_proof(alpha, add, blinding_factor, producer_key, keys:List[BandersnatchPublic]):
 def ring_vrf_proof(alpha:bytes|str, add:bytes|str, secret_key:bytes|str, producer_key:bytes|str, keys:List[Any]|str|bytes, third_party_msm:bool)->bytes:
     """get the args u want and generate the
     ring_vrf_proof (pedersen vrf proof + ring_proof ) \
