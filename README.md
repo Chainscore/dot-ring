@@ -86,6 +86,14 @@ cd blst/bindings/python
 ./run.me
 ```
 
+## 🧪 Testing
+
+You can run the test suite with **pytest**:
+
+```bash
+pytest tests/
+```
+See [TESTING.md](./TESTING.md) for an overview of the test suite and instructions on running tests.
 
 
 
