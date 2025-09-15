@@ -17,7 +17,7 @@ class Ed25519Params:
 
     Specification of the JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b"\x03"
+    SUITE_STRING = b"Ed25519_SHA-512_TAI"  # b"\x03"
     DST = b""
 
     # Curve parameters
@@ -38,7 +38,10 @@ class Ed25519Params:
     GLV_C: Final[int] = 0
 
     # Z
-    Z: Final[int] = 5
+    Z: Final[int] = 1
+
+    # Challenge length in bytes for VRF (from RFC 9381)
+    CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
     # Blinding Base For Pedersen
     BBx: Final[
@@ -56,6 +59,11 @@ class Ed25519Curve(TECurve):
     A high-performance curve designed for zero-knowledge proofs and VRFs,
     offering both efficiency and security.
     """
+
+    @property
+    def CHALLENGE_LENGTH(self) -> int:
+        """Return the challenge length in bytes for Ed25519 VRF."""
+        return Ed25519Params.CHALLENGE_LENGTH
 
     def __init__(self) -> None:
         """Initialize Bandersnatch curve with its parameters."""
@@ -76,6 +84,66 @@ class Ed25519Curve(TECurve):
             BBy=Ed25519Params.BBy
         )
 
+    def modular_sqrt(self, a: int, p: int) -> int:
+        """
+        Tonelli-Shanks algorithm for finding modular square roots.
+
+        Args:
+            a: The number to find the square root of
+            p: The prime modulus
+
+        Returns:
+            int: The square root of 'a' modulo 'p', or 0 if no square root exists
+        """
+        # Handle simple cases
+        a = a % p
+        if a == 0:
+            return 0
+        if p == 2:
+            return a
+
+        # Check if a is a quadratic residue
+        if pow(a, (p - 1) // 2, p) != 1:
+            return 0
+
+        # Find Q and S such that p-1 = Q * 2^S
+        Q = p - 1
+        S = 0
+        while Q % 2 == 0:
+            Q //= 2
+            S += 1
+
+        # Find a quadratic non-residue z
+        z = 2
+        while pow(z, (p - 1) // 2, p) != p - 1:
+            z += 1
+
+        # Initialize variables
+        c = pow(z, Q, p)
+        x = pow(a, (Q + 1) // 2, p)
+        t = pow(a, Q, p)
+        m = S
+
+        # Main loop
+        while t != 1:
+            # Find the least i such that t^(2^i) ≡ 1 mod p
+            i, temp = 0, t
+            while temp != 1 and i < m:
+                temp = (temp * temp) % p
+                i += 1
+
+            if i == m:
+                return 0  # No solution
+
+            # Update variables
+            b = pow(c, 1 << (m - i - 1), p)
+            x = (x * b) % p
+            t = (t * b * b) % p
+            c = (b * b) % p
+            m = i
+
+        return x
+
 
 # Singleton instance
 Ed25519_TE_Curve: Final[Ed25519Curve] = Ed25519Curve()
@@ -90,6 +158,17 @@ class Ed25519Point(TEAffinePoint):
     including GLV scalar multiplication.
     """
     curve: Final[Ed25519Curve] = Ed25519_TE_Curve
+
+    @classmethod
+    def identity_point(cls) -> 'Ed25519Point':
+        """
+        Get the identity point (0, 1) of the curve.
+
+        Returns:
+            Ed25519Point: Identity point
+        """
+        # The identity point in Twisted Edwards coordinates is (0, 1)
+        return cls(0, 1)
 
     def __init__(self, x: int, y: int) -> None:
         """

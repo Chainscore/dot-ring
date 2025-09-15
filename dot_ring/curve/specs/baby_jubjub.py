@@ -14,7 +14,7 @@ class BabyJubJubParams:
 
     Specification of the Baby JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b""
+    SUITE_STRING = b"Baby-JubJub_SHA-512_TAI"
     DST = b""
 
     # Curve parameters
@@ -36,14 +36,17 @@ class BabyJubJubParams:
 
     # Z
     Z: Final[int] = 5
+    
+    # Challenge length in bytes for VRF (aligned with 128-bit security level)
+    CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
     # Blinding Base For Pedersen
     BBx: Final[
         int
-    ] = 995203441582195749578291179787384436505546430278305826713579947235728471134
+    ] = 8170247200255741810297410022472365370979789984587637609570347196251706043122#995203441582195749578291179787384436505546430278305826713579947235728471134
     BBy: Final[
         int
-    ] = 5472060717959818805561601436314318772137091100104008585924551046643952123905
+    ] = 16313972569917201570489077828713531620741538540099917729994937953803219324220#5472060717959818805561601436314318772137091100104008585924551046643952123905
 
 
 JubJubGLVSpecs = GLVSpecs(
@@ -61,6 +64,10 @@ class BabyJubJubCurve(TECurve):
     A high-performance curve designed for zero-knowledge proofs and VRFs,
     offering both efficiency and security.
     """
+    @property
+    def CHALLENGE_LENGTH(self) -> int:
+        """Return the challenge length in bytes for BabyJubJub VRF."""
+        return BabyJubJubParams.CHALLENGE_LENGTH
 
     def __init__(self) -> None:
         """Initialize Bandersnatch curve with its parameters."""

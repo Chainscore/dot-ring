@@ -38,6 +38,9 @@ class BandersnatchParams:
     GLV_LAMBDA: Final[int] = 0x13b4f3dc4a39a493edf849562b38c72bcfc49db970a5056ed13d21408783df05
     GLV_B: Final[int] = 0x52c9f28b828426a561f00d3a63511a882ea712770d9af4d6ee0f014d172510b4
     GLV_C: Final[int] = 0x6cc624cf865457c3a97c6efd6c17d1078456abcfff36f4e9515c806cdf650b3d
+    
+    # Challenge length in bytes for VRF (aligned with 256-bit security level)
+    CHALLENGE_LENGTH: Final[int] = 32  # 256 bits
 
     # Z
     Z: Final[int] = 5
@@ -76,6 +79,11 @@ class BandersnatchCurve(TECurve):
     offering both efficiency and security.
     """
 
+    @property
+    def CHALLENGE_LENGTH(self) -> int:
+        """Return the challenge length in bytes for Bandersnatch VRF."""
+        return BandersnatchParams.CHALLENGE_LENGTH
+        
     def __init__(self) -> None:
         """Initialize Bandersnatch curve with its parameters."""
         super().__init__(

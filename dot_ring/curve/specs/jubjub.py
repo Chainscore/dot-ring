@@ -17,7 +17,7 @@ class JubJubParams:
 
     Specification of the JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b""
+    SUITE_STRING = b"JubJub_SHA-512_TAI"
     DST = b""
 
     # Curve parameters
@@ -57,6 +57,10 @@ class JubJubCurve(TECurve):
     A high-performance curve designed for zero-knowledge proofs and VRFs,
     offering both efficiency and security.
     """
+    @property
+    def CHALLENGE_LENGTH(self) -> int:
+        """Return the challenge length in bytes for JubJub VRF."""
+        return 32  # 256-bit security level
 
     def __init__(self) -> None:
         """Initialize Bandersnatch curve with its parameters."""
