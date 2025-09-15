@@ -57,13 +57,21 @@ class Point(Generic[C]):
     def _validate_coordinates(self) -> bool:
         """
         Validate point coordinates are within field bounds.
+        
+        The point at infinity is represented with x=None and y=None.
 
         Returns:
             bool: True if coordinates are valid
         """
+        # Handle point at infinity (identity element)
+        if self.x is None and self.y is None:
+            return True
+            
+        # Check if coordinates are within field bounds
         return (
-                0 <= self.x < self.curve.PRIME_FIELD and
-                0 <= self.y < self.curve.PRIME_FIELD
+            self.x is not None and self.y is not None and
+            0 <= self.x < self.curve.PRIME_FIELD and
+            0 <= self.y < self.curve.PRIME_FIELD
         )
 
     @abstractmethod

@@ -17,10 +17,16 @@ class SWAffinePoint(Point[SWCurve]):
     def is_on_curve(self) -> bool:
         """
         Check if the point lies on the Short Weierstrass curve.
+        
+        The point at infinity (None, None) is considered to be on the curve.
 
         Returns:
             bool: True if point is on curve
         """
+        # Point at infinity is always on the curve
+        if self.x is None and self.y is None:
+            return True
+            
         x, y = self.x, self.y
         A, B = self.curve.WeierstrassA, self.curve.WeierstrassB
         p = self.curve.PRIME_FIELD
@@ -180,9 +186,9 @@ class SWAffinePoint(Point[SWCurve]):
         Returns:
             SWAffinePoint: Identity element
         """
-        # This is a simplified representation - in practice, you might want
-        # to use projective coordinates or a special flag
-        return cls(0, 0, None)  # curve will be set by the specific implementation
+        # Return a point at infinity (None, None)
+        # The curve will be set by the child class's __init__
+        return cls(None, None)
 
     @classmethod
     def _x_recover(cls, y: int) -> int:
