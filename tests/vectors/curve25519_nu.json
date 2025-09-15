@@ -1,0 +1,35 @@
+
+{
+  "curve": "curve25519",
+  "suite_id": "curve25519_XMD:SHA-512_ELL2_NU_",
+  "dst": "QUUX-V01-CS02-with-curve25519_XMD:SHA-512_ELL2_NU_",
+  "vectors": [
+    {
+      "msg": "",
+      "P.x": "1bb913f0c9daefa0b3375378ffa534bda5526c97391952a7789eb976edfe4d08",
+      "P.y": "4548368f4f983243e747b62a600840ae7c1dab5c723991f85d3a9768479f3ec4"
+    },
+    {
+      "msg": "abc",
+      "P.x": "7c22950b7d900fa866334262fcaea47a441a578df43b894b4625c9b450f9a026",
+      "P.y": "5547bc00e4c09685dcbc6cb6765288b386d8bdcb595fa5a6e3969e08097f0541"
+    },
+    {
+      "msg": "abcdef0123456789",
+      "P.x": "31ad08a8b0deeb2a4d8b0206ca25f567ab4e042746f792f4b7973f3ae2096c52",
+      "P.y": "405070c28e78b4fa269427c82827261991b9718bd6c6e95d627d701a53c30db1"
+    },
+    {
+      "msg": "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+      "P.x": "027877759d155b1997d0d84683a313eb78bdb493271d935b622900459d52ceaa",
+      "P.y": "54d691731a53baa30707f4a87121d5169fb5d587d70fb0292b5830dedbec4c18"
+    },
+    {
+      "msg": "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "P.x":"5fd892c0958d1a75f54c3182a18d286efab784e774d1e017ba2fb252998b5dc1",
+      "P.y":"750af3c66101737423a4519ac792fb93337bd74ee751f19da4cf1e94f4d6d0b8"
+    }
+  ]
+}
+
+
