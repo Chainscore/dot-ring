@@ -138,8 +138,8 @@ class Helpers:
         return val.to_bytes(32, 'big')
 
     @staticmethod
-    def to_l_endian(val:int)->bytes:
-        return val.to_bytes(32, 'little')
+    def to_l_endian(val:int,no_of_bytes:int=32)->bytes:
+        return val.to_bytes(no_of_bytes, 'little')
 
     @staticmethod
     def sha512(data: bytes) -> bytes:
