@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
 
-# from dot_ring.types.protocol.crypto import Hash
-# from dot_ring.utils.conv_helper import ConversionHelper
 
 from ..curve.curve import Curve
 from ..curve.point import Point
@@ -88,31 +86,35 @@ class VRF(ABC):
 
     def challenge(self, points: List[Point], additional_data: bytes) -> int:
         """
-        Generate VRF challenge.
+        Generate VRF challenge according to RFC 9381.
+
+        The challenge length is determined by the curve's CHALLENGE_LENGTH parameter,
+        which is typically set based on the curve's security level.
 
         Args:
-            Y: Public key point
-            I: Input point
-            O: Output point
-            U: First proof point
-            V: Second proof point
+            points: List of points to include in the challenge
             additional_data: Additional data to include in challenge
 
         Returns:
-            int: Generated challenge
+            int: Generated challenge in the range [0, curve.ORDER)
         """
-        # Create challenge string
-        str0 = self.curve.SUITE_STRING + bytes([0x02])
-        challenge_string = str0
+        # Create challenge string with domain separator (0x02)
+        challenge_string = self.curve.SUITE_STRING + bytes([0x02])
 
-        # Add point encodings
-        for P in points:
-            challenge_string += P.point_to_string()
+        # Add point encodings for each point in the challenge
+        for point in points:
+            challenge_string += point.point_to_string()
 
-        # Add additional data and finalize
+        # Add additional data and finalize with 0x00
         hash_input = challenge_string + additional_data + bytes([0x00])
-        challenge_hash = bytes(Helpers.sha512(hash_input))[:32]
-
+        
+        # Generate hash output
+        hash_output = Helpers.sha512(hash_input)
+        
+        # Truncate to the curve's specified challenge length
+        challenge_hash = bytes(hash_output)[:self.curve.CHALLENGE_LENGTH]
+        
+        # Convert to integer and reduce modulo curve order
         return Helpers.b_endian_2_int(challenge_hash) % self.curve.ORDER
 
     def ecvrf_decode_proof(self, pi_string: bytes|str) -> Tuple[Point, int, int]:
@@ -125,20 +127,31 @@ class VRF(ABC):
             Tuple[Point, int, int]: (gamma, C, S)
         """
         if not isinstance(pi_string, bytes):
-            pi_string=bytes.fromhex(pi_string)
+            pi_string = bytes.fromhex(pi_string)
 
-        ptLen = qLen = cLen = 32
-        gamma_string = pi_string[:ptLen]
-        c_string = pi_string[ptLen:ptLen + cLen]
-        s_string = pi_string[ptLen + cLen:ptLen + cLen + qLen]
+        # Get lengths from curve parameters
+        point_len = 32  # Compressed point length is fixed at 32 bytes for Bandersnatch
+        challenge_len = self.curve.CHALLENGE_LENGTH  # Dynamic challenge length from curve
+        scalar_len = (self.curve.ORDER.bit_length() + 7) // 8  # Scalar length based on curve order
 
+        # Calculate positions in the proof
+        gamma_end = point_len
+        c_end = gamma_end + challenge_len
+        s_end = c_end + scalar_len
+
+        # Extract components
+        gamma_string = pi_string[:gamma_end]
+        c_string = pi_string[gamma_end:c_end]
+        s_string = pi_string[c_end:s_end]
+
+        # Convert to appropriate types
         gamma = self.point_type.string_to_point(gamma_string)
-        # C = ConversionHelper.to_int(c_string) % self.curve.ORDER
-        # S = ConversionHelper.to_int(s_string) % self.curve.ORDER
-        C=Helpers.b_endian_2_int(c_string) %self.curve.ORDER
-        S=Helpers.b_endian_2_int(s_string) %self.curve.ORDER
-        if S >= self.curve.PRIME_FIELD:
-            assert False, "S out of bounds"
+        C = Helpers.b_endian_2_int(c_string) % self.curve.ORDER
+        S = Helpers.b_endian_2_int(s_string) % self.curve.ORDER
+        
+        if S >= self.curve.ORDER:
+            raise ValueError("Response scalar S is not less than the curve order")
+            
         return gamma, C, S
 
     def ecvrf_proof_to_hash(self, pi_string: bytes|str) -> bytes:

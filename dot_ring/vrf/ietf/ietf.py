@@ -170,7 +170,7 @@ class IETF_VRF(VRF):
 
         # Compute response
         s = (nonce + c * secret_key) % self.curve.ORDER
-        proof= output_point.point_to_string()+ Helpers.to_l_endian(c)+ Helpers.to_l_endian(s)
+        proof= output_point.point_to_string()+ Helpers.to_l_endian(c,self.curve.CHALLENGE_LENGTH)+ Helpers.to_l_endian(s)
         return proof
 
         # return output_point, (c, s)
@@ -200,10 +200,20 @@ class IETF_VRF(VRF):
             additional_data= bytes.fromhex(additional_data)
 
         if not isinstance(proof, bytes):
-            proof= bytes.fromhex(proof)
+            proof = bytes.fromhex(proof)
 
-        output_point= self.point_type.string_to_point(proof[32*0:32*1])
-        c, s = Helpers.l_endian_2_int(proof[32*1:32*2]), Helpers.l_endian_2_int(proof[32*2:32*3])
+        # Get lengths from curve parameters
+        point_len = 32  # Compressed point length is fixed at 32 bytes for Bandersnatch
+        challenge_len = self.curve.CHALLENGE_LENGTH
+        
+        # Calculate positions in the proof
+        output_point_end = point_len
+        c_end = output_point_end + challenge_len
+        
+        # Extract components
+        output_point = self.point_type.string_to_point(proof[:output_point_end])
+        c = Helpers.l_endian_2_int(proof[output_point_end:c_end])
+        s = Helpers.l_endian_2_int(proof[c_end:])
         # Create generator point
         generator = self.point_type.generator_point()
 

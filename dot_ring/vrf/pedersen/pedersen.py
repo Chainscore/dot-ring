@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import hashlib
@@ -177,6 +178,7 @@ class PedersenVRF(VRF):
         if need_blinding:
             return proof, blinding
         return proof
+
 
 
     #to make the point type dynamic
