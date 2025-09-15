@@ -1,0 +1,238 @@
+from __future__ import annotations
+
+from abc import abstractmethod
+from dataclasses import dataclass
+from typing import Final, TypeVar, Generic, Type, Optional, Tuple
+from ..curve import Curve
+from ..point import PointProtocol
+
+# Forward reference fix for circular imports
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .mg_affine_point import MGAffinePoint
+
+C = TypeVar('C', bound='MGCurve')
+P = TypeVar('P', bound='MGAffinePoint')
+
+
+@dataclass(frozen=True)
+class MGCurve(Curve):
+    """
+    Base class for Montgomery curves of the form: Bv² = u³ + Au² + u
+
+    Standard Montgomery form with:
+    - A: coefficient of u² term
+    - B: coefficient of v² term (typically 1 for most curves)
+    """
+    A: Final[int]
+    B: Final[int]
+
+    def __post_init__(self):
+        """Validate curve parameters after initialization."""
+        super().__post_init__() if hasattr(super(), '__post_init__') else None
+
+        # Validate that B is not zero (would make curve degenerate)
+        if self.B % self.PRIME_FIELD == 0:
+            raise ValueError("B coefficient cannot be zero mod p")
+
+        # Validate that A² - 4 is not zero (would make curve singular)
+        discriminant = (self.A * self.A - 4) % self.PRIME_FIELD
+        if discriminant == 0:
+            raise ValueError("Curve is singular: A² - 4 ≡ 0 (mod p)")
+
+    @property
+    @abstractmethod
+    def CHALLENGE_LENGTH(self) -> int:
+        raise NotImplementedError("CHALLENGE_LENGTH must be implemented by subclasses")
+
+    def is_on_curve(self, point: Tuple[int, int]) -> bool:
+        """
+        Check if point (u, v) satisfies the Montgomery curve equation: Bv² = u³ + Au² + u
+        """
+        u, v = point
+        p = self.PRIME_FIELD
+
+        # Reduce coordinates modulo p
+        u, v = u % p, v % p
+
+        left = (self.B * v * v) % p
+        right = (u * u * u + self.A * u * u + u) % p
+        return left == right
+
+    def ladder_step(self, u: int, a24: int, k: int) -> int:
+        """
+        RFC7748-style Montgomery ladder returning affine x = X/Z mod p for k * P,
+        where P has affine x-coordinate u.
+
+        Args:
+            u: x-coordinate of input point
+            a24: precomputed (A+2)/4 value
+            k: scalar multiplier (must be positive)
+
+        Returns:
+            x-coordinate of k*P
+
+        Raises:
+            ValueError: if k is negative or if intermediate computation fails
+            ZeroDivisionError: if result is point at infinity
+        """
+        p = self.PRIME_FIELD
+
+        if k < 0:
+            raise ValueError("ladder_step expects non-negative scalar k")
+        if k == 0:
+            # by convention, return 0 (caller should treat scalar==0 as identity)
+            return 0
+        if k == 1:
+            return u % p
+
+        x1 = u % p
+
+        # Initialize ladder variables
+        # (X2:Z2) represents the "even" accumulator (starts at identity)
+        # (X3:Z3) represents the "odd" accumulator (starts at input point)
+        X2, Z2 = 1, 0  # Point at infinity in projective coordinates
+        X3, Z3 = x1, 1  # Input point (x1, 1) in projective coordinates
+
+        swap = 0
+
+        # Process bits from most significant to least significant
+        bit_length = k.bit_length()
+        for t in range(bit_length - 1, -1, -1):
+            k_t = (k >> t) & 1
+
+            # Conditional swap based on current and previous bits
+            swap_mask = swap ^ k_t
+            if swap_mask:
+                X2, X3 = X3, X2
+                Z2, Z3 = Z3, Z2
+
+            # Point doubling: 2*(X2:Z2) -> (X2_new:Z2_new)
+            A = (X2 + Z2) % p
+            AA = (A * A) % p
+            B = (X2 - Z2) % p  # Renamed from Bv to avoid confusion with curve parameter B
+            BB = (B * B) % p
+            E = (AA - BB) % p
+            X2_new = (AA * BB) % p
+            Z2_new = (E * ((AA + (a24 * E) % p) % p)) % p
+
+            # Differential addition: (X2:Z2) + (X3:Z3) with difference x1
+            C = (X3 + Z3) % p
+            D = (X3 - Z3) % p
+            DA = (D * A) % p
+            CB = (C * B) % p
+
+            X3_sum = (DA + CB) % p
+            X3_new = (X3_sum * X3_sum) % p
+
+            Z3_diff = (DA - CB) % p
+            Z3_new = (Z3_diff * Z3_diff) % p
+            Z3_new = (Z3_new * x1) % p
+
+            # Update for next iteration
+            X2, Z2 = X2_new, Z2_new
+            X3, Z3 = X3_new, Z3_new
+            swap = k_t
+
+        # Final conditional swap
+        if swap:
+            X2, X3 = X3, X2
+            Z2, Z3 = Z3, Z2
+
+        # Convert from projective to affine coordinates
+        if Z2 % p == 0:
+            raise ZeroDivisionError("ladder_step resulted in Z == 0 (point at infinity)")
+
+        try:
+            inv_z2 = pow(Z2, -1, p)
+            return (X2 * inv_z2) % p
+        except ValueError as e:
+            raise ValueError(f"Cannot invert Z2={Z2} mod {p}: {e}")
+
+    def point_at_infinity(self):
+        """Return the point at infinity for this curve."""
+        # Import here to avoid circular dependency
+        from .mg_affine_point import MGAffinePoint
+        return MGAffinePoint(None, None, self)
+
+    def random_point(self, rng=None) -> 'MGAffinePoint':
+        """
+        Generate a random point on the curve by trying random x-coordinates
+        until we find one that gives a valid y-coordinate.
+        """
+        import secrets
+        if rng is None:
+            rng = secrets.SystemRandom()
+
+        from .mg_affine_point import MGAffinePoint
+
+        p = self.PRIME_FIELD
+        max_attempts = 100
+
+        for _ in range(max_attempts):
+            # Try random x-coordinate
+            x = rng.randrange(0, p)
+
+            # Compute y² = (x³ + Ax² + x) / B
+            x_cubed = (x * x * x) % p
+            x_squared = (x * x) % p
+            numerator = (x_cubed + (self.A * x_squared) % p + x) % p
+
+            try:
+                inv_B = pow(self.B, -1, p)
+                y_squared = (numerator * inv_B) % p
+
+                # Check if y_squared is a quadratic residue
+                if pow(y_squared, (p - 1) // 2, p) == 1:
+                    # Create temporary point to use _sqrt_mod_p method
+                    temp_point = MGAffinePoint(0, 0, self)
+                    y = temp_point._sqrt_mod_p(y_squared)
+                    if y is not None:
+                        return MGAffinePoint(x, y, self)
+            except ValueError:
+                continue
+
+        raise RuntimeError(f"Failed to find random point after {max_attempts} attempts")
+
+    def validate_point(self, point) -> bool:
+        """
+        Validate that a point is properly constructed and on the curve.
+        """
+        if hasattr(point, 'is_identity') and point.is_identity():
+            return True
+
+        if not hasattr(point, 'x') or not hasattr(point, 'y'):
+            return False
+
+        if point.x is None or point.y is None:
+            return True  # Identity point
+
+        # Check coordinates are in valid range
+        p = self.PRIME_FIELD
+        if not (0 <= point.x < p and 0 <= point.y < p):
+            return False
+
+        # Check curve equation
+        return self.is_on_curve((point.x, point.y))
+
+    def __eq__(self, other) -> bool:
+        """Check if two curves are equal."""
+        if not isinstance(other, MGCurve):
+            return False
+        return (self.PRIME_FIELD == other.PRIME_FIELD and
+                self.A == other.A and
+                self.B == other.B)
+
+    def __hash__(self) -> int:
+        """Hash for use as dictionary keys."""
+        return hash((self.PRIME_FIELD, self.A, self.B))
+
+    def __str__(self) -> str:
+        """String representation of the curve."""
+        return f"MGCurve(p={self.PRIME_FIELD}, A={self.A}, B={self.B})"
+
+    def __repr__(self) -> str:
+        """Detailed string representation."""
+        return (f"MGCurve(PRIME_FIELD={self.PRIME_FIELD}, A={self.A}, B={self.B}, "
+                f"equation: {self.B}*v² = u³ + {self.A}*u² + u)")
