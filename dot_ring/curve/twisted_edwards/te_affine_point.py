@@ -347,39 +347,110 @@ class TEAffinePoint(Point[C]):
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2)
 
-        q0 = cls.map_to_curve(u[0])
-        q1 = cls.map_to_curve(u[1])
+        q0 = cls.map_to_curve(u[0]) #ELL2
+        q1 = cls.map_to_curve(u[1]) #ELL2
         R = q0 + q1
 
         return R.clear_cofactor()
 
+    # @classmethod #intuial
+    # def encode_to_curve_tai(cls, alpha_string: bytes, salt: bytes = b"") -> Self:
+    #     """
+    #     Encode a string to a curve point using try-and-increment method for ECVRF.
+    #
+    #     Args:
+    #         alpha: String to encode
+    #         salt: Optional salt for the encoding
+    #
+    #     Returns:
+    #         TEAffinePoint: Resulting curve point
+    #     """
+    #     ctr = 0
+    #     H = "INVALID"
+    #     front = b'\x01'
+    #     back = b'\x00'
+    #     salt = salt.encode() if isinstance(salt, str) else salt
+    #     suite_string = b''  # cls.curve.SUITE_STRING.encode()
+    #     while H == "INVALID" or H == (0, 1):
+    #         ctr_string = ctr.to_bytes(1, "big")
+    #         hash_input = (suite_string + front + b"" + alpha_string + ctr_string + back)
+    #         hash_output = hashlib.sha256(hash_input).digest()
+    #         H = cls.string_to_point(b'0x02' + hash_output)
+    #         if H != "INVALID" and cls.curve.COFACTOR > 1:
+    #             H = cls.scalar_mul(H, cls.curve.COFACTOR)
+    #         ctr += 1
+    #     return H
+
+    # @classmethod #modified
+    # def encode_to_curve_tai(cls, alpha_string: bytes|str, salt: bytes = b"") -> Self:
+    #     """
+    #     Encode a string to a curve point using try-and-increment method for ECVRF.
+    #
+    #     Args:
+    #         alpha: String to encode
+    #         salt: Optional salt for the encoding
+    #
+    #     Returns:
+    #         TEAffinePoint: Resulting curve point
+    #     """
+    #     ctr = 0
+    #     H = None
+    #     front = b'\x01'
+    #     back = b'\x00'
+    #     alpha_string=alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+    #     salt = salt.encode() if isinstance(salt, str) else salt
+    #     suite_string =cls.curve.SUITE_STRING
+    #     print("am i called")
+    #     while H is None or H == "INVALID" or H == (0, 1):
+    #         ctr_string = ctr.to_bytes(1, "big")
+    #         hash_input = (suite_string + front + salt + alpha_string + ctr_string + back)
+    #         hash_output = hashlib.sha256(hash_input).digest()
+    #         H = cls.string_to_point(bytes([0x02]) + hash_output)
+    #         if H not in (None, "INVALID")  and cls.curve.COFACTOR > 1:
+    #             H = cls.scalar_mul(H, cls.curve.COFACTOR)
+    #         ctr += 1
+    #     return H
+
     @classmethod
-    def encode_to_curve_tai(cls, alpha_string: bytes, salt: bytes = b"") -> Self:
-        """
-        Encode a string to a curve point using try-and-increment method for ECVRF.
-
-        Args:
-            alpha: String to encode
-            salt: Optional salt for the encoding
-
-        Returns:
-            TEAffinePoint: Resulting curve point
-        """
-        ctr = 0
-        H = "INVALID"
-        front = b'\x01'
-        back = b'\x00'
+    def encode_to_curve_tai(cls, alpha_string: bytes | str, salt: bytes = b"") -> "TEAffinePoint":
+        import hashlib
+        # normalize inputs
+        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
         salt = salt.encode() if isinstance(salt, str) else salt
-        suite_string = b''  # cls.curve.SUITE_STRING.encode()
-        while H == "INVALID" or H == (0, 1):
+        suite_string = cls.curve.SUITE_STRING
+        front = b"\x01"
+        back = b"\x00"
+        ctr = 0
+        identity = (0, 1)  # assumes class provides this
+        H = "INVALID"
+        while True:
+            if ctr >= 256:
+                raise ValueError("TAI failed: ctr overflow")
             ctr_string = ctr.to_bytes(1, "big")
-            hash_input = (suite_string + front + b"" + alpha_string + ctr_string + back)
+            hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             hash_output = hashlib.sha256(hash_input).digest()
-            H = cls.string_to_point(b'0x02' + hash_output)
-            if H != "INVALID" and cls.curve.COFACTOR > 1:
+            # interpret_hash_value_as_a_point: curve-specific
+            H = cls.string_to_point(hash_output)  # should return point instance or None/"INVALID"
+            # continue if invalid or identity
+            if H in (None, "INVALID"):
+                ctr += 1
+                continue
+            # compare with identity - for twisted edwards identity == (0,1)
+            if H == identity:
+                ctr += 1
+                continue
+            # valid non-identity point found -> break
+            break
+        # multiply by cofactor if needed. Support both instance and class method APIs.
+        if getattr(cls.curve, "COFACTOR", 1) > 1:
+            if hasattr(H, "scalar_mul"):
+                # instance method: point.scalar_mul(scalar)
+                H = H.scalar_mul(cls.curve.COFACTOR)
+            else:
+                # classmethod or function: cls.scalar_mul(point, scalar)
                 H = cls.scalar_mul(H, cls.curve.COFACTOR)
-            ctr += 1
         return H
+
 
     def clear_cofactor(self) -> Self:
         """

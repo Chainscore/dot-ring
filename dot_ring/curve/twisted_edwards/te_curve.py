@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Final, Tuple
 from dot_ring.curve.curve import Curve
@@ -18,9 +19,19 @@ class TECurve(Curve):
     Attributes:
         EdwardsA: The 'a' parameter in the curve equation
         EdwardsD: The 'd' parameter in the curve equation
+        CHALLENGE_LENGTH: Length of the challenge in bytes (default: 32 for 256-bit security)
     """
     EdwardsA: Final[int]
     EdwardsD: Final[int]
+    
+    @property
+    @abstractmethod
+    def CHALLENGE_LENGTH(self) -> int:
+        """
+        Abstract property for the challenge length in bytes.
+        Must be implemented by each curve to specify its specific challenge length.
+        """
+        raise NotImplementedError("CHALLENGE_LENGTH must be implemented by subclasses")
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
