@@ -45,7 +45,7 @@ class Point(Generic[C]):
     curve: Final[C]
 
     # Class constants
-    ENCODING_LENGTH: ClassVar[int] = 32
+    ENCODING_LENGTH: ClassVar[int] = 32  # Default encoding length for most curves
 
     def __post_init__(self) -> None:
         """Validate point after initialization."""
@@ -90,8 +90,11 @@ class Point(Generic[C]):
     def point_to_string(self) -> bytes:
         """
         Convert elliptic curve point (x, y) to compressed octet string.
-        - The y-coordinate is encoded as 32 bytes.
+        - The y-coordinate is encoded in little-endian format
         - The most significant bit of the last byte indicates the sign of the x-coordinate.
+
+        The encoding length is determined by the curve's ENCODING_LENGTH attribute
+        or calculated from the field size if not specified.
 
         Args:
             self: The point (x, y) to convert
@@ -102,9 +105,16 @@ class Point(Generic[C]):
         p = self.curve.PRIME_FIELD
         p_half = (p - 1) // 2
         x, y = self.x, self.y
-        y_bytes = bytearray(int(y).to_bytes(32, "little"))  # Encode y in little-endian
-        x_sign_bit = 1 if x >= p_half else 0  # Sign is set if x >= p/2
-        y_bytes[-1] |= (x_sign_bit << 7)
+        
+        # Get encoding length from curve or calculate from field size
+        byte_length = getattr(self.curve, 'ENCODING_LENGTH', (p.bit_length() + 7) // 8)
+        y_bytes = bytearray(int(y).to_bytes(byte_length, "little"))
+        
+        # Set sign bit based on x coordinate
+        x_sign_bit = 1 if x >= p_half else 0
+        if y_bytes:  # Ensure we have bytes to modify
+            y_bytes[-1] |= (x_sign_bit << 7)
+            
         return bytes(y_bytes)
 
     @classmethod
@@ -113,31 +123,57 @@ class Point(Generic[C]):
         Convert compressed octet string back to point.
 
         Args:
-            encoded: Compressed point bytes
-            curve: The curve to create point on
+            octet_string: Compressed point bytes or hex string
 
         Returns:
             Point: Decoded point
 
         Raises:
-            ValueError: If encoding is invalid
+            ValueError: If encoding is invalid or point is not on curve
         """
         if isinstance(octet_string, str):  # Convert hex string to bytes
             octet_string = bytes.fromhex(octet_string)
 
-        y = int.from_bytes(octet_string, 'little') & ((1 << 255) - 1)
+        p = cls.curve.PRIME_FIELD
+        
+        # Get expected length from curve or calculate from field size
+        expected_length = getattr(cls.curve, 'ENCODING_LENGTH', (p.bit_length() + 7) // 8)
+        
+        if len(octet_string) != expected_length:
+            raise ValueError(
+                f"Invalid point encoding length. Expected {expected_length} bytes, "
+                f"got {len(octet_string)}"
+            )
+
+        # Calculate mask for y (all bits except the sign bit)
+        y_mask = (1 << (expected_length * 8 - 1)) - 1
+        y = int.from_bytes(octet_string, 'little') & y_mask
 
         # Recover x-coordinate
         x = cls._x_recover(y)
-        if not x:
-            return None
-        x_parity = (octet_string[-1] >> 7)
-        p_half = (cls.curve.PRIME_FIELD - 1) // 2
+        if x is None:
+            raise ValueError("Invalid point: x-coordinate recovery failed")
 
-        # Check if extracted LSB of x matches the stored bit
-        if (x < p_half) == x_parity:
-            x = cls.curve.PRIME_FIELD - x  # Flip x if the bit doesn't match
-        return cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
+        # Get the sign bit from the encoded point
+        sign_bit = (octet_string[-1] >> 7) & 1
+        
+        # For Ed448, the sign bit is the LSB of x (not the sign of x)
+        if hasattr(cls.curve, 'EDWARDS_A') and hasattr(cls.curve, 'EDWARDS_D'):
+            if (x & 1) != sign_bit:
+                x = p - x  # Flip x if the LSB doesn't match the sign bit
+        else:
+            # For other curves, use the original behavior (comparing x to p_half)
+            p_half = (p - 1) // 2
+            x_parity = 1 if x >= p_half else 0
+            if x_parity != sign_bit:
+                x = p - x
+
+        # Create and validate the point
+        point = cls(x % p, y % p)
+        if not point.is_on_curve():
+            raise ValueError("Decoded point is not on the curve")
+            
+        return point
 
     def to_bytes(self) -> bytes:
         """
@@ -168,17 +204,77 @@ class Point(Generic[C]):
     def _x_recover(cls, y: int) -> int:
         """
         Recover x-coordinate from y.
-
+        
+        This implementation handles both Twisted Edwards and Weierstrass curves.
+        For Twisted Edwards curves: ax² + y² = 1 + dx²y²
+        
         Args:
             y: y-coordinate
 
         Returns:
-            int: Recovered x-coordinate
+            int: Recovered x-coordinate or None if invalid
 
         Raises:
             ValueError: If x cannot be recovered
         """
-        raise NotImplementedError("Must be implemented by subclass")
+        curve = cls.curve
+        p = curve.PRIME_FIELD
+        y_sq = (y * y) % p
+        
+        # Handle Twisted Edwards curves (including Ed448)
+        if hasattr(curve, 'EDWARDS_A') and hasattr(curve, 'EDWARDS_D'):
+            a = curve.EDWARDS_A
+            d = curve.EDWARDS_D
+            
+            try:
+                # Solve for x²: x² = (y² - 1) / (d * y² - a) mod p
+                denominator = (d * y_sq - a) % p
+                if denominator == 0:
+                    return None
+                    
+                inv_denominator = pow(denominator, -1, p)
+                x_sq = (y_sq - 1) * inv_denominator % p
+                
+                # For Ed448, p ≡ 3 mod 4, so we can use the simpler method
+                # Compute candidate square root: x = x_sq^((p+1)/4) mod p
+                # Since p ≡ 3 mod 4, (p+1)/4 is an integer
+                x = pow(x_sq, (p + 1) // 4, p)
+                
+                # Verify the root (x² should equal x_sq mod p)
+                if (x * x) % p == x_sq:
+                    return x
+                    
+                # If no solution, try the other root
+                x = (p - x) % p
+                if (x * x) % p == x_sq:
+                    return x
+                    
+                # If still no solution, try the other possible root from the equation
+                # This handles the case where (p+1)/4 is not sufficient
+                if p % 8 == 5:
+                    x = pow(x_sq, (p + 3) // 8, p)
+                    c = pow(2, (p - 1) // 4, p)
+                    for _ in range(2):
+                        if (x * x) % p == x_sq:
+                            return x
+                        x = (x * c) % p
+                
+                return None
+                    
+            except (ValueError, ZeroDivisionError):
+                return None
+                
+        # Handle Weierstrass curves (if needed in the future)
+        # elif hasattr(curve, 'A') and hasattr(curve, 'B'):
+        #     # Weierstrass form: y² = x³ + a x + b
+        #     # Implementation would go here
+        #     pass
+            
+        # If we get here, the curve type is not supported
+        raise NotImplementedError(
+            "x-coordinate recovery not implemented for this curve type. "
+            "Curve must have EDWARDS_A and EDWARDS_D attributes for Twisted Edwards form."
+        )
 
     @staticmethod
     def _get_bit(data: bytes, bit_index: int) -> int:
