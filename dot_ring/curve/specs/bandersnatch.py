@@ -38,12 +38,18 @@ class BandersnatchParams:
     GLV_LAMBDA: Final[int] = 0x13b4f3dc4a39a493edf849562b38c72bcfc49db970a5056ed13d21408783df05
     GLV_B: Final[int] = 0x52c9f28b828426a561f00d3a63511a882ea712770d9af4d6ee0f014d172510b4
     GLV_C: Final[int] = 0x6cc624cf865457c3a97c6efd6c17d1078456abcfff36f4e9515c806cdf650b3d
-    
+
     # Challenge length in bytes for VRF (aligned with 256-bit security level)
     CHALLENGE_LENGTH: Final[int] = 32  # 256 bits
 
     # Z
     Z: Final[int] = 5
+    M: Final[int] = 1
+    K: Final[int] = 128
+    L: Final[int] = 48  # can define func as well
+    S_in_bytes: Final[int] = 48 #can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
+    H_A: Final[str] = "SHA-512"
+
 
     # Blinding Base For Pedersen (old)
     # BBx: Final[
@@ -83,7 +89,7 @@ class BandersnatchCurve(TECurve):
     def CHALLENGE_LENGTH(self) -> int:
         """Return the challenge length in bytes for Bandersnatch VRF."""
         return BandersnatchParams.CHALLENGE_LENGTH
-        
+
     def __init__(self) -> None:
         """Initialize Bandersnatch curve with its parameters."""
         super().__init__(
@@ -100,7 +106,13 @@ class BandersnatchCurve(TECurve):
             DST=BandersnatchParams.DST,
             E2C=E2C_Variant.ELL2,
             BBx=BandersnatchParams.BBx,
-            BBy=BandersnatchParams.BBy
+            BBy=BandersnatchParams.BBy,
+            M=BandersnatchParams.M,
+            K=BandersnatchParams.K,
+            L=BandersnatchParams.L,
+            S_in_bytes=BandersnatchParams.S_in_bytes,
+            H_A=BandersnatchParams.H_A,
+
         )
 
 
