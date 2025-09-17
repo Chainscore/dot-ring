@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Union, Optional
+from typing import Final, Self, Union, Optional, Any
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
+from dot_ring.curve.e2c import E2C_Variant
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,10 @@ class SWAffinePoint(Point[SWCurve]):
         """
         return self + (-other)
 
+    def clear_cofactor(self)-> SWAffinePoint:
+        return self*self.curve.COFACTOR
+
+
     def is_identity(self) -> bool:
         """
         Check if this is the identity element (point at infinity).
@@ -223,26 +228,6 @@ class SWAffinePoint(Point[SWCurve]):
         
         raise ValueError("Cannot recover x-coordinate")
 
-    @classmethod
-    def encode_to_curve(cls, message: bytes, salt: bytes = b'') -> SWAffinePoint:
-        """
-        Encode a message to a curve point using hash-to-curve.
-
-        Args:
-            message: Message to encode
-            salt: Optional salt
-
-        Returns:
-            SWAffinePoint: Encoded point
-        """
-        # Use the curve's hash-to-field functionality
-        combined_input = message + salt
-        u_values = cls.curve.hash_to_field(combined_input, 2)
-        
-        # Map to curve using SSWU
-        x, y = cls.curve.map_to_curve_sswu(u_values[0])
-        
-        return cls(x, y, cls.curve)
 
     def compress(self) -> bytes:
         """
@@ -304,3 +289,88 @@ class SWAffinePoint(Point[SWCurve]):
             y = (-y) % p
         
         return cls(x, y, cls.curve)
+
+    @classmethod
+    def map_to_curve_simple_swu(cls, u: int)->SWAffinePoint:
+        """
+        Implements simplified SWU mapping
+        """
+        # 1.tv1 = inv0(Z ^ 2 * u ^ 4 + Z * u ^ 2)
+        # 2.x1 = (-B / A) * (1 + tv1)
+        # 3.Iftv1 == 0, set x1 = B / (Z * A)
+        # 4.gx1 = x1 ^ 3 + A * x1 + B
+        # 5.x2 = Z * u ^ 2 * x1
+        # 6.gx2 = x2 ^ 3 + A * x2 + B
+        # 7.Ifis_square(gx1), setx = x1 and y = sqrt(gx1)
+        # 8.Else set x = x2 and y = sqrt(gx2)
+        # 9.If sgn0(u) != sgn0(y), set y = -y
+        # 10.return (x, y)
+        Z = cls.curve.Z
+        A=cls.curve.WeierstrassA
+        B=cls.curve.WeierstrassB
+
+        Zp2 = Z * Z
+        up4 = u * u * u * u
+        up2 = u * u
+        tv1 = (Zp2 * up4 + Z * up2)
+        tv1 = cls.curve.inv(tv1)
+        x1 = ((-B * cls.curve.inv(A)) * (1 + tv1)) % cls.curve.PRIME_FIELD
+        if tv1 == 0:
+            x1 = (B / (Z * A)) % cls.curve.PRIME_FIELD
+        gx1 = (x1 * x1 * x1 + A * x1 + B) % cls.curve.PRIME_FIELD
+        x2 = (Z * u * u * x1) % cls.curve.PRIME_FIELD
+        gx2 = (x2 * x2 * x2 + A * x2 + B) % cls.curve.PRIME_FIELD
+        if cls.curve.is_square(gx1):
+            x = x1
+            y = cls.curve.mod_sqrt(gx1)
+        else:
+            x = x2
+            y = cls.curve.mod_sqrt(gx2)
+        if cls.curve.sgn0(u) != cls.curve.sgn0(y):
+            y = (-y) % cls.curve.PRIME_FIELD
+        # Create point using the proper constructor
+        return cls(x=x, y=y)
+
+    @classmethod
+    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> Self|Any:
+
+
+        if not isinstance(alpha_string, bytes):
+            alpha_string = bytes.fromhex(alpha_string)
+
+        if not isinstance(salt, bytes):
+            salt = bytes.fromhex(salt)
+
+        if cls.curve.E2C == E2C_Variant.SSWU:
+            return cls.sswu_hash2_curve(alpha_string, salt, General_Check)
+        else:
+            raise ValueError("Unexpected E2C Variant")
+
+    @classmethod
+    def sswu_hash2_curve(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) ->SWAffinePoint|Any:
+        """
+        Encode a string to a curve point using Elligator 2.
+
+        Args:
+            alpha_string: String to encode
+            salt: Optional salt for the encoding
+            General_Check:Just for printing all test suites
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        string_to_hash = salt + alpha_string
+        u = cls.curve.hash_to_field(string_to_hash, 2) #for RO
+
+        q0 = cls.map_to_curve_simple_swu(u[0])  # sswu
+        q1 = cls.map_to_curve_simple_swu(u[1])  # sswu
+        R = q0 + q1
+        if General_Check:
+            P=R.clear_cofactor()
+            return {
+                "u": u,
+                "Q0": [q0.x, q0.y],
+                "Q1": [q1.x, q1.y],
+                "P": [P.x, P.y]
+            }
+        return R.clear_cofactor()
