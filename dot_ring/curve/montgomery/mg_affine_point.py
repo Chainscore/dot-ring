@@ -301,6 +301,9 @@ class MGAffinePoint(Point[C]):
         """Check if this is the identity element (point at infinity)."""
         return self.x is None or self.y is None
 
+    def clear_cofactor(self)-> "MGAffinePoint[C]":
+        return self*self.curve.COFACTOR
+
     @classmethod
     def identity(cls) -> "MGAffinePoint":
         """Get the identity element (point at infinity)."""
@@ -389,3 +392,62 @@ class MGAffinePoint(Point[C]):
                 raise ValueError("Point not on curve")
 
             return point
+
+    @classmethod
+    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"") -> "MGAffinePoint[C]":
+
+        if not isinstance(alpha_string, bytes):
+            alpha_string = bytes.fromhex(alpha_string)
+
+        if not isinstance(salt, bytes):
+            salt = bytes.fromhex(salt)
+
+        if cls.curve.E2C == E2C_Variant.ELL2:
+            return cls.encode_to_curve_hash2_suite(alpha_string, salt)
+        else:
+            raise ValueError("Unexpected E2C Variant")
+
+    @classmethod
+    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"") -> "MGAffinePoint[C]":
+        """
+        Encode a string to a curve point using Elligator 2.
+
+        Args:
+            alpha_string: String to encode
+            salt: Optional salt for the encoding
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        string_to_hash = salt + alpha_string
+        u = cls.curve.hash_to_field(string_to_hash, 2)
+
+        q0 = cls.map_to_curve(u[0])  # ELL2
+        q1 = cls.map_to_curve(u[1])  # ELL2
+        R = q0 + q1
+        return R.clear_cofactor()
+
+
+
+    def clear_cofactor(self) -> "MGAffinePoint[C]":
+        """
+        Clear the cofactor to ensure point is in prime-order subgroup.
+
+        Returns:
+            TEAffinePoint: Point in prime-order subgroup
+        """
+        return self * self.curve.COFACTOR
+
+    @classmethod
+    def map_to_curve(cls, u: int) -> "MGAffinePoint[C]":
+        """
+        Map a field element to a curve point using Elligator 2.
+
+        Args:
+            u: Field element to map
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        s, t = cls.curve.map_to_curve_ell2(u)
+        return cls(s,t)
