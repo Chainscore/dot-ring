@@ -12,6 +12,7 @@ from dot_ring.curve.e2c import E2C_Variant
 from ..point import Point, PointProtocol
 from .te_curve import TECurve
 
+
 C = TypeVar("C", bound=TECurve)
 
 
@@ -158,6 +159,7 @@ class TEAffinePoint(Point[C]):
         if self.curve.glv.is_enabled:
             return self.glv_mul(scalar)
         return self.scalar_mul(scalar)
+
 
     def scalar_mul(self, scalar: int) -> Self:
         """
