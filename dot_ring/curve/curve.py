@@ -38,9 +38,11 @@ class Curve:
     Z: Final[int]
     E2C: E2C_Variant
 
-    # Hash to Curve Parameters
-    M: ClassVar[int] = 1  # Degree of field extension
-    K: ClassVar[int] = 128  # Security parameter
+    M: Final[int]#1
+    K:Final[int]#128
+    L:Final[int]
+    S_in_bytes:Final[int]
+    H_A:Final[str]
 
     # Suite String Parameters
     SUITE_STRING: Final[bytes]
@@ -70,15 +72,15 @@ class Curve:
                 self.COFACTOR > 0
         )
 
-    @property
-    def L(self) -> int:
-        """
-        Calculate the length parameter for hash-to-field operations.
-
-        Returns:
-            int: The calculated L parameter
-        """
-        return math.ceil((math.ceil(math.log2(self.PRIME_FIELD)) + self.K) / 8)
+    # @property
+    # def L(self) -> int:
+    #     """
+    #     Calculate the length parameter for hash-to-field operations.
+    #
+    #     Returns:
+    #         int: The calculated L parameter
+    #     """
+    #     return math.ceil((math.ceil(math.log2(self.PRIME_FIELD)) + self.K) / 8)
 
     def hash_to_field(self, msg: bytes, count: int) -> List[int]:
         """
@@ -108,7 +110,7 @@ class Curve:
                 elm_offset = self.L * (j + i * self.M)
                 tv = uniform_bytes[elm_offset:elm_offset + self.L]
                 e_j = int.from_bytes(tv, 'big') % self.PRIME_FIELD
-                u_values.append(e_j)
+                u_values.append(e_j%self.PRIME_FIELD) #modulo
 
         return u_values
 
@@ -126,7 +128,18 @@ class Curve:
         Raises:
             ValueError: If the input parameters are invalid
         """
-        hash_fn = hashlib.sha512
+        if self.H_A=="SHA-512":
+            hash_fn=hashlib.sha512
+
+        elif self.H_A=="SHA-384":
+            hash_fn=hashlib.sha384
+
+        elif self.H_A=="SHA-256":
+            hash_fn=hashlib.sha256
+
+        else:
+            raise ValueError("Invalid hash function")
+
         b_in_bytes = hash_fn().digest_size
         ell = math.ceil(len_in_bytes / b_in_bytes)
 
@@ -135,7 +148,7 @@ class Curve:
 
         DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
 
-        Z_pad = self.I2OSP(0, self.L)
+        Z_pad = self.I2OSP(0, self.S_in_bytes)
 
         l_i_b_str = self.I2OSP(len_in_bytes, 2)
 
@@ -183,7 +196,7 @@ class Curve:
         return x % 2
 
     def find_z_ell2(self) -> int:
-        return 5
+        return 5 #5 is only for bandersnatch
 
     def is_square(self, val: int) -> bool:
         if val == 0:
@@ -246,6 +259,25 @@ class Curve:
 
         return r
 
+
+    def inv(self,x: int) -> int:
+        # modular inverse in GF(p)
+        return pow(x, self.PRIME_FIELD - 2, self.PRIME_FIELD)
+
+
+    def legendre_symbol(self,x: int) -> int:
+        return pow(x, (self.PRIME_FIELD - 1) // 2, self.PRIME_FIELD)
+
+
+    def is_square(self, val: int) -> bool:
+        if val == 0:
+            return True
+        return pow(val, (self.PRIME_FIELD - 1) // 2, self.PRIME_FIELD) == 1
+
+    @staticmethod
+    def sgn0(xv: int) -> int:
+        return xv % 2
+
     @staticmethod
     def sha512(data: bytes) -> bytes:
         """Calculate SHA-512 hash"""
@@ -264,6 +296,5 @@ class Curve:
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:
         return bytes(a ^ b for a, b in zip(s1, s2))
-
 
 
