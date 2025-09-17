@@ -19,7 +19,7 @@ class P384Params:
     """
     # From RFC 9380 Section 8.3: P384_XMD:SHA-384_SSWU_RO_
     SUITE_STRING = b"P384_XMD:SHA-384_SSWU_RO_"
-    DST = b"P384_XMD:SHA-384_SSWU_RO_"  # Default DST is the same as SUITE_STRING
+    DST = b"QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters for y² = x³ - 3x + b
     PRIME_FIELD: Final[int] = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF
@@ -36,7 +36,12 @@ class P384Params:
 
     # Z parameter for SSWU mapping (from RFC 9380 Section 8.3)
     Z: Final[int] = -12  # P-384 uses Z = -12 for SSWU mapping
-
+    M: Final[int] = 1  # Field Extension Degree
+    K: Final[int] = 192  # Security level
+    # expand_message: Final[str] = "XMD"
+    H_A: Final[str] = "SHA-384"
+    L: [int] = 72
+    S_in_bytes:[Final]=128
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 24  # 192 bits for P-384
     
@@ -74,7 +79,13 @@ class P384Curve(SWCurve):
             DST=P384Params.DST,
             E2C=E2C_Variant.SSWU,
             BBx=P384Params.BBx,
-            BBy=P384Params.BBy
+            BBy=P384Params.BBy,
+            M=P384Params.M,
+            K=P384Params.K,
+            L=P384Params.L,
+            S_in_bytes=P384Params.S_in_bytes,
+            H_A=P384Params.H_A,
+
         )
 
 

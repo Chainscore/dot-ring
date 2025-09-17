@@ -19,7 +19,7 @@ class P256Params:
     """
     # From RFC 9380 Section 8.1: P-256_XMD:SHA-256_SSWU_RO_
     SUITE_STRING = b"P256_XMD:SHA-256_SSWU_RO_"
-    DST = b"P256_XMD:SHA-256_SSWU_RO_"  # Default DST is the same as SUITE_STRING
+    DST = b"QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters for y² = x³ - 3x + b
     PRIME_FIELD: Final[int] = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
@@ -36,12 +36,16 @@ class P256Params:
 
     # Z parameter for SSWU mapping (from RFC 9380 Section 8.1)
     Z: Final[int] = -10  # P-256 uses Z = -10 for SSWU mapping
-
+    M: Final[int] = 1 #Field Extension Degree
+    L: Final[int] = 48  # can define func as well
+    K: Final[int]=128 #Security level
+    # expand_message: Final[str]="XMD"
+    S_in_bytes: Final[int] = 64
+    H_A:Final[str]= "SHA-256"
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
     BBx: Final[int] = 0x2c9b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac012
     BBy: Final[int] = 0x7d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38945
-    
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
@@ -74,7 +78,13 @@ class P256Curve(SWCurve):
             DST=P256Params.DST,
             E2C=E2C_Variant.SSWU,
             BBx=P256Params.BBx,
-            BBy=P256Params.BBy
+            BBy=P256Params.BBy,
+            M=P256Params.M,
+            K=P256Params.K,
+            L=P256Params.L,
+            S_in_bytes=P256Params.S_in_bytes,
+            H_A=P256Params.H_A,
+
         )
 
 

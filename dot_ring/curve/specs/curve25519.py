@@ -1,4 +1,4 @@
-# dot-ring/curve/specs/curve25519.py
+# dot_ring/curve/specs/curve25519.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,7 +19,7 @@ class Curve25519Params:
     """
     # From RFC 9380 Section 4.1: curve25519_XMD:SHA-512_ELL2_RO_
     SUITE_STRING = b"curve25519_XMD:SHA-512_ELL2_RO_"
-    DST = b"curve25519_XMD:SHA-512_ELL2_RO_"  # Default DST is the same as SUITE_STRING
+    DST = b"QUUX-V01-CS02-with-curve25519_XMD:SHA-512_ELL2_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 2 ** 255 - 19
@@ -36,6 +36,11 @@ class Curve25519Params:
 
     # Z parameter for Elligator 2 mapping (from RFC 9380 Section 4.1)
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
+    L:Final[int]=48
+    H_A:[Final]="SHA-512"
+    M:[Finla]=1
+    K:[Final]=128
+    S_in_bytes:[Final]=128 #48 64 136 172
 
     # Challenge length in bytes for VRF (aligned with 128-bit security level)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
@@ -70,7 +75,12 @@ class Curve25519Curve(MGCurve):
             DST=Curve25519Params.DST,
             E2C=E2C_Variant.ELL2,
             BBx=Curve25519Params.BBu,
-            BBy=Curve25519Params.BBv
+            BBy=Curve25519Params.BBv,
+            L=Curve25519Params.L,
+            M=Curve25519Params.M,
+            K=Curve25519Params.K,
+            H_A=Curve25519Params.H_A,
+            S_in_bytes=Curve25519Params.S_in_bytes,
         )
 
     @property
@@ -303,8 +313,8 @@ class Curve25519Point(MGAffinePoint):
             v = (-v) % p
 
         return cls(u, v)
-#
-#
+
+
 # Convenience functions for common operations
 def curve25519_base_point() -> Curve25519Point:
     """Get the standard Curve25519 base point (generator)."""

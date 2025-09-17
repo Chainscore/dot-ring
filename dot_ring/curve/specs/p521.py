@@ -19,7 +19,7 @@ class P521Params:
     """
     # From RFC 9380 Section 8.4: P521_XMD:SHA-512_SSWU_RO_
     SUITE_STRING = b"P521_XMD:SHA-512_SSWU_RO_"
-    DST = b"P521_XMD:SHA-512_SSWU_RO_"  # Default DST is the same as SUITE_STRING
+    DST = b"QUUX-V01-CS02-with-P521_XMD:SHA-512_SSWU_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters for y² = x³ - 3x + b
     PRIME_FIELD: Final[int] = 0x01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -36,7 +36,12 @@ class P521Params:
 
     # Z parameter for SSWU mapping (from RFC 9380 Section 8.4)
     Z: Final[int] = -4  # P-521 uses Z = -4 for SSWU mapping
-
+    M: Final[int] = 1  # Field Extension Degree
+    K: Final[int] = 256  # Security level
+    # expand_message: Final[str] = "XMD"
+    H_A: Final[str] = "SHA-512"
+    L: [int] = 98
+    S_in_bytes:[Final]= 128# 64 128 136 72
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 32  # 256 bits for P-521
     
@@ -74,7 +79,12 @@ class P521Curve(SWCurve):
             DST=P521Params.DST,
             E2C=E2C_Variant.SSWU,
             BBx=P521Params.BBx,
-            BBy=P521Params.BBy
+            BBy=P521Params.BBy,
+            M=P521Params.M,
+            K=P521Params.K,
+            L=P521Params.L,
+            S_in_bytes=P521Params.S_in_bytes,
+            H_A=P521Params.H_A,
         )
 
 

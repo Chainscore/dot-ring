@@ -42,7 +42,13 @@ class Secp256k1Params:
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
     # Z parameter for SSWU mapping
-    Z: Final[int] = 1
+    # Z: Final[int] = 1
+    Z: Final[int] = -11 # P-256 uses Z = -11 for SSWU mapping
+    M: Final[int] = 1  # Field Extension Degree
+    K: Final[int] = 128  # Security level
+    expand_message: Final[str] = "XMD"
+    H_A: Final[str] = "SHA256"
+    L: [int] = 48
 
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
