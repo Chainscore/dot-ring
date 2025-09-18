@@ -4,7 +4,7 @@ from enum import Enum
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import List, ClassVar, Final
+from typing import List, ClassVar, Final,Dict
 from dot_ring.curve.e2c import E2C_Variant
 from dot_ring.curve.glv import GLVSpecs
 
@@ -43,6 +43,10 @@ class Curve:
     L:Final[int]
     S_in_bytes:Final[int]
     H_A:Final[str]
+
+    #isogeny
+    Requires_Isogeny:Final[bool]
+    Isogeny_Coeffs:Final[Dict[str, List[int]]]
 
     # Suite String Parameters
     SUITE_STRING: Final[bytes]
@@ -296,5 +300,3 @@ class Curve:
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:
         return bytes(a ^ b for a, b in zip(s1, s2))
-
-
