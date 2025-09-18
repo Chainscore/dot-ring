@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Final, Tuple
 from dot_ring.curve.curve import Curve
 
-
 @dataclass(frozen=True)
 class SWCurve(Curve):
     """
@@ -64,5 +63,4 @@ class SWCurve(Curve):
         
         discriminant = (4 * pow(A, 3, p) + 27 * pow(B, 2, p)) % p
         numerator = (1728 * 4 * pow(A, 3, p)) % p
-        
         return (numerator * self.mod_inverse(discriminant)) % p

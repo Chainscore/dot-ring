@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Union, Optional, Any
+from typing import Final, Self, Union, Optional, Any, List
+
+
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
@@ -193,7 +195,7 @@ class SWAffinePoint(Point[SWCurve]):
         """
         # Return a point at infinity (None, None)
         # The curve will be set by the child class's __init__
-        return cls(None, None)
+        return cls(None,None)
 
     @classmethod
     def _x_recover(cls, y: int) -> int:
@@ -287,48 +289,77 @@ class SWAffinePoint(Point[SWCurve]):
         # Choose correct sign based on prefix
         if (y % 2) != (prefix % 2):
             y = (-y) % p
-        
+
         return cls(x, y, cls.curve)
 
     @classmethod
-    def map_to_curve_simple_swu(cls, u: int)->SWAffinePoint:
-        """
-        Implements simplified SWU mapping
-        """
-        # 1.tv1 = inv0(Z ^ 2 * u ^ 4 + Z * u ^ 2)
-        # 2.x1 = (-B / A) * (1 + tv1)
-        # 3.Iftv1 == 0, set x1 = B / (Z * A)
-        # 4.gx1 = x1 ^ 3 + A * x1 + B
-        # 5.x2 = Z * u ^ 2 * x1
-        # 6.gx2 = x2 ^ 3 + A * x2 + B
-        # 7.Ifis_square(gx1), setx = x1 and y = sqrt(gx1)
-        # 8.Else set x = x2 and y = sqrt(gx2)
-        # 9.If sgn0(u) != sgn0(y), set y = -y
-        # 10.return (x, y)
-        Z = cls.curve.Z
-        A=cls.curve.WeierstrassA
-        B=cls.curve.WeierstrassB
+    def map_to_curve_simple_swu(cls, u: int) -> SWAffinePoint|Any:
+        """Implements simplified SWU mapping"""
+        # 1.  tv1 = inv0(Z^2 * u^4 + Z * u^2)
+        # 2.   x1 = (-B / A) * (1 + tv1)
+        # 3.  If tv1 == 0, set x1 = B / (Z * A)
+        # 4. gx1 = x1^3 + A * x1 + B
+        # 5.  x2 = Z * u^2 * x1
+        # 6. gx2 = x2^3 + A * x2 + B
+        # 7.  If is_square(gx1), set x = x1 and y = sqrt(gx1)
+        # 8.  Else set x = x2 and y = sqrt(gx2)
+        # 9.  If sgn0(u) != sgn0(y), set y = -y
+        # 10. return (x, y)
 
-        Zp2 = Z * Z
-        up4 = u * u * u * u
-        up2 = u * u
-        tv1 = (Zp2 * up4 + Z * up2)
-        tv1 = cls.curve.inv(tv1)
-        x1 = ((-B * cls.curve.inv(A)) * (1 + tv1)) % cls.curve.PRIME_FIELD
+        Z = cls.curve.Z
+        A = cls.curve.WeierstrassA
+        B = cls.curve.WeierstrassB
+        p = cls.curve.PRIME_FIELD
+
+        if cls.curve.Requires_Isogeny: #E' vals, used only for secp256k1 as its A=0
+            A=0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
+            B=1771
+
+        # 1. tv1 = inv0(Z^2 * u^4 + Z * u^2)
+        u_sq = (u * u) % p
+        tv1 = (Z * Z * ((u_sq * u_sq) % p) + Z * u_sq) % p
+        
+        # Handle special case when tv1 is 0
         if tv1 == 0:
-            x1 = (B / (Z * A)) % cls.curve.PRIME_FIELD
-        gx1 = (x1 * x1 * x1 + A * x1 + B) % cls.curve.PRIME_FIELD
-        x2 = (Z * u * u * x1) % cls.curve.PRIME_FIELD
-        gx2 = (x2 * x2 * x2 + A * x2 + B) % cls.curve.PRIME_FIELD
+            # 3. If tv1 == 0, set x1 = B / (Z * A)
+            x1 = (B * cls.curve.inv((Z * A) % p)) % p
+        else:
+            # 2. x1 = (-B / A) * (1 + tv1)
+            tv1 = cls.curve.inv(tv1)
+            x1 = (-B * cls.curve.inv(A)) % p
+            x1 = (x1 * (1 + tv1)) % p
+
+        # 4. gx1 = x1^3 + A * x1 + B
+        gx1 = (pow(x1, 3, p) + (A * x1) % p + B) % p
+        
+        # 5. x2 = Z * u^2 * x1
+        x2 = (Z * u_sq % p) * x1 % p
+        
+        # 6. gx2 = x2^3 + A * x2 + B
+        gx2 = (pow(x2, 3, p) + (A * x2) % p + B) % p
+
+        # 7-8. Find a valid x and y
+        x, y = x1, None
         if cls.curve.is_square(gx1):
-            x = x1
             y = cls.curve.mod_sqrt(gx1)
         else:
             x = x2
             y = cls.curve.mod_sqrt(gx2)
+
+        # 9. Fix sign of y
         if cls.curve.sgn0(u) != cls.curve.sgn0(y):
-            y = (-y) % cls.curve.PRIME_FIELD
-        # Create point using the proper constructor
+            y = (-y) % p
+
+        if cls.curve.Requires_Isogeny:
+
+            A_prime = 0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
+            B_prime = 1771
+
+            #Check if point lies on E'
+            if (y * y - (x ** 3 + A_prime * x + B_prime)) % p != 0:
+               raise ValueError("Point is not on E'")
+            return cls.apply_isogeny(x,y)
+
         return cls(x=x, y=y)
 
     @classmethod
@@ -361,10 +392,10 @@ class SWAffinePoint(Point[SWCurve]):
         """
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2) #for RO
-
         q0 = cls.map_to_curve_simple_swu(u[0])  # sswu
         q1 = cls.map_to_curve_simple_swu(u[1])  # sswu
         R = q0 + q1
+
         if General_Check:
             P=R.clear_cofactor()
             return {
@@ -374,3 +405,45 @@ class SWAffinePoint(Point[SWCurve]):
                 "P": [P.x, P.y]
             }
         return R.clear_cofactor()
+
+    @classmethod
+    def apply_isogeny(cls, x_p: int, y_p: int) -> Self:
+        """
+        Apply the rational isogeny map to a point (x', y') on the isogenous curve E'.
+        Explicit polynomial formulas for secp256k1.
+        """
+        p = cls.curve.PRIME_FIELD
+        coeffs = cls.curve.Isogeny_Coeffs
+        x_num = (
+                        coeffs["x_num"][0] * pow(x_p, 3, p) +
+                        coeffs["x_num"][1] * pow(x_p, 2, p) +
+                        coeffs["x_num"][2] * x_p +
+                        coeffs["x_num"][3]
+                ) % p
+
+        x_den = (
+                        pow(x_p, 2, p) +
+                        coeffs["x_den"][1] * x_p +
+                        coeffs["x_den"][2]
+                ) % p
+        y_num = (
+                        coeffs["y_num"][0] * pow(x_p, 3, p) +
+                        coeffs["y_num"][1] * pow(x_p, 2, p) +
+                        coeffs["y_num"][2] * x_p +
+                        coeffs["y_num"][3]
+                ) % p
+
+        y_den = (
+                        pow(x_p, 3, p) +
+                        coeffs["y_den"][1] * pow(x_p, 2, p) +
+                        coeffs["y_den"][2] * x_p +
+                        coeffs["y_den"][3]
+                ) % p
+
+        x_den_inv = pow(x_den, -1, p)
+        y_den_inv = pow(y_den, -1, p)
+
+        x_mapped = (x_num * x_den_inv) % p
+        y_mapped = (y_p * y_num * y_den_inv) % p
+
+        return cls(x_mapped, y_mapped)
