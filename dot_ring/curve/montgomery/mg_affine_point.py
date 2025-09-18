@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, TypeVar, Generic, Type, Optional, Tuple
+from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any
 from ..point import Point, PointProtocol
 from .mg_curve import MGCurve
+from dot_ring.curve.e2c import E2C_Variant
 
 C = TypeVar('C', bound=MGCurve)
 
@@ -202,7 +203,7 @@ class MGAffinePoint(Point[C]):
     def __mul__(self, scalar: int) -> "MGAffinePoint[C]":
         """
         Scalar multiplication using double-and-add algorithm.
-        
+
         This implementation ensures consistency with the point addition formulas
         by using the same underlying operations.
         """
@@ -215,7 +216,7 @@ class MGAffinePoint(Point[C]):
 
         if self.is_identity():
             return self._make_point(None, None)
-            
+
         # Use double-and-add for consistency with point addition formulas
         return self._scalar_mult_double_add(scalar)
         try:
@@ -268,23 +269,23 @@ class MGAffinePoint(Point[C]):
     def _scalar_mult_double_add(self, scalar: int) -> "MGAffinePoint[C]":
         """
         Scalar multiplication using double-and-add algorithm.
-        
+
         This implementation ensures consistency with the point addition formulas
         by using the same underlying operations.
         """
         if scalar == 0:
             return self._make_point(None, None)
-            
+
         # Handle negative scalar
         if scalar < 0:
             return (-self)._scalar_mult_double_add(-scalar)
-            
+
         if self.is_identity():
             return self._make_point(None, None)
-            
+
         result = self._make_point(None, None)  # Start with identity
         current = self
-        
+
         # Convert scalar to binary and process each bit
         while scalar > 0:
             if scalar & 1:
@@ -294,7 +295,7 @@ class MGAffinePoint(Point[C]):
             current = current + current
             # Move to next bit
             scalar >>= 1
-            
+
         return result
 
     def is_identity(self) -> bool:
@@ -394,7 +395,7 @@ class MGAffinePoint(Point[C]):
             return point
 
     @classmethod
-    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"") -> "MGAffinePoint[C]":
+    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
 
         if not isinstance(alpha_string, bytes):
             alpha_string = bytes.fromhex(alpha_string)
@@ -403,12 +404,12 @@ class MGAffinePoint(Point[C]):
             salt = bytes.fromhex(salt)
 
         if cls.curve.E2C == E2C_Variant.ELL2:
-            return cls.encode_to_curve_hash2_suite(alpha_string, salt)
+            return cls.encode_to_curve_hash2_suite(alpha_string, salt, General_Check)
         else:
             raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"") -> "MGAffinePoint[C]":
+    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -425,6 +426,14 @@ class MGAffinePoint(Point[C]):
         q0 = cls.map_to_curve(u[0])  # ELL2
         q1 = cls.map_to_curve(u[1])  # ELL2
         R = q0 + q1
+        if General_Check:
+            P=R.clear_cofactor()
+            return {
+                "u": u,
+                "Q0": [q0.x, q0.y],
+                "Q1": [q1.x, q1.y],
+                "P": [P.x, P.y]
+            }
         return R.clear_cofactor()
 
 
@@ -449,5 +458,50 @@ class MGAffinePoint(Point[C]):
         Returns:
             TEAffinePoint: Resulting curve point
         """
-        s, t = cls.curve.map_to_curve_ell2(u)
-        return cls(s,t)
+        # 1.x1 = -(J / K) * inv0(1 + Z * u ^ 2)
+        # 2.If x1 == 0, set x1 = -(J / K)
+        # 3.gx1 = x1 ^ 3 + (J / K) * x1 ^ 2 + x1 / K ^ 2
+        # 4.x2 = -x1 - (J / K)
+        # 5.gx2 = x2 ^ 3 + (J / K) * x2 ^ 2 + x2 / K ^ 2
+        # 6.If is_square(gx1), set x = x1, y = sqrt(gx1) with sgn0(y) == 1.
+        # 7.Else set x = x2, y = sqrt(gx2) with sgn0(y) == 0.
+        # 8.s = x * K
+        # 9. t = y * K
+        # 10.return (s, t)
+
+        p = cls.curve.PRIME_FIELD
+        J= cls.curve.A
+        K= cls.curve.B
+        Z = cls.curve.Z
+
+        c1 = (J * cls.curve.mod_inverse(K)) % p
+        c2 = cls.curve.mod_inverse(K * K) % p
+
+        # Main mapping computation
+        tv1 = (Z * u * u) % p
+        e1 = tv1 == -1
+        tv1 = 0 if e1 else tv1
+
+        x1 = (-c1 * cls.curve.mod_inverse(tv1 + 1)) % p
+        gx1 = (((x1 + c1) * x1 + c2) * x1) % p
+
+        x2 = (-x1 - c1) % p
+        gx2 = (tv1 * gx1) % p
+
+        # Choose correct values
+        e2 = cls.curve.is_square(gx1)
+        x = x2 if not e2 else x1
+        y2 = gx2 if not e2 else gx1
+
+        # Compute square root
+        y = cls.curve.mod_sqrt(y2)
+
+        # Adjust sign
+        e3 = (y & 1) == 1
+        y = -y % p if e2 ^ e3 else y
+
+        # Scale coordinates
+        s = (x * K) % p
+        t = (y * K) % p
+
+        return cls(s, t)
