@@ -38,9 +38,11 @@ class Curve25519Params:
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
     L:Final[int]=48
     H_A:[Final]="SHA-512"
-    M:[Finla]=1
+    M:[Final]=1
     K:[Final]=128
-    S_in_bytes:[Final]=128 #48 64 136 172
+    S_in_bytes:[Final]=128 #48 64 136 172\
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs=None
 
     # Challenge length in bytes for VRF (aligned with 128-bit security level)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
@@ -81,6 +83,8 @@ class Curve25519Curve(MGCurve):
             K=Curve25519Params.K,
             H_A=Curve25519Params.H_A,
             S_in_bytes=Curve25519Params.S_in_bytes,
+            Requires_Isogeny=Curve25519Params.Requires_Isogeny,
+            Isogeny_Coeffs=Curve25519Params.Isogeny_Coeffs,
         )
 
     @property
@@ -111,7 +115,6 @@ class Curve25519CurveSimple(MGCurve):
         """Skip validation for known good parameters."""
         pass
 
-
 # Try the main implementation first, fall back to simple if needed
 try:
     Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
@@ -129,6 +132,7 @@ class Curve25519Point(MGAffinePoint):
     """
     Point on the Curve25519 Montgomery curve.
     """
+    curve: Final[Curve25519Curve] = Curve25519_MG_Curve
 
     def __init__(self, u: Optional[int], v: Optional[int], curve=None) -> None:
         """
@@ -145,15 +149,15 @@ class Curve25519Point(MGAffinePoint):
         # Call parent constructor
         super().__init__(u, v, curve)
 
-    @property
-    def curve(self):
-        """Get the curve instance."""
-        return getattr(self, '_curve', Curve25519_MG_Curve)
+    # @property
+    # def curve(self):
+    #     """Get the curve instance."""
+    #     return getattr(self, '_curve', Curve25519_MG_Curve)
 
-    @curve.setter
-    def curve(self, value):
-        """Set the curve instance."""
-        object.__setattr__(self, '_curve', value)
+    # @curve.setter
+    # def curve(self, value):
+    #     """Set the curve instance."""
+    #     object.__setattr__(self, '_curve', value)
 
     @classmethod
     def generator_point(cls) -> Self:

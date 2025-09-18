@@ -1,4 +1,4 @@
-# /home/siva/PycharmProjects/dot-ring/dot-ring/curve/specs/curve448.py
+# /home/siva/PycharmProjects/dot_ring/dot_ring/curve/specs/curve448.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,8 +17,8 @@ class Curve448Params:
     Curve448 is a Montgomery curve defined by: v² = u³ + 156326u² + u
     over the prime field 2^448 - 2^224 - 1.
     """
-    SUITE_STRING = b"curve448_X448_"
-    DST = b"QUUX-V01-CS02-with-curve448_X448_"
+    SUITE_STRING = b"curve448_XOF:SHAKE256_ELL2_RO_"
+    DST = b"QUUX-V01-CS02-with-curve448_XOF:SHAKE256_ELL2_RO_"
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
@@ -28,7 +28,7 @@ class Curve448Params:
     # Generator point (u, v) - corresponds to the base point of edwards448
     # Generator point u-coordinate (from RFC 7748)
     GENERATOR_U: Final[int] = 5
-    
+
     # v-coordinate is derived from the curve equation v^2 = u^3 + A*u^2 + u mod p
     # Using the positive square root that has even least significant bit (LSB)
     GENERATOR_V: Final[int] = 355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
@@ -39,6 +39,13 @@ class Curve448Params:
 
     # Z parameter for SSWU mapping
     Z: Final[int] = -1
+    L: Final[int] = 84
+    H_A: [Final] = "Shake-256"
+    M: [Final] = 1
+    K: [Final] = 224
+    S_in_bytes: [Final] = None
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs = None
 
     # Challenge length in bytes for VRF (aligned with 224-bit security level)
     CHALLENGE_LENGTH: Final[int] = 28  # 224 bits for Curve448 (corrected from 24)
@@ -72,7 +79,14 @@ class Curve448Curve(MGCurve):
             DST=Curve448Params.DST,
             E2C=E2C_Variant.ELL2,
             BBx=Curve448Params.BBu,
-            BBy=Curve448Params.BBv
+            BBy=Curve448Params.BBv,
+            L=Curve448Params.L,
+            M=Curve448Params.M,
+            K=Curve448Params.K,
+            H_A=Curve448Params.H_A,
+            S_in_bytes=Curve448Params.S_in_bytes,
+            Requires_Isogeny=Curve448Params.Requires_Isogeny,
+            Isogeny_Coeffs=Curve448Params.Isogeny_Coeffs
         )
 
     @property
@@ -102,6 +116,7 @@ class Curve448Point(MGAffinePoint):
     """
     Point on the Curve448 Montgomery curve.
     """
+    curve: Final[Curve448Curve] = Curve448_MG_Curve
 
     def __init__(self, u: Optional[int], v: Optional[int], curve=None) -> None:
         """
@@ -118,15 +133,15 @@ class Curve448Point(MGAffinePoint):
         # Call parent constructor
         super().__init__(u, v, curve)
 
-    @property
-    def curve(self):
-        """Get the curve instance."""
-        return getattr(self, '_curve', Curve448_MG_Curve)
-
-    @curve.setter
-    def curve(self, value):
-        """Set the curve instance."""
-        object.__setattr__(self, '_curve', value)
+    # @property
+    # def curve(self):
+    #     """Get the curve instance."""
+    #     return getattr(self, '_curve', Curve448_MG_Curve)
+    #
+    # @curve.setter
+    # def curve(self, value):
+    #     """Set the curve instance."""
+    #     object.__setattr__(self, '_curve', value)
 
     @classmethod
     def generator_point(cls) -> 'Curve448Point':
@@ -290,7 +305,6 @@ class Curve448Point(MGAffinePoint):
 def curve448_base_point() -> Curve448Point:
     """Get the standard Curve448 base point (generator)."""
     return Curve448Point.generator_point()
-
 
 def curve448_identity() -> Curve448Point:
     """Get the Curve448 identity point."""
