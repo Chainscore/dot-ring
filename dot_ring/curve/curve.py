@@ -141,6 +141,9 @@ class Curve:
         elif self.H_A=="SHA-256":
             hash_fn=hashlib.sha256
 
+        elif self.H_A=="Shake-256":
+            return self.expand_message_xof(msg, len_in_bytes)
+
         else:
             raise ValueError("Invalid hash function")
 
@@ -170,6 +173,32 @@ class Curve:
         uniform_bytes = b''.join(b_values)
 
         return uniform_bytes[:len_in_bytes]
+
+    def expand_message_xof(self, msg: bytes, len_in_bytes: int) -> bytes:
+
+        # 1.ABORT if len_in_bytes > 65535 or len(DST) > 255
+        # 2.DST_prime = DST | | I2OSP(len(DST), 1)
+        # 3.msg_prime = msg | | I2OSP(len_in_bytes, 2) | | DST_prime
+        # 4.uniform_bytes = H(msg_prime, len_in_bytes)
+        # 5.return uniform_bytes
+
+        if len_in_bytes > 65535:
+            raise ValueError("len_in_bytes too large")
+        if len(self.DST) > 255:
+            raise ValueError("DST too long")
+
+        # Step 2: DST_prime = DST || I2OSP(len(DST), 1)
+        DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
+
+        # Step 3: msg_prime = msg || I2OSP(len_in_bytes, 2) || DST_prime
+        msg_prime = msg + self.I2OSP(len_in_bytes, 2) + DST_prime
+
+        # Step 4: uniform_bytes = SHAKE256(msg_prime, len_in_bytes)
+        shake = hashlib.shake_256()
+        shake.update(msg_prime)
+        uniform_bytes = shake.digest(len_in_bytes)
+        # Step 5: return uniform_bytes
+        return uniform_bytes
 
     def mod_inverse(self, val: int) -> int:
         """
