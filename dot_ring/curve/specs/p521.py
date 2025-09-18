@@ -44,12 +44,12 @@ class P521Params:
     S_in_bytes:[Final]= 128# 64 128 136 72
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 32  # 256 bits for P-521
-    
+    Requires_Isogeny: Final[bool] = False
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
     BBx: Final[int] = 0x01C9B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC012345678901234567890123456789012345678901234567890123456789012345678
     BBy: Final[int] = 0x02D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38945678901234567890123456789012345678901234567890123456789012345678901
-
+    Isogeny_Coeffs=None
 
 class P521Curve(SWCurve):
     """
@@ -85,6 +85,8 @@ class P521Curve(SWCurve):
             L=P521Params.L,
             S_in_bytes=P521Params.S_in_bytes,
             H_A=P521Params.H_A,
+            Requires_Isogeny=P521Params.Requires_Isogeny,
+            Isogeny_Coeffs=P521Params.Isogeny_Coeffs,
         )
 
 

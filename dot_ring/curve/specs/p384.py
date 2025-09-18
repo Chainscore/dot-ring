@@ -44,11 +44,12 @@ class P384Params:
     S_in_bytes:[Final]=128
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 24  # 192 bits for P-384
-    
+    Requires_Isogeny: Final[bool] = False
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
     BBx: Final[int] = 0x1c9b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac012345678901234567890123456789012
     BBy: Final[int] = 0x2d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38945678901234567890123456789012345
+    Isogeny_Coeffs=None
 
 
 class P384Curve(SWCurve):
@@ -85,6 +86,8 @@ class P384Curve(SWCurve):
             L=P384Params.L,
             S_in_bytes=P384Params.S_in_bytes,
             H_A=P384Params.H_A,
+            Requires_Isogeny=P384Params.Requires_Isogeny,
+            Isogeny_Coeffs=P384Params.Isogeny_Coeffs,
 
         )
 

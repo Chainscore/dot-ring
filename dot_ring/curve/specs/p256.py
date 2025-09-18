@@ -48,6 +48,8 @@ class P256Params:
     BBy: Final[int] = 0x7d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38945
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs=None
 
 
 class P256Curve(SWCurve):
@@ -84,6 +86,8 @@ class P256Curve(SWCurve):
             L=P256Params.L,
             S_in_bytes=P256Params.S_in_bytes,
             H_A=P256Params.H_A,
+            Requires_Isogeny=P256Params.Requires_Isogeny,
+            Isogeny_Coeffs=P256Params.Isogeny_Coeffs,
 
         )
 
