@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self
-
+from typing import Final, Self, Tuple
 from dot_ring.curve.e2c import E2C_Variant
 from ..glv import DisabledGLV
 from ..twisted_edwards.te_curve import TECurve
@@ -19,8 +18,7 @@ class Ed448Params:
     """
     # RFC 9380 compliant suite string and DST for edwards448_XOF:SHAKE256_ELL2_RO_
     SUITE_STRING = b"edwards448_XOF:SHAKE256_ELL2_RO_"
-    DST = b"edwards448_XOF:SHAKE256_ELL2_RO_"
-
+    DST = b"QUUX-V01-CS02-with-edwards448_XOF:SHAKE256_ELL2_RO_"
     # Curve parameters from RFC 8032
     PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
     ORDER: Final[int] = 2 ** 446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d
@@ -28,20 +26,34 @@ class Ed448Params:
 
     # Generator point (x, y) - Valid Ed448 base point that satisfies the curve equation
     # This point is on the curve: x² + y² = 1 + (-39081)*x²*y² (mod p)
+    # GENERATOR_X: Final[int] = (
+    #     3
+    # )
+    # GENERATOR_Y: Final[int] = (
+    #     608248142315725548579089613027470755631970544493249636720114649005312536082174920317165848102547021453544566006733948867319461398184873
+    # )
+
     GENERATOR_X: Final[int] = (
-        3
+        224580040295924300187604334099896036246789641632564134246125461686950415467406032909029192869357953282578032075146446173674602635247710
     )
     GENERATOR_Y: Final[int] = (
-        608248142315725548579089613027470755631970544493249636720114649005312536082174920317165848102547021453544566006733948867319461398184873
+        298819210078481492676017930443930673437544040154080242095928241372331506189835876003536878655418784733982303233503462500531545062832660
     )
 
     # Twisted Edwards parameters: ax² + y² = 1 + dx²y² (mod p)
     # From RFC 8032: Ed448 uses a = 1 and d = -39081
     EDWARDS_A: Final[int] = 1  # a = 1 for Ed448 (untwisted Edwards form)
-    EDWARDS_D: Final[int] = -39081  # d = -39081
+    EDWARDS_D: Final[int] =  -39081  # d = -39081
 
     # Z parameter for Elligator 2 mapping (RFC 9380)
     Z: Final[int] = -1
+    L: Final[int] = 84
+    H_A: [Final] = "Shake-256"
+    M: [Final] = 1
+    K: [Final] = 224
+    S_in_bytes: [Final] = None
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs = None
 
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 64  # 512 bits for Ed448 (higher security)
@@ -88,7 +100,14 @@ class Ed448Curve(TECurve):
             DST=Ed448Params.DST,
             E2C=E2C_Variant.ELL2,
             BBx=Ed448Params.BBx,
-            BBy=Ed448Params.BBy
+            BBy=Ed448Params.BBy,
+            L=Ed448Params.L,
+            H_A=Ed448Params.H_A,
+            M=Ed448Params.M,
+            K=Ed448Params.K,
+            S_in_bytes=Ed448Params.S_in_bytes,
+            Requires_Isogeny=Ed448Params.Requires_Isogeny,
+            Isogeny_Coeffs=Ed448Params.Isogeny_Coeffs
         )
         # Set the encoding length for this curve
         self.ENCODING_LENGTH = self.__class__.ENCODING_LENGTH
@@ -117,6 +136,16 @@ class Ed448Curve(TECurve):
         right = (1 + d * x * x * y * y) % p
 
         return left == right
+
+    @classmethod
+    def calculate_j_k(cls) -> Tuple[int, int]:
+        """
+        Calculate curve parameters J and K for Elligator 2.
+
+        Returns:
+            Tuple[int, int]: J and K parameters
+        """
+        return (156326,1)  # As Curve448 is its equivalent MGC
 
 
 # Singleton instance
@@ -188,6 +217,45 @@ class Ed448Point(TEAffinePoint):
             Ed448Params.BBx,
             Ed448Params.BBy
         )
+
+    @classmethod
+    def map_to_curve(cls, u: int):
+        # Use a different mapping specifically for Ed25519
+        s, t = cls.curve.map_to_curve_ell2(u)
+        return cls.mont_to_ed448(s, t)
+
+
+    @classmethod
+    def mont_to_ed448(cls, u:int, v:int)->Self:
+        """
+        Convert a point (u, v) from Curve448 (Montgomery form)
+        to Ed448 (Twisted Edwards form).
+
+        Args:
+            u (int): Montgomery u-coordinate (mod p)
+            v (int): Montgomery v-coordinate (mod p)
+
+        Returns:
+            (x, y): Edwards coordinates as integers mod p
+        """
+        p=cls.curve.PRIME_FIELD
+
+        # x numerator: 4 * v * (u^2 - 1)
+        x_num = (4 * v * ((u * u - 1) % p)) % p
+
+        # x denominator: u^4 - 2u^2 + 4v^2 + 1
+        x_den = (pow(u, 4, p) - 2 * pow(u, 2, p) + 4 * pow(v, 2, p) + 1) % p
+
+        x = (x_num * cls.curve.inv(x_den)) % p
+
+        # y numerator: -(u^5 - 2u^3 - 4uv^2 + u)
+        y_num = -(pow(u, 5, p) - 2 * pow(u, 3, p) - 4 * u * pow(v, 2, p) + u) % p
+
+        # y denominator: u^5 - 2u^2v^2 - 2u^3 - 2v^2 + u
+        y_den = (pow(u, 5, p) - 2 * pow(u, 2, p) * pow(v, 2, p) - 2 * pow(u, 3, p) - 2 * pow(v, 2, p) + u) % p
+
+        y = (y_num * cls.curve.inv(y_den)) % p
+        return cls(x, y)
 
     def encode_point(self) -> bytes:
         """
@@ -269,4 +337,3 @@ def ed448_scalar_clamp(scalar_bytes: bytes) -> int:
     scalar |= (1 << (8 * 55 + 7))
 
     return scalar
-
