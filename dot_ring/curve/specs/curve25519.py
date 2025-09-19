@@ -25,7 +25,6 @@ class Curve25519Params:
     PRIME_FIELD: Final[int] = 2 ** 255 - 19
     ORDER: Final[int] = 2 ** 252 + 0x14def9dea2f79cd65812631a5cf5d3ed
     COFACTOR: Final[int] = 8
-
     # Generator point (u, v) - corresponds to the base point of edwards25519
     GENERATOR_U: Final[int] = 9
     GENERATOR_V: Final[int] = 14781619447589544791020593568409986887264606134616475288964881837755586237401
@@ -59,8 +58,17 @@ class Curve25519Curve(MGCurve):
     A high-performance curve used in X25519 key exchange.
     """
 
-    def __init__(self) -> None:
-        """Initialize Curve25519 with its parameters."""
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
+        """Initialize Curve255198 with its parameters."""
+        # Default suite and dst
+        SUITE_STRING = Curve25519Params.SUITE_STRING
+        DST = Curve25519Params.DST
+
+        # Replace RO with NU if needed
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         # Initialize with proper dataclass pattern for MGCurve
         # Note: This assumes MGCurve is a dataclass with these fields
         super().__init__(
@@ -73,8 +81,8 @@ class Curve25519Curve(MGCurve):
             Z=Curve25519Params.Z,
             A=Curve25519Params.A,
             B=Curve25519Params.B,
-            SUITE_STRING=Curve25519Params.SUITE_STRING,
-            DST=Curve25519Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.ELL2,
             BBx=Curve25519Params.BBu,
             BBy=Curve25519Params.BBv,
@@ -266,7 +274,7 @@ class Curve25519Point(MGAffinePoint):
     def __repr__(self) -> str:
         """Detailed string representation."""
         return self.__str__()
-        
+
     def to_x25519_bytes(self) -> bytes:
         """
         Convert to X25519 wire format (32 bytes, little-endian u-coordinate).

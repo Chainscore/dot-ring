@@ -63,8 +63,16 @@ class P521Curve(SWCurve):
         """Return the challenge length in bytes for P-521 VRF."""
         return P521Params.CHALLENGE_LENGTH
 
-    def __init__(self) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize P-521 curve with its parameters."""
+        # Default suite and dst
+        SUITE_STRING = P521Params.SUITE_STRING
+        DST = P521Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         super().__init__(
             PRIME_FIELD=P521Params.PRIME_FIELD,
             ORDER=P521Params.ORDER,
@@ -75,8 +83,8 @@ class P521Curve(SWCurve):
             Z=P521Params.Z,
             WeierstrassA=P521Params.WEIERSTRASS_A,
             WeierstrassB=P521Params.WEIERSTRASS_B,
-            SUITE_STRING=P521Params.SUITE_STRING,
-            DST=P521Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.SSWU,
             BBx=P521Params.BBx,
             BBy=P521Params.BBy,
@@ -88,7 +96,6 @@ class P521Curve(SWCurve):
             Requires_Isogeny=P521Params.Requires_Isogeny,
             Isogeny_Coeffs=P521Params.Isogeny_Coeffs,
         )
-
 
 # Singleton instance
 P521_SW_Curve: Final[P521Curve] = P521Curve()

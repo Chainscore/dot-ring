@@ -64,8 +64,16 @@ class P256Curve(SWCurve):
         """Return the challenge length in bytes for P-256 VRF."""
         return P256Params.CHALLENGE_LENGTH
 
-    def __init__(self) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize P-256 curve with its parameters."""
+        # Default suite and dst
+        SUITE_STRING = P256Params.SUITE_STRING
+        DST = P256Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         super().__init__(
             PRIME_FIELD=P256Params.PRIME_FIELD,
             ORDER=P256Params.ORDER,
@@ -76,8 +84,8 @@ class P256Curve(SWCurve):
             Z=P256Params.Z,
             WeierstrassA=P256Params.WEIERSTRASS_A,
             WeierstrassB=P256Params.WEIERSTRASS_B,
-            SUITE_STRING=P256Params.SUITE_STRING,
-            DST=P256Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.SSWU,
             BBx=P256Params.BBx,
             BBy=P256Params.BBy,

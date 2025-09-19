@@ -17,8 +17,8 @@ class Curve448Params:
     Curve448 is a Montgomery curve defined by: v² = u³ + 156326u² + u
     over the prime field 2^448 - 2^224 - 1.
     """
-    SUITE_STRING = b"curve448_XOF:SHAKE256_ELL2_RO_"
-    DST = b"QUUX-V01-CS02-with-curve448_XOF:SHAKE256_ELL2_RO_"
+    SUITE_STRING = b"curve448_XOF:SHAKE256_ELL2_NU_"
+    DST = b"QUUX-V01-CS02-with-curve448_XOF:SHAKE256_ELL2_NU_"
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
@@ -62,8 +62,17 @@ class Curve448Curve(MGCurve):
     A high-security curve used in X448 key exchange.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
         """Initialize Curve448 with its parameters."""
+        # Default suite and dst
+        SUITE_STRING = Curve448Params.SUITE_STRING
+        DST = Curve448Params.DST
+
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         # Initialize with proper dataclass pattern for MGCurve
         super().__init__(
             PRIME_FIELD=Curve448Params.PRIME_FIELD,
@@ -75,8 +84,8 @@ class Curve448Curve(MGCurve):
             Z=Curve448Params.Z,
             A=Curve448Params.A,
             B=Curve448Params.B,
-            SUITE_STRING=Curve448Params.SUITE_STRING,
-            DST=Curve448Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.ELL2,
             BBx=Curve448Params.BBu,
             BBy=Curve448Params.BBv,

@@ -65,13 +65,22 @@ class Ed25519Curve(TECurve):
     offering both efficiency and security.
     """
 
+
     @property
     def CHALLENGE_LENGTH(self) -> int:
         """Return the challenge length in bytes for Ed25519 VRF."""
         return Ed25519Params.CHALLENGE_LENGTH
 
-    def __init__(self) -> None:
-        """Initialize Bandersnatch curve with its parameters."""
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
+        """Initialize Ed25519 curve with RFC-compliant parameters."""
+        # Default suite and dst
+        SUITE_STRING = Ed25519Params.SUITE_STRING
+        DST= Ed25519Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         super().__init__(
             PRIME_FIELD=Ed25519Params.PRIME_FIELD,
             ORDER=Ed25519Params.ORDER,
@@ -82,8 +91,8 @@ class Ed25519Curve(TECurve):
             Z=Ed25519Params.Z,
             EdwardsA=Ed25519Params.EDWARDS_A,
             EdwardsD=Ed25519Params.EDWARDS_D,
-            SUITE_STRING=Ed25519Params.SUITE_STRING,
-            DST=Ed25519Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.ELL2,
             BBx=Ed25519Params.BBx,
             BBy=Ed25519Params.BBy,

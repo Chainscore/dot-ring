@@ -64,8 +64,16 @@ class P384Curve(SWCurve):
         """Return the challenge length in bytes for P-384 VRF."""
         return P384Params.CHALLENGE_LENGTH
 
-    def __init__(self) -> None:
-        """Initialize P-384 curve with its parameters."""
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
+        """Initialize P-256 curve with its parameters."""
+        # Default suite and dst
+        SUITE_STRING = P384Params.SUITE_STRING
+        DST = P384Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         super().__init__(
             PRIME_FIELD=P384Params.PRIME_FIELD,
             ORDER=P384Params.ORDER,
@@ -76,8 +84,8 @@ class P384Curve(SWCurve):
             Z=P384Params.Z,
             WeierstrassA=P384Params.WEIERSTRASS_A,
             WeierstrassB=P384Params.WEIERSTRASS_B,
-            SUITE_STRING=P384Params.SUITE_STRING,
-            DST=P384Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.SSWU,
             BBx=P384Params.BBx,
             BBy=P384Params.BBy,
@@ -88,9 +96,7 @@ class P384Curve(SWCurve):
             H_A=P384Params.H_A,
             Requires_Isogeny=P384Params.Requires_Isogeny,
             Isogeny_Coeffs=P384Params.Isogeny_Coeffs,
-
         )
-
 
 # Singleton instance
 P384_SW_Curve: Final[P384Curve] = P384Curve()

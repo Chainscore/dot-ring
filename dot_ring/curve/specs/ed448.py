@@ -19,6 +19,10 @@ class Ed448Params:
     # RFC 9380 compliant suite string and DST for edwards448_XOF:SHAKE256_ELL2_RO_
     SUITE_STRING = b"edwards448_XOF:SHAKE256_ELL2_RO_"
     DST = b"QUUX-V01-CS02-with-edwards448_XOF:SHAKE256_ELL2_RO_"
+    SUITE_STRING_2 = b"edwards448_XOF:SHAKE256_ELL2_NU_"
+    DST_2 = b"QUUX-V01-CS02-with-edwards448_XOF:SHAKE256_ELL2_NU_"
+
+
     # Curve parameters from RFC 8032
     PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
     ORDER: Final[int] = 2 ** 446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d
@@ -79,13 +83,16 @@ class Ed448Curve(TECurve):
     # Ed448 points are encoded in 57 bytes (448 bits + 1 sign bit)
     ENCODING_LENGTH: Final[int] = 57  # 448 bits = 56 bytes + 1 byte for sign bit
 
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for Ed448 VRF."""
-        return Ed448Params.CHALLENGE_LENGTH
-
-    def __init__(self) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
         """Initialize Ed448 curve with RFC-compliant parameters."""
+        # Default suite and dst
+        SUITE_STRING = Ed448Params.SUITE_STRING
+        DST = Ed448Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         super().__init__(
             PRIME_FIELD=Ed448Params.PRIME_FIELD,
             ORDER=Ed448Params.ORDER,
@@ -96,8 +103,8 @@ class Ed448Curve(TECurve):
             Z=Ed448Params.Z,
             EdwardsA=Ed448Params.EDWARDS_A,
             EdwardsD=Ed448Params.EDWARDS_D,
-            SUITE_STRING=Ed448Params.SUITE_STRING,
-            DST=Ed448Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.ELL2,
             BBx=Ed448Params.BBx,
             BBy=Ed448Params.BBy,
@@ -111,6 +118,12 @@ class Ed448Curve(TECurve):
         )
         # Set the encoding length for this curve
         self.ENCODING_LENGTH = self.__class__.ENCODING_LENGTH
+
+
+    @property
+    def CHALLENGE_LENGTH(self) -> int:
+        """Return the challenge length in bytes for Ed448 VRF."""
+        return Ed448Params.CHALLENGE_LENGTH
 
     def is_on_curve(self, x: int, y: int) -> bool:
         """

@@ -104,8 +104,15 @@ class Secp256k1Curve(SWCurve):
         """Return the challenge length in bytes for secp256k1 VRF."""
         return Secp256k1Params.CHALLENGE_LENGTH
 
-    def __init__(self) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize secp256k1 curve with its parameters."""
+        # Default suite and dst
+        SUITE_STRING = Secp256k1Params.SUITE_STRING
+        DST = Secp256k1Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
         super().__init__(
             PRIME_FIELD=Secp256k1Params.PRIME_FIELD,
             ORDER=Secp256k1Params.ORDER,
@@ -116,8 +123,8 @@ class Secp256k1Curve(SWCurve):
             Z=Secp256k1Params.Z,
             WeierstrassA=Secp256k1Params.WEIERSTRASS_A,
             WeierstrassB=Secp256k1Params.WEIERSTRASS_B,
-            SUITE_STRING=Secp256k1Params.SUITE_STRING,
-            DST=Secp256k1Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.SSWU,
             BBx=Secp256k1Params.BBx,
             BBy=Secp256k1Params.BBy,
