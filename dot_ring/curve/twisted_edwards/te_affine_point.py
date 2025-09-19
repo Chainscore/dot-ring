@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import TypeVar, Self
+from typing import TypeVar, Self, Any
 
 from sympy import mod_inverse, sqrt_mod
 
@@ -319,7 +319,7 @@ class TEAffinePoint(Point[C]):
         return self.__class__(0, 1)
 
     @classmethod
-    def encode_to_curve(cls, alpha_string: bytes|str, salt: bytes|str = b"") -> Self:
+    def encode_to_curve(cls, alpha_string: bytes|str, salt: bytes|str = b"", General_Check:bool=False) -> Self|Any:
 
         if not isinstance(alpha_string, bytes):
             alpha_string=bytes.fromhex(alpha_string)
@@ -328,14 +328,14 @@ class TEAffinePoint(Point[C]):
             salt=bytes.fromhex(salt)
 
         if cls.curve.E2C == E2C_Variant.ELL2:
-            return cls.encode_to_curve_hash2_suite(alpha_string, salt)
+            return cls.encode_to_curve_hash2_suite(alpha_string, salt, General_Check)
         elif cls.curve.E2C == E2C_Variant.TAI:
             return cls.encode_to_curve_tai(alpha_string, salt)
         else:
             raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"") -> Self:
+    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> Self|Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -348,11 +348,19 @@ class TEAffinePoint(Point[C]):
         """
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2)
+        print(u)
 
         q0 = cls.map_to_curve(u[0]) #ELL2
         q1 = cls.map_to_curve(u[1]) #ELL2
         R = q0 + q1
-
+        if General_Check:
+            P=R.clear_cofactor()
+            return {
+                "u": u,
+                "Q0": [q0.x, q0.y],
+                "Q1": [q1.x, q1.y],
+                "P": [P.x, P.y]
+            }
         return R.clear_cofactor()
 
     # @classmethod #intuial
@@ -474,6 +482,7 @@ class TEAffinePoint(Point[C]):
         Returns:
             TEAffinePoint: Resulting curve point
         """
+
         s, t = cls.curve.map_to_curve_ell2(u)
         return cls.from_mont(s, t)
 
@@ -507,6 +516,7 @@ class TEAffinePoint(Point[C]):
         w = 1 if tv2 == 0 else w
 
         return cls(v, w)
+
 
     @classmethod
     def _x_recover(cls, y: int) -> int:
