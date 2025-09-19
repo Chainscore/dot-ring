@@ -373,12 +373,14 @@ class SWAffinePoint(Point[SWCurve]):
             salt = bytes.fromhex(salt)
 
         if cls.curve.E2C == E2C_Variant.SSWU:
-            return cls.sswu_hash2_curve(alpha_string, salt, General_Check)
+            if cls.curve.E2C.value.endswith("_NU_"):
+                return cls.sswu_hash2_curve_nu(alpha_string, salt, General_Check)
+            return cls.sswu_hash2_curve_ro(alpha_string, salt, General_Check)
         else:
             raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def sswu_hash2_curve(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) ->SWAffinePoint|Any:
+    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) ->SWAffinePoint|Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -402,6 +404,31 @@ class SWAffinePoint(Point[SWCurve]):
                 "u": u,
                 "Q0": [q0.x, q0.y],
                 "Q1": [q1.x, q1.y],
+                "P": [P.x, P.y]
+            }
+        return R.clear_cofactor()
+
+    @classmethod
+    def sswu_hash2_curve_nu(cls, alpha_string: bytes, salt: bytes = b"",General_Check: bool = False) -> SWAffinePoint | Any:
+        """
+        Encode a string to a curve point using Elligator 2.
+
+        Args:
+            alpha_string: String to encode
+            salt: Optional salt for the encoding
+            General_Check:Just for printing all test suites
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        string_to_hash = salt + alpha_string
+        u = cls.curve.hash_to_field(string_to_hash, 1)  # for nu
+        R = cls.map_to_curve_simple_swu(u[0])  # sswu
+        if General_Check:
+            P = R.clear_cofactor()
+            return {
+                "u": u,
+                "Q0": [R.x, R.y],
                 "P": [P.x, P.y]
             }
         return R.clear_cofactor()

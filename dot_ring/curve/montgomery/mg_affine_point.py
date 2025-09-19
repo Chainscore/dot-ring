@@ -404,12 +404,15 @@ class MGAffinePoint(Point[C]):
             salt = bytes.fromhex(salt)
 
         if cls.curve.E2C == E2C_Variant.ELL2:
-            return cls.encode_to_curve_hash2_suite(alpha_string, salt, General_Check)
+            if cls.curve.E2C.value.endswith("_NU_"):
+                return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
+
+            return cls.encode_to_curve_hash2_suite_ro(alpha_string, salt, General_Check)
         else:
             raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
+    def encode_to_curve_hash2_suite_nu(cls, alpha_string: bytes, salt: bytes = b"",General_Check: bool = False) -> "MGAffinePoint[C]" | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -420,6 +423,31 @@ class MGAffinePoint(Point[C]):
         Returns:
             TEAffinePoint: Resulting curve point
         """
+        string_to_hash = salt + alpha_string
+        u = cls.curve.hash_to_field(string_to_hash, 1)
+        R= cls.map_to_curve(u[0])  # ELL2
+        if General_Check:
+            P = R.clear_cofactor()
+            return {
+                "u": u,
+                "Q0": [R.x, R.y],
+                "P": [P.x, P.y]
+            }
+        return R.clear_cofactor()
+
+    @classmethod
+    def encode_to_curve_hash2_suite_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
+        """
+        Encode a string to a curve point using Elligator 2.
+
+        Args:
+            alpha_string: String to encode
+            salt: Optional salt for the encoding
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        print("called ro")
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2)
 

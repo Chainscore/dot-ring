@@ -328,14 +328,16 @@ class TEAffinePoint(Point[C]):
             salt=bytes.fromhex(salt)
 
         if cls.curve.E2C == E2C_Variant.ELL2:
-            return cls.encode_to_curve_hash2_suite(alpha_string, salt, General_Check)
+            if cls.curve.E2C.value.endswith("_NU_"):
+                return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
+            return cls.encode_to_curve_hash2_suite_ro(alpha_string, salt, General_Check)
         elif cls.curve.E2C == E2C_Variant.TAI:
             return cls.encode_to_curve_tai(alpha_string, salt)
         else:
             raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def encode_to_curve_hash2_suite(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> Self|Any:
+    def encode_to_curve_hash2_suite_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> Self|Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -348,8 +350,6 @@ class TEAffinePoint(Point[C]):
         """
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2)
-        print(u)
-
         q0 = cls.map_to_curve(u[0]) #ELL2
         q1 = cls.map_to_curve(u[1]) #ELL2
         R = q0 + q1
@@ -359,6 +359,31 @@ class TEAffinePoint(Point[C]):
                 "u": u,
                 "Q0": [q0.x, q0.y],
                 "Q1": [q1.x, q1.y],
+                "P": [P.x, P.y]
+            }
+        return R.clear_cofactor()
+
+    @classmethod
+    def encode_to_curve_hash2_suite_nu(cls, alpha_string: bytes, salt: bytes = b"",
+                                       General_Check: bool = False) -> Self | Any:
+        """
+        Encode a string to a curve point using Elligator 2.
+
+        Args:
+            alpha_string: String to encode
+            salt: Optional salt for the encoding
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        string_to_hash = salt + alpha_string
+        u = cls.curve.hash_to_field(string_to_hash, 1)
+        R= cls.map_to_curve(u[0])  # ELL2
+        if General_Check:
+            P = R.clear_cofactor()
+            return {
+                "u": u,
+                "Q0": [R.x, R.y],
                 "P": [P.x, P.y]
             }
         return R.clear_cofactor()
