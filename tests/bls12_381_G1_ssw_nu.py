@@ -14,7 +14,6 @@ def test_sswu_hash2_curve():
         msg_bytes = t["msg"].encode("utf-8")
 
         out = BLS12_381_G1Point.encode_to_curve(msg_bytes, b"", True)
-        print(out['u'][0])
         u0_bytes = out["u"][0].to_bytes(48, 'big').hex()
         Px_bytes = out["P"][0].to_bytes(48, 'big').hex()
         Py_bytes = out["P"][1].to_bytes(48, 'big').hex()
