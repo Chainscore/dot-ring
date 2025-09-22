@@ -23,8 +23,8 @@ class BLS12_381_G1Params:
     """
 
     # Domain separation / hash-to-curve strings (RFC drafts / implementations)
-    SUITE_STRING: Final[bytes] = b"BLS12381G1_XMD:SHA-256_SSWU_NU_"
-    DST: Final[bytes] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_NU_"  # common default DST
+    SUITE_STRING: Final[bytes] = b"BLS12381G1_XMD:SHA-256_SSWU_RO_"
+    DST: Final[bytes] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_"  # common default DST
 
     # Prime field p (F_q) for BLS12-381
 
@@ -80,7 +80,15 @@ class BLS12_381_G1Curve(SWCurve):
     def CHALLENGE_LENGTH(self) -> int:
         return BLS12_381_G1Params.CHALLENGE_LENGTH
 
-    def __init__(self) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
+
+        SUITE_STRING = BLS12_381_G1Params.SUITE_STRING
+        DST = BLS12_381_G1Params.DST
+        # Replace RO with NU automatically if variant endswith "NU_"
+        if e2c_variant.value.endswith("NU_"):
+            SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
+            DST = DST.replace(b"_RO_", b"_NU_")
+
         super().__init__(
             PRIME_FIELD=BLS12_381_G1Params.PRIME_FIELD,
             ORDER=BLS12_381_G1Params.ORDER,
@@ -91,8 +99,8 @@ class BLS12_381_G1Curve(SWCurve):
             Z=BLS12_381_G1Params.Z,
             WeierstrassA=BLS12_381_G1Params.WEIERSTRASS_A,
             WeierstrassB=BLS12_381_G1Params.WEIERSTRASS_B,
-            SUITE_STRING=BLS12_381_G1Params.SUITE_STRING,
-            DST=BLS12_381_G1Params.DST,
+            SUITE_STRING=SUITE_STRING,
+            DST=DST,
             E2C=E2C_Variant.SSWU,
             BBx=BLS12_381_G1Params.BBx,
             BBy=BLS12_381_G1Params.BBy,
