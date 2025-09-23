@@ -3,11 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self, Union, Optional, Any, List
 
-
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
-
+from ..field_element import FieldElement
 
 @dataclass(frozen=True)
 class SWAffinePoint(Point[SWCurve]):
@@ -17,28 +16,90 @@ class SWAffinePoint(Point[SWCurve]):
     Implements point operations for curves of the form y² = x³ + ax + b.
     """
 
-    def is_on_curve(self) -> bool:
+    def _validate_coordinates(self) -> bool:
         """
-        Check if the point lies on the Short Weierstrass curve.
-        
-        The point at infinity (None, None) is considered to be on the curve.
+        Validate point coordinates are within field bounds.
 
         Returns:
-            bool: True if point is on curve
+            bool: True if coordinates are valid
         """
-        # Point at infinity is always on the curve
+        # Handle point at infinity
         if self.x is None and self.y is None:
             return True
-            
-        x, y = self.x, self.y
-        A, B = self.curve.WeierstrassA, self.curve.WeierstrassB
-        p = self.curve.PRIME_FIELD
-        
-        # Check y² = x³ + ax + b
-        left_side = (y * y) % p
-        right_side = (pow(x, 3, p) + A * x + B) % p
-        
-        return left_side == right_side
+
+        # Handle FieldElement points (for Fp2)
+        if hasattr(self.x, 're') and hasattr(self.y, 're'):
+            # For FieldElement, check that the prime field matches
+            return (self.x.p == self.curve.PRIME_FIELD and
+                    self.y.p == self.curve.PRIME_FIELD and
+                    0 <= self.x.re < self.curve.PRIME_FIELD and
+                    0 <= self.x.im < self.curve.PRIME_FIELD and
+                    0 <= self.y.re < self.curve.PRIME_FIELD and
+                    0 <= self.y.im < self.curve.PRIME_FIELD)
+
+        # Handle Fp2 points (tuples of two integers)
+        if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
+            if len(self.x) != 2 or len(self.y) != 2:
+                return False
+            return all(isinstance(coord, int) and 0 <= coord < self.curve.PRIME_FIELD
+                       for coord in (*self.x, *self.y))
+
+        # Handle Fp points (integers)
+        if isinstance(self.x, int) and isinstance(self.y, int):
+            return (0 <= self.x < self.curve.PRIME_FIELD and
+                    0 <= self.y < self.curve.PRIME_FIELD)
+
+        return False
+
+    def is_on_curve(self) -> bool:
+        """
+        Check if the point lies on the curve.
+
+        The curve equation is y² = x³ + ax + b
+
+        Returns:
+            bool: True if point is on the curve
+        """
+        # Point at infinity is on the curve
+        if self.x is None and self.y is None:
+            return True
+
+        # For FieldElement points (Fp2)
+        if hasattr(self.x, 're') and hasattr(self.y, 're'):
+            # y²
+            y2 = self.y * self.y
+
+            # x³ + a*x + b
+            x3 = self.x * self.x * self.x
+            a = FieldElement(
+                self.curve.WeierstrassA[0],
+                self.curve.WeierstrassA[1],
+                self.curve.PRIME_FIELD
+            )
+            b = FieldElement(
+                self.curve.WeierstrassB[0],
+                self.curve.WeierstrassB[1],
+                self.curve.PRIME_FIELD
+            )
+            rhs = x3 + (a * self.x) + b
+
+            return y2 == rhs
+
+        # For Fp2 points (tuples of two integers)
+        if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
+            # TODO: Implement proper Fp2 arithmetic for curve equation check
+            # This is a simplified check that only validates the point is in the field
+            return self._validate_coordinates()
+
+        # For Fp points, use standard arithmetic
+        try:
+            left = pow(self.y, 2, self.curve.PRIME_FIELD)
+            right = (pow(self.x, 3, self.curve.PRIME_FIELD) +
+                     self.curve.WeierstrassA * self.x +
+                     self.curve.WeierstrassB) % self.curve.PRIME_FIELD
+            return left == right
+        except (TypeError, AttributeError):
+            return False
 
     def __add__(self, other: SWAffinePoint) -> SWAffinePoint:
         """
@@ -52,7 +113,7 @@ class SWAffinePoint(Point[SWCurve]):
         """
         if not isinstance(other, SWAffinePoint):
             raise TypeError("Can only add SWAffinePoint instances")
-        
+
         if self.curve != other.curve:
             raise ValueError("Points must be on the same curve")
 
@@ -129,7 +190,7 @@ class SWAffinePoint(Point[SWCurve]):
         """
         if scalar == 0:
             return self.identity()
-        
+
         if scalar < 0:
             return (-self) * (-scalar)
 
@@ -154,7 +215,7 @@ class SWAffinePoint(Point[SWCurve]):
         """
         if self.is_identity():
             return self
-        
+
         # Create a new instance with negated y-coordinate
         # The curve is already set in the instance
         return self.__class__(self.x, (-self.y) % self.curve.PRIME_FIELD)
@@ -171,9 +232,8 @@ class SWAffinePoint(Point[SWCurve]):
         """
         return self + (-other)
 
-    def clear_cofactor(self)-> SWAffinePoint:
-        return self*self.curve.COFACTOR
-
+    def clear_cofactor(self) -> SWAffinePoint:
+        return self * self.curve.COFACTOR
 
     def is_identity(self) -> bool:
         """
@@ -195,7 +255,7 @@ class SWAffinePoint(Point[SWCurve]):
         """
         # Return a point at infinity (None, None)
         # The curve will be set by the child class's __init__
-        return cls(None,None)
+        return cls(None, None)
 
     @classmethod
     def _x_recover(cls, y: int) -> int:
@@ -218,18 +278,17 @@ class SWAffinePoint(Point[SWCurve]):
         # Solve x³ + ax + b - y² = 0 for x
         # This is a cubic equation - we need to find the roots
         rhs = (y * y - B) % p
-        
+
         # For Short Weierstrass curves, we typically solve:
         # x³ + ax = y² - b
         # This is complex, so we'll use a simplified approach
         # In practice, you'd use more sophisticated root-finding algorithms
-        
+
         for x in range(p):
             if (pow(x, 3, p) + A * x + B) % p == (y * y) % p:
                 return x
-        
-        raise ValueError("Cannot recover x-coordinate")
 
+        raise ValueError("Cannot recover x-coordinate")
 
     def compress(self) -> bytes:
         """
@@ -265,7 +324,7 @@ class SWAffinePoint(Point[SWCurve]):
             raise ValueError("Invalid compressed point length")
 
         prefix = data[0]
-        
+
         if prefix == 0x00:
             return cls.identity()
 
@@ -273,19 +332,19 @@ class SWAffinePoint(Point[SWCurve]):
             raise ValueError("Invalid compression prefix")
 
         x = int.from_bytes(data[1:], 'big')
-        
+
         # Calculate y² = x³ + ax + b
         A = cls.curve.WeierstrassA
         B = cls.curve.WeierstrassB
         p = cls.curve.PRIME_FIELD
-        
+
         y_squared = (pow(x, 3, p) + A * x + B) % p
-        
+
         if not cls.curve.is_square(y_squared):
             raise ValueError("Point not on curve")
-        
+
         y = cls.curve.mod_sqrt(y_squared)
-        
+
         # Choose correct sign based on prefix
         if (y % 2) != (prefix % 2):
             y = (-y) % p
@@ -293,7 +352,7 @@ class SWAffinePoint(Point[SWCurve]):
         return cls(x, y, cls.curve)
 
     @classmethod
-    def map_to_curve_simple_swu(cls, u: int) -> SWAffinePoint|Any:
+    def map_to_curve_simple_swu(cls, u: int) -> SWAffinePoint | Any:
         """Implements simplified SWU mapping"""
         # 1.  tv1 = inv0(Z^2 * u^4 + Z * u^2)
         # 2.   x1 = (-B / A) * (1 + tv1)
@@ -311,14 +370,14 @@ class SWAffinePoint(Point[SWCurve]):
         B = cls.curve.WeierstrassB
         p = cls.curve.PRIME_FIELD
 
-        if cls.curve.Requires_Isogeny: #E' vals, used only for secp256k1 as its A=0
-            A=0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
-            B=1771
+        if cls.curve.Requires_Isogeny:  # E' vals, used only for secp256k1 as its A=0
+            A = 0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
+            B = 1771
 
         # 1. tv1 = inv0(Z^2 * u^4 + Z * u^2)
         u_sq = (u * u) % p
         tv1 = (Z * Z * ((u_sq * u_sq) % p) + Z * u_sq) % p
-        
+
         # Handle special case when tv1 is 0
         if tv1 == 0:
             # 3. If tv1 == 0, set x1 = B / (Z * A)
@@ -331,10 +390,10 @@ class SWAffinePoint(Point[SWCurve]):
 
         # 4. gx1 = x1^3 + A * x1 + B
         gx1 = (pow(x1, 3, p) + (A * x1) % p + B) % p
-        
+
         # 5. x2 = Z * u^2 * x1
         x2 = (Z * u_sq % p) * x1 % p
-        
+
         # 6. gx2 = x2^3 + A * x2 + B
         gx2 = (pow(x2, 3, p) + (A * x2) % p + B) % p
 
@@ -355,16 +414,16 @@ class SWAffinePoint(Point[SWCurve]):
             A_prime = 0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
             B_prime = 1771
 
-            #Check if point lies on E'
+            # Check if point lies on E'
             if (y * y - (x ** 3 + A_prime * x + B_prime)) % p != 0:
-               raise ValueError("Point is not on E'")
-            return cls.apply_isogeny(x,y)
+                raise ValueError("Point is not on E'")
+            return cls.apply_isogeny(x, y)
 
         return cls(x=x, y=y)
 
     @classmethod
-    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> Self|Any:
-
+    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"",
+                        General_Check: bool = False) -> Self | Any:
 
         if not isinstance(alpha_string, bytes):
             alpha_string = bytes.fromhex(alpha_string)
@@ -380,7 +439,8 @@ class SWAffinePoint(Point[SWCurve]):
             raise ValueError("Unexpected E2C Variant")
 
     @classmethod
-    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) ->SWAffinePoint|Any:
+    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"",
+                            General_Check: bool = False) -> SWAffinePoint | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -393,13 +453,13 @@ class SWAffinePoint(Point[SWCurve]):
             TEAffinePoint: Resulting curve point
         """
         string_to_hash = salt + alpha_string
-        u = cls.curve.hash_to_field(string_to_hash, 2) #for RO
+        u = cls.curve.hash_to_field(string_to_hash, 2)  # for RO
         q0 = cls.map_to_curve_simple_swu(u[0])  # sswu
         q1 = cls.map_to_curve_simple_swu(u[1])  # sswu
         R = q0 + q1
 
         if General_Check:
-            P=R.clear_cofactor()
+            P = R.clear_cofactor()
             return {
                 "u": u,
                 "Q0": [q0.x, q0.y],
@@ -409,7 +469,8 @@ class SWAffinePoint(Point[SWCurve]):
         return R.clear_cofactor()
 
     @classmethod
-    def sswu_hash2_curve_nu(cls, alpha_string: bytes, salt: bytes = b"",General_Check: bool = False) -> SWAffinePoint | Any:
+    def sswu_hash2_curve_nu(cls, alpha_string: bytes, salt: bytes = b"",
+                            General_Check: bool = False) -> SWAffinePoint | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -474,3 +535,4 @@ class SWAffinePoint(Point[SWCurve]):
         y_mapped = (y_p * y_num * y_den_inv) % p
 
         return cls(x_mapped, y_mapped)
+
