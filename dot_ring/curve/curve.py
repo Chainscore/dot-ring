@@ -63,28 +63,45 @@ class Curve:
 
     def _validate_parameters(self) -> bool:
         """
-        Validate the curve parameters.
+        Validate that the curve parameters are correct.
 
         Returns:
             bool: True if parameters are valid, False otherwise
         """
-        return (
-                self.PRIME_FIELD > 0 and
-                self.ORDER > 0 and
-                0 <= self.GENERATOR_X < self.PRIME_FIELD and
-                0 <= self.GENERATOR_Y < self.PRIME_FIELD and
-                self.COFACTOR > 0
-        )
+        # For extension fields (like Fp2), we need to check each component
+        if hasattr(self.GENERATOR_X, '__iter__'):
+            # Handle Fp2 points (tuples of two integers)
+            if not (isinstance(self.GENERATOR_X, (tuple, list)) and
+                   len(self.GENERATOR_X) == 2 and
+                   all(isinstance(x, int) for x in self.GENERATOR_X) and
+                   all(0 <= x < self.PRIME_FIELD for x in self.GENERATOR_X)):
+                return False
 
-    # @property
-    # def L(self) -> int:
-    #     """
-    #     Calculate the length parameter for hash-to-field operations.
-    #
-    #     Returns:
-    #         int: The calculated L parameter
-    #     """
-    #     return math.ceil((math.ceil(math.log2(self.PRIME_FIELD)) + self.K) / 8)
+            if not (isinstance(self.GENERATOR_Y, (tuple, list)) and
+                   len(self.GENERATOR_Y) == 2 and
+                   all(isinstance(y, int) for y in self.GENERATOR_Y) and
+                   all(0 <= y < self.PRIME_FIELD for y in self.GENERATOR_Y)):
+                return False
+
+            # Convert to a point for the on-curve check
+            from dot_ring.curve.short_weierstrass.sw_affine_point import SWAffinePoint
+            point = SWAffinePoint(self.GENERATOR_X, self.GENERATOR_Y, self)
+            if not point.is_on_curve():
+                return False
+
+        else:
+            # Original scalar field validation
+            if not (0 <= self.GENERATOR_X < self.PRIME_FIELD and
+                   0 <= self.GENERATOR_Y < self.PRIME_FIELD):
+                return False
+
+            # if not self.is_on_curve(self.GENERATOR_X, self.GENERATOR_Y): #already given in point class
+            #     return False
+
+        return (self.PRIME_FIELD > 2 and
+                self.ORDER > 2 and
+                self.COFACTOR > 0 and
+                self.PRIME_FIELD != self.ORDER)
 
     def hash_to_field(self, msg: bytes, count: int) -> List[int]:
         """
@@ -107,7 +124,6 @@ class Curve:
 
         len_in_bytes = count * self.M * self.L
         uniform_bytes = self.expand_message_xmd(msg, len_in_bytes)
-
         u_values: List[int] = []
         for i in range(count):
             for j in range(self.M):
@@ -121,7 +137,6 @@ class Curve:
     def expand_message_xmd(self, msg: bytes, len_in_bytes: int) -> bytes:
         """
         Expand a message using XMD (eXpandable Message Digest).
-
         Args:
             msg: The message to expand
             len_in_bytes: Desired length of the output in bytes
@@ -154,7 +169,6 @@ class Curve:
             raise ValueError("Invalid input size parameters")
 
         DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
-
         Z_pad = self.I2OSP(0, self.S_in_bytes)
 
         l_i_b_str = self.I2OSP(len_in_bytes, 2)
