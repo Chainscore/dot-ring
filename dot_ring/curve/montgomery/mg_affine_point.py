@@ -219,52 +219,6 @@ class MGAffinePoint(Point[C]):
 
         # Use double-and-add for consistency with point addition formulas
         return self._scalar_mult_double_add(scalar)
-        try:
-            a24 = ((A + 2) * pow(4, -1, p)) % p
-        except ValueError:
-            raise ValueError("Cannot compute (A+2)/4 mod p - invalid curve parameters")
-
-        # Call ladder_step implemented by MGCurve
-        try:
-            x_result = self.curve.ladder_step(u, a24, scalar)
-        except AttributeError:
-            # Fallback to simple double-and-add if ladder_step not available
-            return self._scalar_mult_double_add(scalar)
-        except ZeroDivisionError:
-            # ladder reported point-at-infinity (Z==0)
-            return self._make_point(None, None)
-        except Exception as e:
-            # Handle other ladder errors
-            raise RuntimeError(f"Error in ladder_step: {e}")
-
-        x_result %= p
-
-        # Reconstruct v^2 = (x^3 + A x^2 + x) / B
-        try:
-            invB = pow(B, -1, p)
-        except ValueError:
-            raise ValueError("B is not invertible mod p - invalid curve")
-
-        x_cubed = (x_result * x_result % p) * x_result % p
-        x_squared = x_result * x_result % p
-        numerator = (x_cubed + (A * x_squared) % p + x_result) % p
-        v_sq = (numerator * invB) % p
-
-        # Check quadratic residuosity
-        if pow(v_sq, (p - 1) // 2, p) != 1:
-            # This might happen due to sign ambiguity in ladder
-            # Try the other square root or return identity
-            return self._make_point(None, None)
-
-        v = self._sqrt_mod_p(v_sq)
-        if v is None:
-            raise ValueError("Tonelli-Shanks failed to find square root (unexpected)")
-
-        # Choose canonical sign for y — make it even LSB deterministically
-        if v & 1:
-            v = (-v) % p
-
-        return self._make_point(x_result, v)
 
     def _scalar_mult_double_add(self, scalar: int) -> "MGAffinePoint[C]":
         """
@@ -318,7 +272,7 @@ class MGAffinePoint(Point[C]):
         object.__setattr__(inst, "curve", curve)
         return inst
 
-    def to_bytes(self, compressed: bool = True) -> bytes:
+    def point_to_string(self, compressed: bool = True) -> bytes:
         """
         Convert point to bytes representation.
         For Montgomery curves like Curve25519, typically only x-coordinate is used.
@@ -338,14 +292,14 @@ class MGAffinePoint(Point[C]):
             return x_bytes + y_bytes
 
     @classmethod
-    def from_bytes(cls, data: bytes, curve, compressed: bool = True):
+    def string_to_point(cls, data: bytes, compressed: bool = True):
         """
         Create point from bytes representation.
         """
         if not data or all(b == 0 for b in data):
             return cls.identity()
 
-        byte_length = (curve.PRIME_FIELD.bit_length() + 7) // 8
+        byte_length = (cls.curve.PRIME_FIELD.bit_length() + 7) // 8
 
         if len(data) < byte_length:
             raise ValueError(f"Data too short: expected at least {byte_length} bytes")
@@ -355,8 +309,8 @@ class MGAffinePoint(Point[C]):
         if compressed or len(data) == byte_length:
             # Reconstruct y-coordinate
             # For Montgomery curves: B*y^2 = x^3 + A*x^2 + x
-            A, B = curve.A, curve.B
-            p = curve.PRIME_FIELD
+            A, B = cls.curve.A, cls.curve.B
+            p = cls.curve.PRIME_FIELD
 
             x = x % p
             rhs = (x * x * x + A * x * x + x) % p
@@ -370,24 +324,24 @@ class MGAffinePoint(Point[C]):
 
             # Find square root
             inst = object.__new__(cls)
-            object.__setattr__(inst, "curve", curve)
+            object.__setattr__(inst, "curve", cls.curve)
             y = inst._sqrt_mod_p(y_squared)
 
             if y is None:
                 raise ValueError("Point not on curve")
 
             # Choose canonical y (even LSB)
-            if y & 1:
+            if y > p//2:
                 y = (-y) % p
 
-            return cls(x, y, curve)
+            return cls(x, y, cls.curve)
         else:
             # Uncompressed format with y-coordinate
             if len(data) < 2 * byte_length:
                 raise ValueError(f"Data too short for uncompressed: expected {2 * byte_length} bytes")
 
             y = int.from_bytes(data[byte_length:2 * byte_length], 'little')
-            point = cls(x, y, curve)
+            point = cls(x, y, cls.curve)
 
             if not point.is_on_curve():
                 raise ValueError("Point not on curve")
@@ -533,3 +487,41 @@ class MGAffinePoint(Point[C]):
         t = (y * K) % p
 
         return cls(s, t)
+
+    @classmethod
+    def _x_recover(cls, u: int) -> Optional[int]:
+        """
+        Recover the v-coordinate from the given u-coordinate
+        for a Montgomery curve: B*v^2 = u^3 + A*u^2 + u
+
+        Args:
+            u: The u-coordinate (x-coordinate in Montgomery form)
+
+        Returns:
+            v (int): The recovered v-coordinate (one of the two possible ones)
+            None: if no valid v exists (point not on curve)
+        """
+        p = cls.curve.PRIME_FIELD
+        A = cls.curve.A
+        B = cls.curve.B
+
+        # Compute RHS = (u^3 + A*u^2 + u) / B mod p
+        rhs = (pow(u, 3, p) + A * pow(u, 2, p) + u) % p
+        if B != 1:
+            rhs = (rhs * pow(B, -1, p)) % p
+
+        # Check if RHS is a quadratic residue: if not, no solution
+        if pow(rhs, (p - 1) // 2, p) != 1:
+            return None
+
+        # Compute modular square root using p ≡ 3 mod 4 shortcut if available
+        if (p % 4) == 3:
+            v = pow(rhs, (p + 1) // 4, p)
+        else:
+            # Fallback: use Tonelli–Shanks for general p
+            v = cls.curve.mod_sqrt(rhs)
+            if v is None:
+                return None
+        return v
+
+
