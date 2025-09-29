@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
-
+import hmac, math
 
 from ..curve.curve import Curve
 from ..curve.point import Point
@@ -56,6 +56,13 @@ class VRF(ABC):
         """
         self.curve = curve
         self.point_type = point_type
+        if self.point_type.__name__ in ["P256Point", "P384Point", "P521Point", "Secp256k1Point"]:
+            self.point_len = Helpers.pt_len(curve.PRIME_FIELD)+1
+        else:
+            self.point_len = Helpers.pt_len(curve.PRIME_FIELD)
+
+        self.hash=Helpers.decide_hash(curve.H_A)
+
 
     def generate_nonce(self, secret_key: int, input_point: Point) -> int:
         """
@@ -69,19 +76,17 @@ class VRF(ABC):
             int: Generated nonce
         """
         # Hash secret key (little-endian)
-        sk_encoded = Helpers.to_l_endian(secret_key)
+        sk_encoded = Helpers.to_l_endian(secret_key%self.curve.ORDER, self.point_len)
         # hashed_sk = bytes(Hash.sha512(sk_encoded))
-        hashed_sk=Helpers.sha512(sk_encoded)
+        hashed_sk=self.hash(sk_encoded)
         sk_hash = hashed_sk[32:64]  # Use second half of SHA-512 output
 
         # Concatenate with input point encoding
         point_octet = input_point.point_to_string()
         data = sk_hash + point_octet
-
         # Generate final nonce
-        nonce_hash = bytes(Helpers.sha512(data))
+        nonce_hash = bytes(self.hash(data))
         nonce = Helpers.l_endian_2_int(nonce_hash)
-
         return nonce % self.curve.ORDER
 
     def challenge(self, points: List[Point], additional_data: bytes) -> int:
@@ -107,15 +112,115 @@ class VRF(ABC):
 
         # Add additional data and finalize with 0x00
         hash_input = challenge_string + additional_data + bytes([0x00])
-        
+
         # Generate hash output
-        hash_output = Helpers.sha512(hash_input)
-        
+        hash_output = self.hash(hash_input)
+
         # Truncate to the curve's specified challenge length
         challenge_hash = bytes(hash_output)[:self.curve.CHALLENGE_LENGTH]
-        
+
         # Convert to integer and reduce modulo curve order
         return Helpers.b_endian_2_int(challenge_hash) % self.curve.ORDER
+
+    #other way of nonce generation
+    def nonce_generation_rfc6979(self, SK: int, h_string: bytes) -> int:
+        """
+        RFC 6979 deterministic nonce generation.
+
+        Args:
+            SK: Secret scalar (integer)
+            h_string: Message to sign (bytes)
+
+        Returns:
+            Deterministic nonce k in [1, order-1]
+        """
+        # Get curve parameters
+        q = self.curve.ORDER
+        qlen = q.bit_length()
+        qbytes = (qlen + 7) // 8  # Convert bits to bytes, rounded up
+
+        # Get the hash function from Helpers
+        hash_func = self.hash
+
+        # Create a wrapper function that works with hmac
+        def hmac_hash(key, msg):
+            # Create HMAC with the specified hash function
+            h = hmac.new(key, msg, digestmod=hash_sha512)
+            return h.digest()
+
+        # Get hash output size in bytes
+        import hashlib
+        if hash_func == Helpers.ha_sha256:
+            hlen_bytes = 32
+            hash_sha512 = hashlib.sha256
+        elif hash_func == Helpers.ha_sha384:
+            hlen_bytes = 48
+            hash_sha512 = hashlib.sha384
+        elif hash_func == Helpers.ha_sha512:
+            hlen_bytes = 64
+            hash_sha512 = hashlib.sha512
+        elif hash_func == Helpers.ha_shake256:
+            hlen_bytes = 64
+            hash_sha512 = hashlib.shake_128
+        else:
+            raise ValueError("Unsupported hash function")
+
+        # # Validate secret key
+        # if not 0 < SK < q:
+        #     raise ValueError("Invalid secret key")
+
+        # Step a: h1 = H(m)
+        h1 = self.hash(h_string)  # This already returns bytes from your helper
+
+        # Convert h1 to integer and reduce mod q
+        h1_int = int.from_bytes(h1, 'big') % q
+        h1_bytes = h1_int.to_bytes(self.point_len, 'big')
+
+        # Convert secret key to bytes
+        x = SK.to_bytes(self.point_len, 'big')
+
+        # Step b: V = 0x01 0x01 ... of length hlen_bytes
+        V = b'\x01' * hlen_bytes
+
+        # Step c: K = 0x00 0x00 ... of length hlen_bytes
+        K = b'\x00' * hlen_bytes
+
+        # Step d: K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
+        K = hmac_hash(K, V + b'\x00' + x + h1_bytes)
+
+        # Step e: V = HMAC_K(V)
+        V = hmac_hash(K, V)
+
+        # Step f: K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
+        K = hmac_hash(K, V + b'\x01' + x + h1_bytes)
+
+        # Step g: V = HMAC_K(V)
+        V = hmac_hash(K, V)
+
+        # Step h: Repeat until we get a valid k
+        while True:
+            # Step h1: Generate T
+            T = b''
+            tlen = 0
+            while tlen < self.point_len:
+                V = hmac_hash(K, V)
+                T += V
+                tlen += len(V) * 8
+
+            # Convert T to integer
+            k = int.from_bytes(T, 'big')
+
+            # Take the leftmost qlen bits
+            k >>= (len(T) * 8 - qlen)
+
+            # Check if k is in the valid range
+            if 1 <= k < q:
+                return k
+
+            # If not, update K and V and try again
+            K = hmac_hash(K, V + b'\x00')
+            V = hmac_hash(K, V)
+
 
     def ecvrf_decode_proof(self, pi_string: bytes|str) -> Tuple[Point, int, int]:
         """Decode VRF proof.
@@ -126,11 +231,12 @@ class VRF(ABC):
         Returns:
             Tuple[Point, int, int]: (gamma, C, S)
         """
+
         if not isinstance(pi_string, bytes):
             pi_string = bytes.fromhex(pi_string)
 
         # Get lengths from curve parameters
-        point_len = 32  # Compressed point length is fixed at 32 bytes for Bandersnatch
+        point_len = self.point_len #32  #Compressed point length is fixed at 32 bytes for Bandersnatch
         challenge_len = self.curve.CHALLENGE_LENGTH  # Dynamic challenge length from curve
         scalar_len = (self.curve.ORDER.bit_length() + 7) // 8  # Scalar length based on curve order
 
@@ -148,10 +254,10 @@ class VRF(ABC):
         gamma = self.point_type.string_to_point(gamma_string)
         C = Helpers.b_endian_2_int(c_string) % self.curve.ORDER
         S = Helpers.b_endian_2_int(s_string) % self.curve.ORDER
-        
+
         if S >= self.curve.ORDER:
             raise ValueError("Response scalar S is not less than the curve order")
-            
+
         return gamma, C, S
 
     def ecvrf_proof_to_hash(self, pi_string: bytes|str) -> bytes:
@@ -179,7 +285,7 @@ class VRF(ABC):
         """
         proof_to_hash_domain_separator_front = b"\x03"
         proof_to_hash_domain_separator_back = b"\x00"
-        beta_string = Helpers.sha512(
+        beta_string = self.hash(
             self.curve.SUITE_STRING +
             proof_to_hash_domain_separator_front +
             (
