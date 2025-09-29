@@ -86,7 +86,7 @@ class Curve448Curve(MGCurve):
             B=Curve448Params.B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.ELL2,
+            E2C=e2c_variant,
             BBx=Curve448Params.BBu,
             BBy=Curve448Params.BBv,
             L=Curve448Params.L,
@@ -110,7 +110,34 @@ class Curve448Curve(MGCurve):
 
 
 # Main curve instance
-Curve448_MG_Curve = Curve448Curve()
+Curve448_MG_Curve: Final[Curve448Curve] = Curve448Curve()
+
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
+    """
+    Factory function to create a Curve448Point class with a specific E2C variant.
+    
+    This is the recommended way for library users to work with different hash-to-curve variants.
+
+    Args:
+        e2c_variant: The E2C variant to use (ELL2, ELL2_NU, SSWU, SSWU_NU)
+        
+    Returns:
+        A Curve448Point class configured with the specified variant
+    """
+    # Create curve with the specified variant
+    curve = Curve448Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class Curve448PointVariant(MGAffinePoint):
+        """Point on Curve448 with custom E2C variant"""
+        pass
+
+    # Set the curve as a class attribute
+    Curve448PointVariant.curve = curve
+
+    return Curve448PointVariant
+
 
 class Curve448Point(MGAffinePoint):
     """
