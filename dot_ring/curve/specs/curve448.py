@@ -17,8 +17,8 @@ class Curve448Params:
     Curve448 is a Montgomery curve defined by: v² = u³ + 156326u² + u
     over the prime field 2^448 - 2^224 - 1.
     """
-    SUITE_STRING = b"curve448_XOF:SHAKE256_ELL2_NU_"
-    DST = b"QUUX-V01-CS02-with-curve448_XOF:SHAKE256_ELL2_NU_"
+    SUITE_STRING = b"curve448_XOF:SHAKE256_ELL2_RO_"
+    DST = b"QUUX-V01-CS02-with-curve448_XOF:SHAKE256_ELL2_RO_"
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
@@ -112,15 +112,6 @@ class Curve448Curve(MGCurve):
 # Main curve instance
 Curve448_MG_Curve = Curve448Curve()
 
-# # Verify the curve is working by checking the generator point
-# try:
-#     G = Curve448Point(Curve448Params.GENERATOR_U, Curve448Params.GENERATOR_V, Curve448_MG_Curve)
-#     if not G.is_on_curve():
-#         raise ValueError("Generator point is not on the curve")
-# except Exception as e:
-#     raise RuntimeError(f"Curve448 initialization failed: {e}")
-
-
 class Curve448Point(MGAffinePoint):
     """
     Point on the Curve448 Montgomery curve.
@@ -142,15 +133,6 @@ class Curve448Point(MGAffinePoint):
         # Call parent constructor
         super().__init__(u, v, curve)
 
-    # @property
-    # def curve(self):
-    #     """Get the curve instance."""
-    #     return getattr(self, '_curve', Curve448_MG_Curve)
-    #
-    # @curve.setter
-    # def curve(self, value):
-    #     """Set the curve instance."""
-    #     object.__setattr__(self, '_curve', value)
 
     @classmethod
     def generator_point(cls) -> 'Curve448Point':
@@ -172,11 +154,7 @@ class Curve448Point(MGAffinePoint):
         For Montgomery curves, identity is represented as (None, None).
         """
         # Create object directly to avoid constructor validation issues
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", None)
-        object.__setattr__(inst, "y", None)
-        object.__setattr__(inst, "_curve", Curve448_MG_Curve)
-        return inst
+        return cls(0,1)
 
     def validate_coordinates(self) -> bool:
         """
@@ -199,106 +177,6 @@ class Curve448Point(MGAffinePoint):
         right = (u * u * u + 156326 * u * u + u) % p
         return left == right
 
-    def to_x448_bytes(self) -> bytes:
-        """
-        Convert to X448 wire format (56 bytes, little-endian u-coordinate).
-        """
-        if self.is_identity():
-            return b'\x00' * 56
-        return self.x.to_bytes(56, 'little')
-
-    # @classmethod
-    # def from_x448_bytes(cls, data: bytes) -> 'Curve448Point':
-    #     """
-    #     Create point from X448 wire format (56 bytes, little-endian u-coordinate).
-    #     This only recovers the u-coordinate; v-coordinate is computed when needed.
-    #     """
-    #     if len(data) != 56:
-    #         raise ValueError("X448 data must be exactly 56 bytes")
-    #
-    #     if data == b'\x00' * 56:
-    #         return cls.identity()
-    #
-    #     u = int.from_bytes(data, 'little')
-    #
-    #     # Compute v using curve equation: v² = u³ + 156326u² + u
-    #     p = Curve448Params.PRIME_FIELD
-    #     u = u % p
-    #
-    #     # Calculate right side of equation
-    #     u_squared = (u * u) % p
-    #     u_cubed = (u_squared * u) % p
-    #     rhs = (u_cubed + (156326 * u_squared) % p + u) % p
-    #
-    #     # Find square root if it exists
-    #     if pow(rhs, (p - 1) // 2, p) != 1:
-    #         raise ValueError("Invalid u-coordinate: no corresponding v-coordinate exists")
-    #
-    #     # Use the square root method from MGAffinePoint
-    #     temp_point = cls.identity()
-    #     v = temp_point._sqrt_mod_p(rhs)
-    #
-    #     if v is None:
-    #         raise ValueError("Could not compute square root for v-coordinate")
-    #
-    #     # Choose canonical v (even LSB for determinism)
-    #     if v & 1:
-    #         v = (-v) % p
-    #
-    #     return cls(u, v)
-    #
-    # def to_compressed_bytes(self) -> bytes:
-    #     """
-    #     Convert to compressed format: 56 bytes u-coordinate + 1 bit for v sign.
-    #     """
-    #     if self.is_identity():
-    #         return b'\x00' * 57  # 56 + 1 byte for sign
-    #
-    #     u_bytes = self.x.to_bytes(56, 'little')
-    #     # Store v parity in the extra byte (0 for even, 1 for odd)
-    #     v_parity = bytes([self.y & 1]) if self.y is not None else b'\x00'
-    #     return u_bytes + v_parity
-
-    # @classmethod
-    # def from_compressed_bytes(cls, data: bytes) -> 'Curve448Point':
-    #     """
-    #     Create point from compressed format (57 bytes: 56 for u + 1 for v parity).
-    #     """
-    #     if len(data) != 57:
-    #         raise ValueError("Compressed Curve448 data must be exactly 57 bytes")
-    #
-    #     if data == b'\x00' * 57:
-    #         return cls.identity()
-    #
-    #     u_bytes = data[:56]
-    #     v_parity = data[56]
-    #
-    #     u = int.from_bytes(u_bytes, 'little')
-    #
-    #     # Compute v using curve equation
-    #     p = Curve448Params.PRIME_FIELD
-    #     u = u % p
-    #
-    #     u_squared = (u * u) % p
-    #     u_cubed = (u_squared * u) % p
-    #     rhs = (u_cubed + (156326 * u_squared) % p + u) % p
-    #
-    #     # Find square root
-    #     if pow(rhs, (p - 1) // 2, p) != 1:
-    #         raise ValueError("Invalid u-coordinate: no corresponding v-coordinate exists")
-    #
-    #     temp_point = cls.identity()
-    #     v = temp_point._sqrt_mod_p(rhs)
-    #
-    #     if v is None:
-    #         raise ValueError("Could not compute square root for v-coordinate")
-    #
-    #     # Adjust v based on stored parity
-    #     if (v & 1) != v_parity:
-    #         v = (-v) % p
-    #
-    #     return cls(u, v)
-
     def __str__(self) -> str:
         """String representation."""
         if self.is_identity():
@@ -308,19 +186,3 @@ class Curve448Point(MGAffinePoint):
     def __repr__(self) -> str:
         """Detailed string representation."""
         return self.__str__()
-
-
-# Convenience functions for common operations
-def curve448_base_point() -> Curve448Point:
-    """Get the standard Curve448 base point (generator)."""
-    return Curve448Point.generator_point()
-
-def curve448_identity() -> Curve448Point:
-    """Get the Curve448 identity point."""
-    return Curve448Point.identity()
-
-
-def curve448_random_scalar() -> int:
-    """Generate a random scalar for Curve448 operations."""
-    import secrets
-    return secrets.randbelow(Curve448Params.ORDER)

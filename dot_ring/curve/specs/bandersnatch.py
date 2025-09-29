@@ -4,12 +4,9 @@ from dataclasses import dataclass
 from typing import Final, Self
 
 from dot_ring.curve.e2c import E2C_Variant
-
 from ..glv import DisabledGLV, GLVSpecs
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
-
-
 @dataclass(frozen=True)
 class BandersnatchParams:
     """
@@ -100,7 +97,7 @@ class BandersnatchCurve(TECurve):
             GENERATOR_X=BandersnatchParams.GENERATOR_X,
             GENERATOR_Y=BandersnatchParams.GENERATOR_Y,
             COFACTOR=BandersnatchParams.COFACTOR,
-            glv=BandersnatchGLVSpecs,
+            glv=GLVSpecs,
             Z=BandersnatchParams.Z,
             EdwardsA=BandersnatchParams.EDWARDS_A,
             EdwardsD=BandersnatchParams.EDWARDS_D,
@@ -116,8 +113,6 @@ class BandersnatchCurve(TECurve):
             H_A=BandersnatchParams.H_A,
             Requires_Isogeny=BandersnatchParams.Requires_Isogeny,
             Isogeny_Coeffs=BandersnatchParams.Isogeny_Coeffs,
-
-
         )
 
 

@@ -124,16 +124,7 @@ class Curve25519CurveSimple(MGCurve):
         pass
 
 # Try the main implementation first, fall back to simple if needed
-try:
-    Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
-except (TypeError, AttributeError) as e:
-    # Fallback to simple dataclass construction
-    print(f"Warning: Using fallback Curve25519 construction due to: {e}")
-    Curve25519_MG_Curve: Final[Curve25519CurveSimple] = Curve25519CurveSimple(
-        PRIME_FIELD=Curve25519Params.PRIME_FIELD,
-        A=Curve25519Params.A,
-        B=Curve25519Params.B
-    )
+Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
 
 
 class Curve25519Point(MGAffinePoint):
@@ -157,16 +148,6 @@ class Curve25519Point(MGAffinePoint):
         # Call parent constructor
         super().__init__(u, v, curve)
 
-    # @property
-    # def curve(self):
-    #     """Get the curve instance."""
-    #     return getattr(self, '_curve', Curve25519_MG_Curve)
-
-    # @curve.setter
-    # def curve(self, value):
-    #     """Set the curve instance."""
-    #     object.__setattr__(self, '_curve', value)
-
     @classmethod
     def generator_point(cls) -> Self:
         """
@@ -186,12 +167,7 @@ class Curve25519Point(MGAffinePoint):
         Get the identity element (point at infinity) in a robust way.
         This constructs an object with x=None, y=None and a proper curve reference.
         """
-        # Create object directly to avoid constructor validation issues
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", None)
-        object.__setattr__(inst, "y", None)
-        object.__setattr__(inst, "_curve", Curve25519_MG_Curve)
-        return inst
+        return cls(0,1)
 
     def validate_coordinates(self) -> bool:
         """
@@ -214,57 +190,6 @@ class Curve25519Point(MGAffinePoint):
         right = (u * u * u + 486662 * u * u + u) % p
         return left == right
 
-#     def to_x25519_bytes(self) -> bytes:
-#         """
-#         Convert to X25519 wire format (32 bytes, little-endian u-coordinate).
-#         """
-#         if self.is_identity():
-#             return b'\x00' * 32
-#         return self.x.to_bytes(32, 'little')
-#
-#     @classmethod
-#     def from_x25519_bytes(cls, data: bytes) -> Self:
-#         """
-#         Create point from X25519 wire format (32 bytes, little-endian u-coordinate).
-#         This only recovers the u-coordinate; v-coordinate is computed when needed.
-#         """
-#         if len(data) != 32:
-#             raise ValueError("X25519 data must be exactly 32 bytes")
-#
-#         if data == b'\x00' * 32:
-#             return cls.identity()
-#
-#         u = int.from_bytes(data, 'little')
-#
-#         # For X25519, we typically don't need the v-coordinate immediately
-#         # We can compute it later if needed using the curve equation
-#
-#         # Compute v using curve equation: v² = u³ + 486662u² + u
-#         p = Curve25519Params.PRIME_FIELD
-#         u = u % p
-#
-#         # Calculate right side of equation
-#         u_squared = (u * u) % p
-#         u_cubed = (u_squared * u) % p
-#         rhs = (u_cubed + (486662 * u_squared) % p + u) % p
-#
-#         # Find square root if it exists
-#         if pow(rhs, (p - 1) // 2, p) != 1:
-#             raise ValueError("Invalid u-coordinate: no corresponding v-coordinate exists")
-#
-#         # Use the square root method from MGAffinePoint
-#         temp_point = cls.identity()
-#         v = temp_point._sqrt_mod_p(rhs)
-#
-#         if v is None:
-#             raise ValueError("Could not compute square root for v-coordinate")
-#
-#         # Choose canonical v (even LSB for determinism)
-#         if v & 1:
-#             v = (-v) % p
-#
-#         return cls(u, v)
-#
     def __str__(self) -> str:
         """String representation."""
         if self.is_identity():
@@ -325,63 +250,3 @@ class Curve25519Point(MGAffinePoint):
             v = (-v) % p
 
         return cls(u, v)
-
-
-# Convenience functions for common operations
-def curve25519_base_point() -> Curve25519Point:
-    """Get the standard Curve25519 base point (generator)."""
-    return Curve25519Point.generator_point()
-
-
-def curve25519_identity() -> Curve25519Point:
-    """Get the Curve25519 identity point."""
-    return Curve25519Point.identity()
-
-
-def curve25519_random_scalar() -> int:
-    """Generate a random scalar for Curve25519 operations."""
-    import secrets
-    return secrets.randbelow(Curve25519Params.ORDER)
-
-
-# # Test function to verify implementation
-# def test_curve25519_basic():
-#     """Basic test to verify Curve25519 implementation works."""
-#     try:
-#         # Test identity
-#         identity = Curve25519Point.identity()
-#         assert identity.is_identity()
-#
-#         # Test generator
-#         G = Curve25519Point.generator_point()
-#         assert G.validate_coordinates()
-#         assert G.is_on_curve()
-#
-#         # Test point operations
-#         G2 = G + G  # Point doubling
-#         assert G2.is_on_curve()
-#
-#         G3 = G * 3  # Scalar multiplication
-#         assert G3.is_on_curve()
-#
-#         # Test that 3*G = G + G + G
-#         G_plus_G2 = G + G2
-#         assert G3.x == G_plus_G2.x and G3.y == G_plus_G2.y
-#
-#         # Test X25519 format
-#         x25519_bytes = G.to_x25519_bytes()
-#         assert len(x25519_bytes) == 32
-#
-#         G_recovered = Curve25519Point.from_x25519_bytes(x25519_bytes)
-#         assert G_recovered.x == G.x
-#
-#         print("✓ Basic Curve25519 tests passed")
-#         return True
-#
-#     except Exception as e:
-#         print(f"✗ Curve25519 test failed: {e}")
-#         return False
-#
-#
-# if __name__ == "__main__":
-#     test_curve25519_basic()
