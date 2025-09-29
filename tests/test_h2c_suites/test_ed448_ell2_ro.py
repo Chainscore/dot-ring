@@ -1,4 +1,5 @@
 import json
+import os
 from dot_ring.curve.specs.ed448 import Ed448_TE_Curve, Ed448Point
 
 
