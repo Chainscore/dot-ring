@@ -1,0 +1,67 @@
+[
+  {
+    "test_name": "secp256k1-SHA256-SSWU Basic Test",
+    "sk": "1e99423a4ed27608a15a2616db16f8fae6d78f46e3b57eeb8d11a319dd4020f4",
+    "pk": "03f028892e64e8ef7aadbce5d5863a5d3f8e87d6eac9a1f5682f99b4e2c6c7e0d7",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Basic test with 'sample' message and no additional data"
+  },
+  {
+    "test_name": "secp256k1-SHA256-SSWU With Additional Data",
+    "sk": "1e99423a4ed27608a15a2616db16f8fae6d78f46e3b57eeb8d11a319dd4020f4",
+    "pk": "03f028892e64e8ef7aadbce5d5863a5d3f8e87d6eac9a1f5682f99b4e2c6c7e0d7",
+    "alpha": "74657374",
+    "ad": "6164646974696f6e616c5f64617461",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with additional data field"
+  },
+  {
+    "test_name": "secp256k1-SHA256-SSWU Empty Message",
+    "sk": "1e99423a4ed27608a15a2616db16f8fae6d78f46e3b57eeb8d11a319dd4020f4",
+    "pk": "03f028892e64e8ef7aadbce5d5863a5d3f8e87d6eac9a1f5682f99b4e2c6c7e0d7",
+    "alpha": "",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with empty input message"
+  },
+  {
+    "test_name": "secp256k1-SHA256-SSWU Long Message",
+    "sk": "1e99423a4ed27608a15a2616db16f8fae6d78f46e3b57eeb8d11a319dd4020f4",
+    "pk": "03f028892e64e8ef7aadbce5d5863a5d3f8e87d6eac9a1f5682f99b4e2c6c7e0d7",
+    "alpha": "4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e6720656c69742c2073656420646f20656975736d6f642074656d706f7220696e6369646964756e74",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with longer input message"
+  },
+  {
+    "test_name": "secp256k1-SHA256-SSWU Different Key",
+    "sk": "0000000000000000000000000000000000000000000000000000000000000001",
+    "pk": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with sk=1 (generator point as pk)"
+  }
+]

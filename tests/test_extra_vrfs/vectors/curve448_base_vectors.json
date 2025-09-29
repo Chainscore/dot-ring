@@ -1,0 +1,28 @@
+[
+  {
+    "test_name": "X448 Basic Test",
+    "sk": "9a8f4925d1519f5775cf46b04b5800d4ee9ee8baae8a7f9ec029f4d6e2d79b79d25b1d74f6a381cae9fbcae6cce4a7c94e0e2d1e83fe84f3a1",
+    "pk": "9b08f7cc31b7e3e67d22d5aea121074a273bd2b83de09c63faa73d2c22c5d9bbc836647241d953d40c5b12da88120d53177f80e532c41fa0",
+    "alpha": "74657374",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Basic X448 test vector with 'test' message"
+  },
+  {
+    "test_name": "X448 Empty Message",
+    "sk": "3d262fddf9ec8e882d4d14db2977c58b0f4d7c65a82434d235898e11c9a48dd067f19c3f2715ac2f8cef3c798406a7b86c67bf56e83f7e01",
+    "pk": "06fce640d7f34c1a71d6b5ed2a22c0469c59a1d1b4e9f8b8d4e0d74e3d6d1f82a4d23a20f2c2b5756c0fe58f3d82405463c8aadbbdb09246",
+    "alpha": "",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "X448 test with empty input message"
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "test_name": "P256-SHA256-SSWU Basic Test",
+    "sk": "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721",
+    "pk": "0260fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Basic test with 'sample' message and no additional data"
+  },
+  {
+    "test_name": "P256-SHA256-SSWU With Additional Data",
+    "sk": "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721",
+    "pk": "0260fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6",
+    "alpha": "74657374",
+    "ad": "6164646974696f6e616c5f64617461",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with additional data field"
+  },
+  {
+    "test_name": "P256-SHA256-SSWU Empty Message",
+    "sk": "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721",
+    "pk": "0260fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6",
+    "alpha": "",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with empty input message"
+  },
+  {
+    "test_name": "P256-SHA256-SSWU Long Message",
+    "sk": "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721",
+    "pk": "0260fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6",
+    "alpha": "4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e6720656c69742c2073656420646f20656975736d6f642074656d706f7220696e6369646964756e74",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with longer input message"
+  },
+  {
+    "test_name": "P256-SHA256-SSWU Different Key",
+    "sk": "0000000000000000000000000000000000000000000000000000000000000001",
+    "pk": "036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with sk=1 (generates standard P256 generator as pk)"
+  }
+]
