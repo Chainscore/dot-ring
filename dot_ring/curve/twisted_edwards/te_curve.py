@@ -23,7 +23,7 @@ class TECurve(Curve):
     """
     EdwardsA: Final[int]
     EdwardsD: Final[int]
-    
+
     @property
     @abstractmethod
     def CHALLENGE_LENGTH(self) -> int:
@@ -69,6 +69,7 @@ class TECurve(Curve):
 
         return J, K
 
+
     def map_to_curve_ell2(self, u: int) -> Tuple[int, int]:
         """
         Elligator 2 map to curve implementation.
@@ -91,7 +92,6 @@ class TECurve(Curve):
         tv1 = (Z * u * u) % p
         e1 = tv1 == -1
         tv1 = 0 if e1 else tv1
-
         x1 = (-c1 * self.mod_inverse(tv1 + 1)) % p
         gx1 = (((x1 + c1) * x1 + c2) * x1) % p
 
@@ -113,7 +113,6 @@ class TECurve(Curve):
         # Scale coordinates
         s = (x * K) % p
         t = (y * K) % p
-
         return (s, t)
 
     @property
