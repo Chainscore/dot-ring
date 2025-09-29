@@ -1,7 +1,7 @@
 from py_ecc.bls import point_compression
 from py_ecc.optimized_bls12_381 import FQ,FQ2, is_on_curve
 from dot_ring.ring_proof.constants import S_PRIME
-
+from hashlib import sha256, sha512, shake_256, sha384
 class Helpers:
     @staticmethod
     def knocker_delta(i, j):
@@ -122,29 +122,68 @@ class Helpers:
         return res
 
     @staticmethod
-    def l_endian_2_int(byte_array:bytes):
+    def l_endian_2_int(byte_array: bytes) -> int:
         if isinstance(byte_array, str):
             return int.from_bytes(bytes.fromhex(byte_array),'little')
         return int.from_bytes(byte_array, "little")
 
     @staticmethod
-    def b_endian_2_int(byte_array: bytes):
+    def b_endian_2_int(byte_array: bytes)->int:
         if isinstance(byte_array, str):
             return int.from_bytes(bytes.fromhex(byte_array),'big')
         return int.from_bytes(byte_array, 'big')
 
     @staticmethod
-    def to_b_endian(val:int)->bytes:
-        return val.to_bytes(32, 'big')
+    def to_b_endian(val:int, n_bytes:int=32)->bytes:
+        return val.to_bytes(n_bytes, 'big')
 
     @staticmethod
-    def to_l_endian(val:int,no_of_bytes:int=32)->bytes:
-        return val.to_bytes(no_of_bytes, 'little')
+    def to_l_endian(val:int,n_bytes:int=32)->bytes:
+        return val.to_bytes(n_bytes, 'little')
 
     @staticmethod
-    def sha512(data: bytes) -> bytes:
+    def ha_sha512(data: bytes) -> bytes:
         """SHA512 hash function"""
-        from hashlib import sha512
         if not isinstance(data, bytes):
             data = bytes(data)
         return sha512(data).digest()
+
+    @staticmethod
+    def ha_sha256(data: bytes) -> bytes:
+        """SHA512 hash function"""
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        return sha256(data).digest()
+
+    @staticmethod
+    def ha_sha384(data: bytes) -> bytes:
+        """SHA512 hash function"""
+        if not isinstance(data, bytes):
+            data = bytes(data)
+        return sha384(data).digest()
+    @staticmethod
+    def ha_shake256(data: bytes, len_in_bytes:int=64) -> bytes:
+        """SHA512 hash function"""
+        print(data, "data")
+        if not isinstance(data, bytes):
+            print(data, "data")
+            data = bytes(data)
+        shake = shake_256()
+        shake.update(data)
+        return shake.digest(len_in_bytes)
+
+    @staticmethod
+    def pt_len(prime_field:int)->int:
+        coord_size = (prime_field.bit_length() + 7) // 8
+        return coord_size
+
+    @staticmethod
+    def decide_hash(hash_name:str):
+        if hash_name == "SHA-256":
+            return Helpers.ha_sha256
+        elif hash_name == "SHA-384":
+            return Helpers.ha_sha384
+        elif hash_name == "SHA-512":
+            return Helpers.ha_sha512
+        elif hash_name == "Shake-256":
+            return Helpers.ha_shake256
