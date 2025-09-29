@@ -1,0 +1,76 @@
+{
+  "suite": "P384_XMD:SHA-384_SSWU_NU_",
+  "dst": "QUUX-V01-CS02-with-P384_XMD:SHA-384_SSWU_NU_",
+  "vectors": [
+    {
+      "msg": "",
+      "P": {
+        "x": "de5a893c83061b2d7ce6a0d8b049f0326f2ada4b966dc7e72927256b033ef61058029a3bfb13c1c7ececd6641881ae20",
+        "y": "63f46da6139785674da315c1947e06e9a0867f5608cf24724eb3793a1f5b3809ee28eb21a0c64be3be169afc6cdb38ca"
+      },
+      "u": [
+        "bc7dc1b2cdc5d588a66de3276b0f24310d4aca4977efda7d6272e1be25187b001493d267dc53b56183c9e28282368e60"
+      ],
+      "Q": {
+        "x": "de5a893c83061b2d7ce6a0d8b049f0326f2ada4b966dc7e72927256b033ef61058029a3bfb13c1c7ececd6641881ae20",
+        "y": "63f46da6139785674da315c1947e06e9a0867f5608cf24724eb3793a1f5b3809ee28eb21a0c64be3be169afc6cdb38ca"
+      }
+    },
+    {
+      "msg": "abc",
+      "P": {
+        "x": "1f08108b87e703c86c872ab3eb198a19f2b708237ac4be53d7929fb4bd5194583f40d052f32df66afe5249c9915d139b",
+        "y": "1369dc8d5bf038032336b989994874a2270adadb67a7fcc32f0f8824bc5118613f0ac8de04a1041d90ff8a5ad555f96c"
+      },
+      "u": [
+        "9de6cf41e6e41c03e4a7784ac5c885b4d1e49d6de390b3cdd5a1ac5dd8c40afb3dfd7bb2686923bab644134483fc1926"
+      ],
+      "Q": {
+        "x": "1f08108b87e703c86c872ab3eb198a19f2b708237ac4be53d7929fb4bd5194583f40d052f32df66afe5249c9915d139b",
+        "y": "1369dc8d5bf038032336b989994874a2270adadb67a7fcc32f0f8824bc5118613f0ac8de04a1041d90ff8a5ad555f96c"
+      }
+    },
+    {
+      "msg": "abcdef0123456789",
+      "P": {
+        "x": "4dac31ec8a82ee3c02ba2d7c9fa431f1e59ffe65bf977b948c59e1d813c2d7963c7be81aa6db39e78ff315a10115c0d0",
+        "y": "845333cdb5702ad5c525e603f302904d6fc84879f0ef2ee2014a6b13edd39131bfd66f7bd7cdc2d9ccf778f0c8892c3f"
+      },
+      "u": [
+        "84e2d430a5e2543573e58e368af41821ca3ccc97baba7e9aab51a84543d5a0298638a22ceee6090d9d642921112af5b7"
+      ],
+      "Q": {
+        "x": "4dac31ec8a82ee3c02ba2d7c9fa431f1e59ffe65bf977b948c59e1d813c2d7963c7be81aa6db39e78ff315a10115c0d0",
+        "y": "845333cdb5702ad5c525e603f302904d6fc84879f0ef2ee2014a6b13edd39131bfd66f7bd7cdc2d9ccf778f0c8892c3f"
+      }
+    },
+    {
+      "msg": "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+      "P": {
+        "x": "13c1f8c52a492183f7c28e379b0475486718a7e3ac1dfef39283b9ce5fb02b73f70c6c1f3dfe0c286b03e2af1af12d1d",
+        "y": "57e101887e73e40eab8963324ed16c177d55eb89f804ec9df06801579820420b5546b579008df2145fd770f584a1a54c"
+      },
+      "u": [
+        "504e4d5a529333b9205acaa283107bd1bffde753898f7744161f7dd19ba57fbb6a64214a2e00ddd2613d76cd508ddb30"
+      ],
+      "Q": {
+        "x": "13c1f8c52a492183f7c28e379b0475486718a7e3ac1dfef39283b9ce5fb02b73f70c6c1f3dfe0c286b03e2af1af12d1d",
+        "y": "57e101887e73e40eab8963324ed16c177d55eb89f804ec9df06801579820420b5546b579008df2145fd770f584a1a54c"
+      }
+    },
+    {
+      "msg": "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "P": {
+        "x": "af129727a4207a8cb9e9dce656d88f79fce25edbcea350499d65e9bf1204537bdde73c7cefb752a6ed5ebcd44e183302",
+        "y": "ce68a3d5e161b2e6a968e4ddaa9e51504ad1516ec170c7eef3ca6b5327943eca95d90b23b009ba45f58b72906f2a99e2"
+      },
+      "u": [
+        "7b01ce9b8c5a60d9fbc202d6dde92822e46915d8c17e03fcb92ece1ed6074d01e149fc9236def40d673de903c1d4c166"
+      ],
+      "Q": {
+        "x": "af129727a4207a8cb9e9dce656d88f79fce25edbcea350499d65e9bf1204537bdde73c7cefb752a6ed5ebcd44e183302",
+        "y": "ce68a3d5e161b2e6a968e4ddaa9e51504ad1516ec170c7eef3ca6b5327943eca95d90b23b009ba45f58b72906f2a99e2"
+      }
+    }
+  ]
+}
