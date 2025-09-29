@@ -357,13 +357,14 @@ class MGAffinePoint(Point[C]):
         if not isinstance(salt, bytes):
             salt = bytes.fromhex(salt)
 
-        if cls.curve.E2C == E2C_Variant.ELL2:
+        # Check if it's an ELL2 variant (ELL2 or ELL2_NU)
+        if cls.curve.E2C in (E2C_Variant.ELL2, E2C_Variant.ELL2_NU):
             if cls.curve.E2C.value.endswith("_NU_"):
                 return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
 
             return cls.encode_to_curve_hash2_suite_ro(alpha_string, salt, General_Check)
         else:
-            raise ValueError("Unexpected E2C Variant")
+            raise ValueError(f"Unexpected E2C Variant: {cls.curve.E2C}")
 
     @classmethod
     def encode_to_curve_hash2_suite_nu(cls, alpha_string: bytes, salt: bytes = b"",General_Check: bool = False) -> "MGAffinePoint[C]" | Any:
@@ -486,7 +487,7 @@ class MGAffinePoint(Point[C]):
         s = (x * K) % p
         t = (y * K) % p
 
-        return cls(s, t)
+        return cls(s, t, cls.curve)
 
     @classmethod
     def _x_recover(cls, u: int) -> Optional[int]:
@@ -523,5 +524,3 @@ class MGAffinePoint(Point[C]):
             if v is None:
                 return None
         return v
-
-
