@@ -60,12 +60,13 @@ class Curve25519Curve(MGCurve):
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
         """Initialize Curve255198 with its parameters."""
-        # Default suite and dst
+        # Start with default RO suite and dst
         SUITE_STRING = Curve25519Params.SUITE_STRING
         DST = Curve25519Params.DST
 
-        # Replace RO with NU if needed
-        if e2c_variant.value.endswith("NU_"):
+        # Adjust SUITE_STRING and DST based on variant
+        # Handle ELL2 variants (default is ELL2_RO)
+        if e2c_variant == E2C_Variant.ELL2_NU:
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
 
@@ -83,7 +84,7 @@ class Curve25519Curve(MGCurve):
             B=Curve25519Params.B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.ELL2,
+            E2C=e2c_variant,  
             BBx=Curve25519Params.BBu,
             BBy=Curve25519Params.BBv,
             L=Curve25519Params.L,
@@ -125,6 +126,31 @@ class Curve25519CurveSimple(MGCurve):
 
 # Try the main implementation first, fall back to simple if needed
 Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
+
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
+    """
+    Factory function to create a Curve25519Point class with a specific E2C variant.
+    This is the recommended way for library users to work with different hash-to-curve variants.
+    
+    Args:
+        e2c_variant: The E2C variant to use (ELL2, ELL2_NU, SSWU, SSWU_NU)
+    Returns:
+        A Curve25519Point class configured with the specified variant
+    Example:
+    """
+    # Create curve with the specified variant
+    curve = Curve25519Curve(e2c_variant)
+    
+    # Create and return a point class with this curve
+    class Curve25519PointVariant(MGAffinePoint):
+        """Point on Curve25519 with custom E2C variant"""
+        pass
+    
+    # Set the curve as a class attribute
+    Curve25519PointVariant.curve = curve
+    
+    return Curve25519PointVariant
 
 
 class Curve25519Point(MGAffinePoint):
