@@ -113,6 +113,9 @@ class Secp256k1Curve(SWCurve):
         if e2c_variant.value.endswith("NU_"):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
+
+        print(SUITE_STRING)
+        print(DST)
         super().__init__(
             PRIME_FIELD=Secp256k1Params.PRIME_FIELD,
             ORDER=Secp256k1Params.ORDER,
@@ -125,7 +128,7 @@ class Secp256k1Curve(SWCurve):
             WeierstrassB=Secp256k1Params.WEIERSTRASS_B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.SSWU,
+            E2C=e2c_variant,
             BBx=Secp256k1Params.BBx,
             BBy=Secp256k1Params.BBy,
             M=Secp256k1Params.M,
@@ -139,7 +142,7 @@ class Secp256k1Curve(SWCurve):
 
 
 # Singleton instance
-Secp256k1_SW_Curve: Final[Secp256k1Curve] = Secp256k1Curve()
+Secp256k1_SW_Curve:Final[Secp256k1Curve] = Secp256k1Curve()
 
 
 @dataclass(frozen=True)
@@ -223,7 +226,3 @@ class Secp256k1Point(SWAffinePoint):
         # For now, fall back to standard multiplication
         # TODO: Implement full GLV decomposition
         return super().__mul__(k)
-
-
-
-

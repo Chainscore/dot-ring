@@ -5,6 +5,8 @@ from typing import Final, Self, Tuple
 
 from dot_ring.curve.e2c import E2C_Variant
 
+e2c_variant = E2C_Variant.ELL2
+
 from ..glv import DisabledGLV
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
@@ -22,13 +24,12 @@ class Ed25519Params:
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed
-    ORDER: Final[int] = 2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed
+    ORDER: Final[int] = 2 ^ 252 + 0x14def9dea2f79cd65812631a5cf5d3ed
     COFACTOR: Final[int] = 8
 
     # Generator point
     GENERATOR_X: Final[int] = 0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A
     GENERATOR_Y: Final[int] = 0x6666666666666666666666666666666666666666666666666666666666666658
-
     # Edwards curve parameters
     EDWARDS_A: Final[int] = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffec
     EDWARDS_D: Final[int] = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3
@@ -43,19 +44,25 @@ class Ed25519Params:
     H_A: [Final] = "SHA-512"
     M: [Final] = 1
     K: [Final] = 128
-    S_in_bytes: [Final] = 128 # 48 64 136 172\
+    S_in_bytes: [Final] = 128  # 48 64 136 172\
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
+
     # Blinding Base For Pedersen
+    # BBx: Final[
+    #     int
+    # ] = 0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A
+    # BBy: Final[
+    #     int
+    # ] = 0x6666666666666666666666666666666666666666666666666666666666666658
     BBx: Final[
         int
-    ] = 0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A
+    ] = 52417091031015867055192825304177001039906336859819158874861527659737645967040
     BBy: Final[
         int
-    ] = 0x6666666666666666666666666666666666666666666666666666666666666658
-
+    ] = 24364467899048426341436922427697710961180476432856951893648702734568269272170
 
 class Ed25519Curve(TECurve):
     """
@@ -71,7 +78,7 @@ class Ed25519Curve(TECurve):
         """Return the challenge length in bytes for Ed25519 VRF."""
         return Ed25519Params.CHALLENGE_LENGTH
 
-    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = e2c_variant) -> None:
         """Initialize Ed25519 curve with RFC-compliant parameters."""
         # Default suite and dst
         SUITE_STRING = Ed25519Params.SUITE_STRING
@@ -80,6 +87,9 @@ class Ed25519Curve(TECurve):
         if e2c_variant.value.endswith("NU_"):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
+        if e2c_variant.value=="TryAndIncrement":
+            SUITE_STRING= b"Ed25519_SHA-512_TAI" #as per davxy
+            DST = b""+SUITE_STRING
 
         super().__init__(
             PRIME_FIELD=Ed25519Params.PRIME_FIELD,
@@ -93,7 +103,7 @@ class Ed25519Curve(TECurve):
             EdwardsD=Ed25519Params.EDWARDS_D,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.ELL2,
+            E2C=e2c_variant,
             BBx=Ed25519Params.BBx,
             BBy=Ed25519Params.BBy,
             L=Ed25519Params.L,
@@ -244,8 +254,6 @@ class Ed25519Point(TEAffinePoint):
         sqrt_neg_A_minus_2 = cls.curve.mod_sqrt(-486664 % p)
         # y = (u - 1) / (u + 1) mod p
         y = ((u - 1) * pow(u + 1, -1, p)) % p
-
         # x = sqrt(-486664) * u / v mod p
         x = (sqrt_neg_A_minus_2 * u * pow(v, -1, p)) % p
-
         return cls(x, y)

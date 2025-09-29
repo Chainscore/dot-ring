@@ -44,8 +44,8 @@ class P256Params:
     H_A:Final[str]= "SHA-256"
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
-    BBx: Final[int] = 0x2c9b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac012
-    BBy: Final[int] = 0x7d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38945
+    BBx: Final[int] = 55516455597544811540149985232155473070193196202193483189274003004283034832642
+    BBy: Final[int] = 48580550536742846740990228707183741745344724157532839324866819111997786854582
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
     Requires_Isogeny: Final[bool] = False
@@ -125,6 +125,24 @@ class P256Point(SWAffinePoint):
             ValueError: If point is not on curve
         """
         super().__init__(x, y, self.curve)
+
+    @classmethod
+    def _x_recover(cls, y: int) -> int:
+        """
+        Recover x-coordinate from y-coordinate for P-256 curve.
+
+        This method explicitly calls the SWAffinePoint's _x_recover implementation.
+
+        Args:
+            y: y-coordinate
+
+        Returns:
+            int: Recovered x-coordinate
+
+        Raises:
+            ValueError: If x cannot be recovered
+        """
+        return SWAffinePoint._x_recover(cls, y)
 
     @classmethod
     def generator_point(cls) -> Self:
