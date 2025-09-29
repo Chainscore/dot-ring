@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Union, Optional, Any, List
+from typing import Final, Self, Union, Optional, Any, List, Type, TypeVar
 
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
 from ..field_element import FieldElement
+from dot_ring.ring_proof.helpers import Helpers
+
+T = TypeVar('T', bound='SWAffinePoint')
 
 @dataclass(frozen=True)
 class SWAffinePoint(Point[SWCurve]):
@@ -15,91 +18,6 @@ class SWAffinePoint(Point[SWCurve]):
 
     Implements point operations for curves of the form y² = x³ + ax + b.
     """
-
-    def _validate_coordinates(self) -> bool:
-        """
-        Validate point coordinates are within field bounds.
-
-        Returns:
-            bool: True if coordinates are valid
-        """
-        # Handle point at infinity
-        if self.x is None and self.y is None:
-            return True
-
-        # Handle FieldElement points (for Fp2)
-        if hasattr(self.x, 're') and hasattr(self.y, 're'):
-            # For FieldElement, check that the prime field matches
-            return (self.x.p == self.curve.PRIME_FIELD and
-                    self.y.p == self.curve.PRIME_FIELD and
-                    0 <= self.x.re < self.curve.PRIME_FIELD and
-                    0 <= self.x.im < self.curve.PRIME_FIELD and
-                    0 <= self.y.re < self.curve.PRIME_FIELD and
-                    0 <= self.y.im < self.curve.PRIME_FIELD)
-
-        # Handle Fp2 points (tuples of two integers)
-        if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
-            if len(self.x) != 2 or len(self.y) != 2:
-                return False
-            return all(isinstance(coord, int) and 0 <= coord < self.curve.PRIME_FIELD
-                       for coord in (*self.x, *self.y))
-
-        # Handle Fp points (integers)
-        if isinstance(self.x, int) and isinstance(self.y, int):
-            return (0 <= self.x < self.curve.PRIME_FIELD and
-                    0 <= self.y < self.curve.PRIME_FIELD)
-
-        return False
-
-    def is_on_curve(self) -> bool:
-        """
-        Check if the point lies on the curve.
-
-        The curve equation is y² = x³ + ax + b
-
-        Returns:
-            bool: True if point is on the curve
-        """
-        # Point at infinity is on the curve
-        if self.x is None and self.y is None:
-            return True
-
-        # For FieldElement points (Fp2)
-        if hasattr(self.x, 're') and hasattr(self.y, 're'):
-            # y²
-            y2 = self.y * self.y
-
-            # x³ + a*x + b
-            x3 = self.x * self.x * self.x
-            a = FieldElement(
-                self.curve.WeierstrassA[0],
-                self.curve.WeierstrassA[1],
-                self.curve.PRIME_FIELD
-            )
-            b = FieldElement(
-                self.curve.WeierstrassB[0],
-                self.curve.WeierstrassB[1],
-                self.curve.PRIME_FIELD
-            )
-            rhs = x3 + (a * self.x) + b
-
-            return y2 == rhs
-
-        # For Fp2 points (tuples of two integers)
-        if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
-            # TODO: Implement proper Fp2 arithmetic for curve equation check
-            # This is a simplified check that only validates the point is in the field
-            return self._validate_coordinates()
-
-        # For Fp points, use standard arithmetic
-        try:
-            left = pow(self.y, 2, self.curve.PRIME_FIELD)
-            right = (pow(self.x, 3, self.curve.PRIME_FIELD) +
-                     self.curve.WeierstrassA * self.x +
-                     self.curve.WeierstrassB) % self.curve.PRIME_FIELD
-            return left == right
-        except (TypeError, AttributeError):
-            return False
 
     def __add__(self, other: SWAffinePoint) -> SWAffinePoint:
         """
@@ -232,6 +150,248 @@ class SWAffinePoint(Point[SWCurve]):
         """
         return self + (-other)
 
+
+    def point_to_string(self, compressed: bool = True) -> bytes:
+        """
+        Convert elliptic curve point (x, y) to compressed octet string
+        according to SEC1 standard for short Weierstrass curves.
+
+        Returns:
+            bytes: The compressed point representation
+        """
+        # Handle point at infinity
+        if self.x is None and self.y is None:
+            return b"\x00"
+
+        p = self.curve.PRIME_FIELD
+        # Calculate the byte length needed for field elements
+        field_byte_len = (p.bit_length() + 7) // 8
+
+        # Convert x-coordinate to bytes
+        x_bytes = int(self.x).to_bytes(field_byte_len, "big")
+
+        if compressed:
+            # Compressed format: prefix (0x02 or 0x03) + x-coordinate
+            # Prefix indicates y-coordinate parity
+            prefix = b"\x02" if self.y % 2 == 0 else b"\x03"
+            return prefix + x_bytes
+        else:
+            # Uncompressed format: 0x04 + x-coordinate + y-coordinate
+            y_bytes = int(self.y).to_bytes(field_byte_len, "big")
+            return b"\x04" + x_bytes + y_bytes
+
+
+    @classmethod
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]':
+        if isinstance(octet_string, str):
+            octet_string = bytes.fromhex(octet_string)
+
+        if len(octet_string) == 0:
+            raise ValueError("Empty octet string")
+
+        prefix = octet_string[0]
+
+        # Handle point at infinity
+        if prefix == 0x00:
+            if len(octet_string) != 1:
+                raise ValueError("Point at infinity must be single byte 0x00")
+            return cls.identity()
+
+        p = cls.curve.PRIME_FIELD
+        A = cls.curve.WeierstrassA
+        B = cls.curve.WeierstrassB
+        field_byte_len = (p.bit_length() + 7) // 8
+
+        # Handle compressed format (0x02 or 0x03)
+        if prefix in (0x02, 0x03):
+            expected_len = 1 + field_byte_len
+            if len(octet_string) != expected_len:
+                raise ValueError(
+                    f"Invalid compressed point length: expected {expected_len}, got {len(octet_string)}"
+                )
+
+            # Extract x-coordinate
+            x_bytes = octet_string[1:]
+            x = int.from_bytes(x_bytes, "big")
+
+            # Validate x is in field
+            if x >= p:
+                raise ValueError(f"x-coordinate {x} is not in field Fp (p={p})")
+
+            # Compute y² = x³ + Ax + B mod p
+            y_squared = (pow(x, 3, p) + A * x + B) % p
+
+            # Compute square root using Tonelli-Shanks
+            y = cls.tonelli_shanks(y_squared, p)
+            if y is None:
+                raise ValueError(
+                    f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
+                )
+
+            # Choose correct square root based on parity indicated by prefix
+            # prefix 0x02: y should be even
+            # prefix 0x03: y should be odd
+            if (y % 2 == 0 and prefix == 0x03) or (y % 2 == 1 and prefix == 0x02):
+                y = p - y  # Use the other square root
+
+            point = cls(x, y)
+
+            # Verify point is on curve
+            if not point.is_on_curve():
+                raise ValueError(f"Decompressed point ({x}, {y}) is not on curve")
+
+            return point
+
+        # Handle uncompressed format (0x04)
+        elif prefix == 0x04:
+            expected_len = 1 + 2 * field_byte_len
+            if len(octet_string) != expected_len:
+                raise ValueError(
+                    f"Invalid uncompressed point length: expected {expected_len}, got {len(octet_string)}"
+                )
+
+            # Extract x and y coordinates
+            x_bytes = octet_string[1:1 + field_byte_len]
+            y_bytes = octet_string[1 + field_byte_len:]
+
+            x = int.from_bytes(x_bytes, "big")
+            y = int.from_bytes(y_bytes, "big")
+
+            # Validate coordinates are in field
+            if x >= p:
+                raise ValueError(f"x-coordinate {x} is not in field Fp (p={p})")
+            if y >= p:
+                raise ValueError(f"y-coordinate {y} is not in field Fp (p={p})")
+
+            point = cls(x, y)
+
+            # Verify point is on curve
+            if not point.is_on_curve():
+                raise ValueError(f"Point ({x}, {y}) is not on curve")
+
+            return point
+
+        # Handle hybrid format (0x06 or 0x07) - optional, not commonly used
+        elif prefix in (0x06, 0x07):
+            # Hybrid format: prefix + x + y, where prefix encodes y parity redundantly
+            expected_len = 1 + 2 * field_byte_len
+            if len(octet_string) != expected_len:
+                raise ValueError(
+                    f"Invalid hybrid point length: expected {expected_len}, got {len(octet_string)}"
+                )
+
+            x_bytes = octet_string[1:1 + field_byte_len]
+            y_bytes = octet_string[1 + field_byte_len:]
+
+            x = int.from_bytes(x_bytes, "big")
+            y = int.from_bytes(y_bytes, "big")
+
+            # Validate coordinates are in field
+            if x >= p or y >= p:
+                raise ValueError("Coordinates not in field")
+
+            # Verify y parity matches prefix
+            if (y % 2 == 0 and prefix == 0x07) or (y % 2 == 1 and prefix == 0x06):
+                raise ValueError("Hybrid format: y parity doesn't match prefix")
+
+            point = cls(x, y)
+
+            if not point.is_on_curve():
+                raise ValueError(f"Point ({x}, {y}) is not on curve")
+
+            return point
+
+        else:
+            raise ValueError(
+                f"Invalid point encoding prefix: 0x{prefix:02x}. "
+                f"Expected 0x00 (infinity), 0x02/0x03 (compressed), 0x04 (uncompressed), or 0x06/0x07 (hybrid)"
+            )
+
+
+    def _validate_coordinates(self) -> bool:
+        """
+        Validate point coordinates are within field bounds.
+
+        Returns:
+            bool: True if coordinates are valid
+        """
+        # Handle point at infinity
+        if self.x is None and self.y is None:
+            return True
+
+        # Handle FieldElement points (for Fp2)
+        if hasattr(self.x, 're') and hasattr(self.y, 're'):
+            # For FieldElement, check that the prime field matches
+            return (self.x.p == self.curve.PRIME_FIELD and
+                    self.y.p == self.curve.PRIME_FIELD and
+                    0 <= self.x.re < self.curve.PRIME_FIELD and
+                    0 <= self.x.im < self.curve.PRIME_FIELD and
+                    0 <= self.y.re < self.curve.PRIME_FIELD and
+                    0 <= self.y.im < self.curve.PRIME_FIELD)
+
+        # Handle Fp2 points (tuples of two integers)
+        if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
+            if len(self.x) != 2 or len(self.y) != 2:
+                return False
+            return all(isinstance(coord, int) and 0 <= coord < self.curve.PRIME_FIELD
+                       for coord in (*self.x, *self.y))
+
+        # Handle Fp points (integers)
+        if isinstance(self.x, int) and isinstance(self.y, int):
+            return (0 <= self.x < self.curve.PRIME_FIELD and
+                    0 <= self.y < self.curve.PRIME_FIELD)
+
+        return False
+
+    def is_on_curve(self) -> bool:
+        """
+        Check if the point lies on the curve.
+
+        The curve equation is y² = x³ + ax + b
+
+        Returns:
+            bool: True if point is on the curve
+        """
+        # Point at infinity is on the curve
+        if self.x is None and self.y is None:
+            return True
+        # For FieldElement points (Fp2)
+        if hasattr(self.x, 're') and hasattr(self.y, 're'):
+            # y²
+            y2 = self.y * self.y
+
+            # x³ + a*x + b
+            x3 = self.x * self.x * self.x
+            a = FieldElement(
+                self.curve.WeierstrassA[0],
+                self.curve.WeierstrassA[1],
+                self.curve.PRIME_FIELD
+            )
+            b = FieldElement(
+                self.curve.WeierstrassB[0],
+                self.curve.WeierstrassB[1],
+                self.curve.PRIME_FIELD
+            )
+            rhs = x3 + (a * self.x) + b
+
+            return y2 == rhs
+
+        # For Fp2 points (tuples of two integers)
+        if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
+            # TODO: Implement proper Fp2 arithmetic for curve equation check
+            # This is a simplified check that only validates the point is in the field
+            return self._validate_coordinates()
+
+        # For Fp points, use standard arithmetic
+        try:
+            left = pow(self.y, 2, self.curve.PRIME_FIELD)
+            right = (pow(self.x, 3, self.curve.PRIME_FIELD) +
+                     self.curve.WeierstrassA * self.x +
+                     self.curve.WeierstrassB) % self.curve.PRIME_FIELD
+            return left == right
+        except (TypeError, AttributeError):
+            return False
+
     def clear_cofactor(self) -> SWAffinePoint:
         return self * self.curve.COFACTOR
 
@@ -257,99 +417,68 @@ class SWAffinePoint(Point[SWCurve]):
         # The curve will be set by the child class's __init__
         return cls(None, None)
 
+    @staticmethod
+    def tonelli_shanks(n: int, p: int) -> Optional[int]:
+        if pow(n, (p - 1) // 2, p) != 1:
+            return None  # No square root exists
+
+            # Special case for p ≡ 3 (mod 4)
+        if p % 4 == 3:
+            return pow(n, (p + 1) // 4, p)
+
+            # General case: Tonelli-Shanks algorithm
+            # Factor p - 1 = q * 2^s where q is odd
+        q, s = p - 1, 0
+        while q % 2 == 0:
+            q //= 2
+            s += 1
+
+        # Find a quadratic non-residue z
+        z = 2
+        while pow(z, (p - 1) // 2, p) != p - 1:
+            z += 1
+
+        # Initialize variables
+        m = s
+        c = pow(z, q, p)
+        t = pow(n, q, p)
+        r = pow(n, (q + 1) // 2, p)
+
+        # Iteratively compute the square root
+        while t != 1:
+            # Find the least i such that t^(2^i) = 1
+            t2i = t
+            for i in range(1, m):
+                t2i = pow(t2i, 2, p)
+                if t2i == 1:
+                    break
+
+            # Update variables
+            b = pow(c, 1 << (m - i - 1), p)
+            m = i
+            c = pow(b, 2, p)
+            t = (t * c) % p
+            r = (r * b) % p
+
+        return r
+
     @classmethod
     def _x_recover(cls, y: int) -> int:
-        """
-        Recover x-coordinate from y-coordinate for point decompression.
-
-        Args:
-            y: y-coordinate
-
-        Returns:
-            int: Recovered x-coordinate
-
-        Raises:
-            ValueError: If x cannot be recovered
-        """
+        p = cls.curve.PRIME_FIELD
         A = cls.curve.WeierstrassA
         B = cls.curve.WeierstrassB
-        p = cls.curve.PRIME_FIELD
 
-        # Solve x³ + ax + b - y² = 0 for x
-        # This is a cubic equation - we need to find the roots
-        rhs = (y * y - B) % p
+        # Compute right-hand side of the curve equation
+        rhs = (pow(y, 2, p) - B) % p
 
-        # For Short Weierstrass curves, we typically solve:
-        # x³ + ax = y² - b
-        # This is complex, so we'll use a simplified approach
-        # In practice, you'd use more sophisticated root-finding algorithms
+        # Solve for x: x³ + A x = rhs mod p
+        # This requires solving cubic — but we do it by Tonelli–Shanks
+        x = cls.tonelli_shanks(rhs, p)
+        if x is None:
+            raise ValueError("No x found for given y")
 
-        for x in range(p):
-            if (pow(x, 3, p) + A * x + B) % p == (y * y) % p:
-                return x
+        return x
 
-        raise ValueError("Cannot recover x-coordinate")
-
-    def compress(self) -> bytes:
-        """
-        Compress point to byte representation.
-
-        Returns:
-            bytes: Compressed point representation
-        """
-        if self.is_identity():
-            # Special encoding for point at infinity
-            return b'\x00' + b'\x00' * 32
-
-        # Standard SEC1 compression
-        prefix = 0x02 if (self.y % 2) == 0 else 0x03
-        x_bytes = self.x.to_bytes(32, 'big')
-        return bytes([prefix]) + x_bytes
-
-    @classmethod
-    def decompress(cls, data: bytes) -> SWAffinePoint:
-        """
-        Decompress point from byte representation.
-
-        Args:
-            data: Compressed point bytes
-
-        Returns:
-            SWAffinePoint: Decompressed point
-
-        Raises:
-            ValueError: If data is invalid
-        """
-        if len(data) != 33:
-            raise ValueError("Invalid compressed point length")
-
-        prefix = data[0]
-
-        if prefix == 0x00:
-            return cls.identity()
-
-        if prefix not in (0x02, 0x03):
-            raise ValueError("Invalid compression prefix")
-
-        x = int.from_bytes(data[1:], 'big')
-
-        # Calculate y² = x³ + ax + b
-        A = cls.curve.WeierstrassA
-        B = cls.curve.WeierstrassB
-        p = cls.curve.PRIME_FIELD
-
-        y_squared = (pow(x, 3, p) + A * x + B) % p
-
-        if not cls.curve.is_square(y_squared):
-            raise ValueError("Point not on curve")
-
-        y = cls.curve.mod_sqrt(y_squared)
-
-        # Choose correct sign based on prefix
-        if (y % 2) != (prefix % 2):
-            y = (-y) % p
-
-        return cls(x, y, cls.curve)
 
     @classmethod
     def map_to_curve_simple_swu(cls, u: int) -> SWAffinePoint | Any:
@@ -535,4 +664,3 @@ class SWAffinePoint(Point[SWCurve]):
         y_mapped = (y_p * y_num * y_den_inv) % p
 
         return cls(x_mapped, y_mapped)
-
