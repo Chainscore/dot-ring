@@ -560,7 +560,7 @@ class SWAffinePoint(Point[SWCurve]):
         if not isinstance(salt, bytes):
             salt = bytes.fromhex(salt)
 
-        if cls.curve.E2C == E2C_Variant.SSWU:
+        if cls.curve.E2C in [E2C_Variant.SSWU,E2C_Variant.SSWU_NU]:
             if cls.curve.E2C.value.endswith("_NU_"):
                 return cls.sswu_hash2_curve_nu(alpha_string, salt, General_Check)
             return cls.sswu_hash2_curve_ro(alpha_string, salt, General_Check)
