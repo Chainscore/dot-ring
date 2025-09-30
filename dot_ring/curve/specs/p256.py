@@ -86,7 +86,7 @@ class P256Curve(SWCurve):
             WeierstrassB=P256Params.WEIERSTRASS_B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.SSWU,
+            E2C=e2c_variant,
             BBx=P256Params.BBx,
             BBy=P256Params.BBy,
             M=P256Params.M,
@@ -102,6 +102,25 @@ class P256Curve(SWCurve):
 
 # Singleton instance
 P256_SW_Curve: Final[P256Curve] = P256Curve()
+
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+
+    # Create curve with the specified variant
+    curve = P256Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class P256PointVariant(SWAffinePoint):
+        """Point on P256 with custom E2C variant"""
+        
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            super().__init__(x, y, curve)
+
+    # Set the curve as a class attribute
+    P256PointVariant.curve = curve
+
+    return P256PointVariant
 
 
 @dataclass(frozen=True)

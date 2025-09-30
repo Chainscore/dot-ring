@@ -86,7 +86,7 @@ class P384Curve(SWCurve):
             WeierstrassB=P384Params.WEIERSTRASS_B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.SSWU,
+            E2C=e2c_variant,
             BBx=P384Params.BBx,
             BBy=P384Params.BBy,
             M=P384Params.M,
@@ -101,6 +101,23 @@ class P384Curve(SWCurve):
 # Singleton instance
 P384_SW_Curve: Final[P384Curve] = P384Curve()
 
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+    # Create curve with the specified variant
+    curve = P384Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class P384PointVariant(SWAffinePoint):
+        """Point on P384 with custom E2C variant"""
+
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            super().__init__(x, y, curve)
+
+    # Set the curve as a class attribute
+    P384PointVariant.curve = curve
+
+    return P384PointVariant
 
 @dataclass(frozen=True)
 class P384Point(SWAffinePoint):

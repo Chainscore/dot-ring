@@ -85,7 +85,7 @@ class P521Curve(SWCurve):
             WeierstrassB=P521Params.WEIERSTRASS_B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.SSWU,
+            E2C=e2c_variant,
             BBx=P521Params.BBx,
             BBy=P521Params.BBy,
             M=P521Params.M,
@@ -100,6 +100,22 @@ class P521Curve(SWCurve):
 # Singleton instance
 P521_SW_Curve: Final[P521Curve] = P521Curve()
 
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+    # Create curve with the specified variant
+    curve = P521Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class P521PointVariant(SWAffinePoint):
+        """Point on P521 with custom E2C variant"""
+
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            super().__init__(x, y, curve)
+
+    # Set the curve as a class attribute
+    P521PointVariant.curve = curve
+
+    return P521PointVariant
 
 @dataclass(frozen=True)
 class P521Point(SWAffinePoint):

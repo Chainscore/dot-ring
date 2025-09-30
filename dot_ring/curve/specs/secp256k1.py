@@ -144,6 +144,21 @@ class Secp256k1Curve(SWCurve):
 # Singleton instance
 Secp256k1_SW_Curve:Final[Secp256k1Curve] = Secp256k1Curve()
 
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+    # Create curve with the specified variant
+    curve = Secp256k1Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class Secp256k1PointVariant(SWAffinePoint):
+        """Point on Secp256k1 with custom E2C variant"""
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            super().__init__(x, y, curve)
+
+    # Set the curve as a class attribute
+    Secp256k1PointVariant.curve = curve
+
+    return Secp256k1PointVariant
 
 @dataclass(frozen=True)
 class Secp256k1Point(SWAffinePoint):

@@ -21,13 +21,11 @@ class BLS12_381_G1Params:
     The values below are the standard constants used by many implementations
     (noble-curves, zkcrypto/arkworks, etc.).
     """
-
     # Domain separation / hash-to-curve strings (RFC drafts / implementations)
     SUITE_STRING: Final[bytes] = b"BLS12381G1_XMD:SHA-256_SSWU_RO_"
     DST: Final[bytes] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_"  # common default DST
 
     # Prime field p (F_q) for BLS12-381
-
     PRIME_FIELD: Final[int] = 0x1A0111EA397FE69A4B1BA7B6434BACD7_64774B84F38512BF6730D2A0F6B0F624_1EABFFFEB153FFFFB9FEFFFFFFFFAAAB
 
     # Order r of the prime-order subgroup (G1 and G2 share the same r)
@@ -101,7 +99,7 @@ class BLS12_381_G1Curve(SWCurve):
             WeierstrassB=BLS12_381_G1Params.WEIERSTRASS_B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.SSWU,
+            E2C=e2c_variant,
             BBx=BLS12_381_G1Params.BBx,
             BBy=BLS12_381_G1Params.BBy,
             M=BLS12_381_G1Params.M,
@@ -115,7 +113,25 @@ class BLS12_381_G1Curve(SWCurve):
 
 
 # Singleton instance for convenience
-BLS12_381_G1Curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve()
+BLS12_381_G1_SW_Curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve()
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+    # Create curve with the specified variant
+    curve = BLS12_381_G1Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class BLS12_381_G1PointVariant(BLS12_381_G1Point):
+        """Point on BLS12_381_G1 with custom E2C variant"""
+
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            # Call SWAffinePoint.__init__ directly to avoid BLS12_381_G1Point's __init__
+            SWAffinePoint.__init__(self, x, y, curve)
+
+    # Set the curve as a class attribute
+    BLS12_381_G1PointVariant.curve = curve
+
+    return BLS12_381_G1PointVariant
 
 
 @dataclass(frozen=True)
@@ -123,7 +139,7 @@ class BLS12_381_G1Point(SWAffinePoint):
     """
     Affine point on BLS12-381 G1.
     """
-    curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve
+    curve: Final[BLS12_381_G1Curve] = BLS12_381_G1_SW_Curve
 
     def __init__(self, x: int, y: int) -> None:
         super().__init__(x, y, self.curve)
@@ -148,7 +164,6 @@ class BLS12_381_G1Point(SWAffinePoint):
         # 8.  Else set x = x2 and y = sqrt(gx2)
         # 9.  If sgn0(u) != sgn0(y), set y = -y
         # 10. return (x, y)
-
         Z = cls.curve.Z
         A = cls.curve.WeierstrassA
         B = cls.curve.WeierstrassB
@@ -297,8 +312,5 @@ class BLS12_381_G1Point(SWAffinePoint):
                             k4[9] * xp ** 5 + k4[10] * xp ** 4 + k4[11] * xp ** 3 + k4[12] * xp ** 2 + k4[13] * xp +
                             k4[14]
                     ) % p
-
             y = (yp * y_num * pow(y_den, -1, p)) % p
-
         return cls(x=x, y=y)
-

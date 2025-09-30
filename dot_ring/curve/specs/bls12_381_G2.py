@@ -12,6 +12,7 @@ from ..field_element import FieldElement
 Fp2 = Tuple[int, int]
 from py_ecc.bls12_381 import add, FQ2, multiply
 
+
 @dataclass(frozen=True)
 class BLS12_381_G2Params:
     """
@@ -32,7 +33,7 @@ class BLS12_381_G2Params:
 
     # Cofactor (h)
     COFACTOR: Final[
-        int] =  0xbc69f08f2ee75b3584c6a0ea91b352888e2a8e9145ad7689986ff031508ffe1329c2f178731db956d82bf015d1212b02ec0ec69d7477c1ae954cbc06689f6a359894c0adebbf6b4e8020005aaa95551#0x5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5
+        int] = 0xbc69f08f2ee75b3584c6a0ea91b352888e2a8e9145ad7689986ff031508ffe1329c2f178731db956d82bf015d1212b02ec0ec69d7477c1ae954cbc06689f6a359894c0adebbf6b4e8020005aaa95551  # 0x5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5
 
     # Generator point (G2)
     GENERATOR_X: Final[Fp2] = (
@@ -86,7 +87,7 @@ class BLS12_381_G2Curve(SWCurve):
     def identity(self) -> BLS12_381_G2Point:
         """
         Return the point at infinity (identity element) for this curve.
-        
+
         Returns:
             BLS12_381_G2Point: The identity point (point at infinity)
         """
@@ -116,7 +117,7 @@ class BLS12_381_G2Curve(SWCurve):
             WeierstrassB=BLS12_381_G2Params.WEIERSTRASS_B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.SSWU,
+            E2C=e2c_variant,
             BBx=BLS12_381_G2Params.BBx,
             BBy=BLS12_381_G2Params.BBy,
             M=BLS12_381_G2Params.M,
@@ -129,8 +130,26 @@ class BLS12_381_G2Curve(SWCurve):
         )
 
 
-# Singleton instance
-BLS12_381_G2: Final[BLS12_381_G2Curve] = BLS12_381_G2Curve()
+# Singleton instance for convenience
+BLS12_381_G2_SW_Curve: Final[BLS12_381_G2Curve] = BLS12_381_G2Curve()
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+    # Create curve with the specified variant
+    curve = BLS12_381_G2Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class BLS12_381_G2PointVariant(BLS12_381_G2Point):
+        """Point on BLS12_381_G1 with custom E2C variant"""
+
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            # Call SWAffinePoint.__init__ directly to avoid BLS12_381_G1Point's __init__
+            SWAffinePoint.__init__(self, x, y, curve)
+
+    # Set the curve as a class attribute
+    BLS12_381_G2PointVariant.curve = curve
+
+    return BLS12_381_G2PointVariant
 
 
 @dataclass(frozen=True)
@@ -140,7 +159,7 @@ class BLS12_381_G2Point(SWAffinePoint):
 
     Implements point operations specific to the BLS12-381 G2 curve.
     """
-    curve: Final[BLS12_381_G2Curve] = BLS12_381_G2
+    curve: Final[BLS12_381_G2Curve] = BLS12_381_G2_SW_Curve
 
     def __init__(self, x: Fp2, y: Fp2) -> None:
         """
@@ -154,7 +173,6 @@ class BLS12_381_G2Point(SWAffinePoint):
             ValueError: If point is not on the curve
         """
         super().__init__(x, y, self.curve)
-
 
     def __add__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:
         """
@@ -210,7 +228,6 @@ class BLS12_381_G2Point(SWAffinePoint):
         except Exception as e:
             p = (FQ2([self.x.re, self.x.im]), FQ2([self.y.re, self.y.im]))
 
-
         # Perform scalar multiplication using py_ecc
         result = multiply(p, scalar)
 
@@ -219,7 +236,6 @@ class BLS12_381_G2Point(SWAffinePoint):
         y = (int(result[1].coeffs[0]), int(result[1].coeffs[1]))
 
         return self.__class__(x, y)
-
 
     @classmethod
     def generator_point(cls) -> Self:
@@ -235,7 +251,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         )
 
     @classmethod
-    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> dict|Self:
+    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> dict | Self:
         """
         Encode a string to a curve point using SSWU map with 3-isogeny (Random Oracle variant).
 
@@ -283,10 +299,7 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         u0 = FieldElement(u[0], u[1], cls.curve.PRIME_FIELD)
         q0 = cls.map_to_curve_simple_swu(u0)
-
-        # Map to curve
-        print("q0 is:",q0)
-        R =q0*cls.curve.COFACTOR
+        R = q0 * cls.curve.COFACTOR
         if General_Check:
             return {"u": u, "Q0": q0, "R": R}
 
@@ -311,7 +324,7 @@ class BLS12_381_G2Point(SWAffinePoint):
             # Print curve equation and point for debugging
             left = y * y
             right = x * x * x + FieldElement(4, 4, x.p)  # 4 * (1 + i)
-            assert left==right, 'point is not on the curve'
+            assert left == right, 'point is not on the curve'
             raise ValueError("Mapped point is not on the curve")
         return point
 
@@ -319,21 +332,21 @@ class BLS12_381_G2Point(SWAffinePoint):
     def _sgn0(x):
         """
         Return the sign of x: 1 if odd, 0 if even.
-        
+
         Args:
             x: Field element (Fp2)
-            
+
         Returns:
             int: 1 if the integer representation is odd, 0 if even
         """
         # For Fp2, we use the lexicographic order as specified in RFC 9380
         # sgn0(x) = sgn0(x0) if x0 != 0 else sgn0(x1)
         x0, x1 = x.re, x.im
-        
+
         # sgn0 for Fp: 1 if odd, 0 if even
         def sgn0_fp(a):
             return a % 2
-            
+
         if x0 != 0:
             return sgn0_fp(x0)
         return sgn0_fp(x1)
@@ -362,7 +375,7 @@ class BLS12_381_G2Point(SWAffinePoint):
             y1 = gx1.sqrt()
             left = y1 * y1
             right = x1 * x1 * x1 + A_prime * x1 + B_prime
-            assert left==right, "Invalid point on E'"
+            assert left == right, "Invalid point on E'"
             x, y = x1, y1
         else:
             x2 = Z * u_sq * x1
@@ -455,12 +468,12 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         x_num = k_1_3 * (x_prime ** 3) + k_1_2 * (x_prime ** 2) + k_1_1 * x_prime + k_1_0
         x_den = x_prime ** 2 + k_2_1 * x_prime + k_2_0
-        x = x_num / x_den # can use inv as well
+        x = x_num / x_den  # can use inv as well
 
         # Calculate y numerator and denominator
         y_num = k_3_3 * (x_prime ** 3) + k_3_2 * (x_prime ** 2) + k_3_1 * x_prime + k_3_0
         y_den = x_prime ** 3 + k_4_2 * (x_prime ** 2) + k_4_1 * x_prime + k_4_0
-        y = y_prime *(y_num/ y_den) #can u inv() as well
+        y = y_prime * (y_num / y_den)  # can u inv() as well
 
         # Verify the point is on the curve
         left = y * y
