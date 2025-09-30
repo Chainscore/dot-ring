@@ -120,7 +120,7 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     This is the recommended way for library users to work with different hash-to-curve variants.
 
     Args:
-        e2c_variant: The E2C variant to use (ELL2, ELL2_NU, SSWU, SSWU_NU)
+        e2c_variant: The E2C variant to use (ELL2, ELL2_NU)
         
     Returns:
         A Curve448Point class configured with the specified variant
