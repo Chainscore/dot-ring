@@ -1,5 +1,8 @@
 import os
-from dot_ring.curve.specs.ed25519 import Ed25519_TE_Curve, Ed25519Point
+from dot_ring.curve.specs.ed25519 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
+
+Ed25519Point = nu_variant(E2C_Variant.ELL2_NU)
 
 
 def test_sswu_hash2_curve():
