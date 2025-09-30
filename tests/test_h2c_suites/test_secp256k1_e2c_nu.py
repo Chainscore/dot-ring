@@ -1,6 +1,7 @@
 import os
-from dot_ring.curve.specs.secp256k1 import (Secp256k1_SW_Curve, Secp256k1Point)
-
+from dot_ring.curve.specs.secp256k1 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
+Secp256k1Point=nu_variant(E2C_Variant.SSWU_NU)
 def test_sswu_hash2_curve():
     import json
     base_dir = os.path.dirname(__file__)  # directory of current test file

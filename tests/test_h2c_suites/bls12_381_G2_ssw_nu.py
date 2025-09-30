@@ -1,8 +1,11 @@
 import json
 import os
 import unittest
-from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2Point
+from dot_ring.curve.specs.bls12_381_G2 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
 from dot_ring.curve.field_element import FieldElement
+
+BLS12_381_G2Point = nu_variant(E2C_Variant.SSWU_NU)
 
 
 class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):

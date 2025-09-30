@@ -1,6 +1,7 @@
 import os
-from dot_ring.curve.specs.p384 import (P384_SW_Curve, P384Point)
-
+from dot_ring.curve.specs.p384 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
+P384Point=nu_variant(E2C_Variant.SSWU_NU)
 def test_sswu_hash2_curve():
     import json
     base_dir = os.path.dirname(__file__)  # directory of current test file

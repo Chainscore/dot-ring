@@ -1,11 +1,13 @@
 import os
-from dot_ring.curve.specs.p256 import (P256_SW_Curve, P256Point)
+from dot_ring.curve.specs.p256 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
 
+P256Point = nu_variant(E2C_Variant.SSWU_NU)
 
 def test_sswu_hash2_curve():
     import json
     base_dir = os.path.dirname(__file__)  # directory of current test file
-    json_path = os.path.join(base_dir, "vectors", "p521_ro.json")
+    json_path = os.path.join(base_dir, "vectors", "p256_nu.json")
     # Load JSON
     with open(json_path, "r") as f:
         data = json.load(f)

@@ -1,6 +1,8 @@
 import os
-from dot_ring.curve.specs.bls12_381_G1 import (BLS12_381_G1Curve, BLS12_381_G1Point)
+from dot_ring.curve.specs.bls12_381_G1 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
 
+BLS12_381_G1Point=nu_variant(E2C_Variant.SSWU_NU)
 
 def test_sswu_hash2_curve():
     import json

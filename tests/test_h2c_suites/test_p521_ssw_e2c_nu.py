@@ -1,5 +1,8 @@
 import os
-from dot_ring.curve.specs.p521 import (P521_SW_Curve, P521Point)
+from dot_ring.curve.specs.p521 import nu_variant
+from dot_ring.curve.e2c import E2C_Variant
+
+P521Point=nu_variant(E2C_Variant.SSWU_NU)
 
 def test_sswu_hash2_curve():
     import json
@@ -19,7 +22,3 @@ def test_sswu_hash2_curve():
         assert Px_bytes==t["P"]["x"]
         assert Py_bytes==t["P"]["y"]
         print(f"✅ Testcase {i + 1}")
-
-
-
-
