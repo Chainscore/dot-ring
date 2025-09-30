@@ -11,7 +11,7 @@ from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 # @pytest.mark.skipif("RUNALL" not in os.environ, reason="takes too long")
 def test_prove_bandersnatch_ed_sha512_ell2_pedersen():
-    data_dir = os.path.join(HERE,"ark-vrf")
+    data_dir = os.path.join(HERE, "../..", "ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
         if i >= limit:
@@ -39,7 +39,7 @@ def test_prove_bandersnatch_ed_sha512_ell2_pedersen():
 
 # @pytest.mark.skipif("RUNALL" not in os.environ, reason="takes too long")
 def test_verify_bandersnatch_ed_sha512_ell2_ietf():
-    data_dir = os.path.join(HERE,"ark-vrf")
+    data_dir = os.path.join(HERE, "../..", "ark-vrf")
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
         if i >= limit:
