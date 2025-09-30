@@ -11,6 +11,11 @@ It also includes **KZG Polynomial Commitment Schemes**, supporting both built-in
 
 ## 🚀 Installation & Setup
 
+### Prerequisites
+- Python 3.12 or higher
+- pip (Python package manager)
+- Install the Dependencies listed in [pyproject.toml](https://github.com/Chainscore/dot-ring/blob/c7d5c7a78d96b7dfeeaf3d059ee19472e39c4535/pyproject.toml#L41C1-L48C1)
+
 ###  Clone and install the library
 
 ```bash

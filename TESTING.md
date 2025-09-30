@@ -42,7 +42,7 @@ Comprehensive RFC 9380-compliant hash-to-curve test suite covering multiple curv
 - **P-256**: `test_p256_ssw_e2c_ro.py`, `test_p256_ssw_e2c_nu.py`
 - **P-384**: `test_p384_ssw_e2c_ro.py`, `test_p384_ssw_e2c_nu.py`
 - **P-521**: `test_p521_ssw_e2c_ro.py`, `test_p521_ssw_e2c_nu.py`
-- **secp256k1**: `test_secp256k1_e2c_ro.py`, `test_secp256k1_e2c_nu.py`
+- **Secp256k1**: `test_secp256k1_e2c_ro.py`, `test_secp256k1_e2c_nu.py`
 - **BLS12_381_G1**: `bls12_381_G1_ssw_ro.py`, `bls12_381_G1_ssw_nu.py`
 - **BLS12_381_G2**: `bls12_381_G2_ssw_ro.py`, `bls12_381_G2_ssw_nu.py`
 
@@ -71,6 +71,8 @@ Comprehensive RFC 9380-compliant hash-to-curve test suite covering multiple curv
 ---
 
 ## ▶️ Running the Tests
+
+Before running tests make sure you have the [Prerequisites](./README.md#prerequisites) installed as mentioned in [README](./README.md).
 
 The tests are written using **pytest**. You can run the entire suite or specific test categories:
 
