@@ -19,9 +19,6 @@ class Ed448Params:
     # RFC 9380 compliant suite string and DST for edwards448_XOF:SHAKE256_ELL2_RO_
     SUITE_STRING = b"edwards448_XOF:SHAKE256_ELL2_RO_"
     DST = b"QUUX-V01-CS02-with-edwards448_XOF:SHAKE256_ELL2_RO_"
-    SUITE_STRING_2 = b"edwards448_XOF:SHAKE256_ELL2_NU_"
-    DST_2 = b"QUUX-V01-CS02-with-edwards448_XOF:SHAKE256_ELL2_NU_"
-
 
     # Curve parameters from RFC 8032
     PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
@@ -80,8 +77,6 @@ class Ed448Curve(TECurve):
     A high-security Twisted Edwards curve providing ~224-bit security.
     Defined in RFC 8032 with hash-to-curve support per RFC 9380.
     """
-    # Ed448 points are encoded in 57 bytes (448 bits + 1 sign bit)
-    ENCODING_LENGTH: Final[int] = 57  # 448 bits = 56 bytes + 1 byte for sign bit
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
         """Initialize Ed448 curve with RFC-compliant parameters."""
@@ -92,6 +87,10 @@ class Ed448Curve(TECurve):
         if e2c_variant.value.endswith("NU_"):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
+
+        if e2c_variant.value=="TryAndIncrement":
+            SUITE_STRING= b"Ed25519_SHA-512_TAI" #as per davxy
+            DST = b""+SUITE_STRING
 
         super().__init__(
             PRIME_FIELD=Ed448Params.PRIME_FIELD,
@@ -105,7 +104,7 @@ class Ed448Curve(TECurve):
             EdwardsD=Ed448Params.EDWARDS_D,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=E2C_Variant.ELL2,
+            E2C=e2c_variant,
             BBx=Ed448Params.BBx,
             BBy=Ed448Params.BBy,
             L=Ed448Params.L,
@@ -116,8 +115,7 @@ class Ed448Curve(TECurve):
             Requires_Isogeny=Ed448Params.Requires_Isogeny,
             Isogeny_Coeffs=Ed448Params.Isogeny_Coeffs
         )
-        # Set the encoding length for this curve
-        self.ENCODING_LENGTH = self.__class__.ENCODING_LENGTH
+
 
 
     @property
@@ -164,6 +162,22 @@ class Ed448Curve(TECurve):
 # Singleton instance
 Ed448_TE_Curve: Final[Ed448Curve] = Ed448Curve()
 
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
+    # Create curve with the specified variant
+    curve = Ed448Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class Ed448PointVariant(Ed448Point):
+        """Point on Ed448 with custom E2C variant"""
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            # Call TEAffinePoint.__init__ directly to avoid Ed448Point's __init__
+            TEAffinePoint.__init__(self, x, y, curve)
+
+    # Set the curve as a class attribute
+    Ed448PointVariant.curve = curve
+
+    return Ed448PointVariant
 
 @dataclass(frozen=True)
 class Ed448Point(TEAffinePoint):
@@ -320,33 +334,3 @@ class Ed448Point(TEAffinePoint):
             ValueError: If decoding fails
         """
         return cls.from_bytes(data)
-
-
-# Additional utility functions for Ed448
-
-def ed448_scalar_clamp(scalar_bytes: bytes) -> int:
-    """
-    Clamp a scalar according to RFC 8032 Ed448 requirements.
-
-    Args:
-        scalar_bytes: 57-byte scalar
-
-    Returns:
-        int: Clamped scalar
-    """
-    if len(scalar_bytes) != 57:
-        raise ValueError("Ed448 scalar must be 57 bytes")
-
-    # Convert to integer
-    scalar = int.from_bytes(scalar_bytes, 'little')
-
-    # Clear the two least significant bits
-    scalar &= ~3
-
-    # Clear all bits of the last octet
-    scalar &= ~(0xFF << (8 * 56))
-
-    # Set the highest bit of the second-to-last octet
-    scalar |= (1 << (8 * 55 + 7))
-
-    return scalar

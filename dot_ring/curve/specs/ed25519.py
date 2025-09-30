@@ -5,8 +5,6 @@ from typing import Final, Self, Tuple
 
 from dot_ring.curve.e2c import E2C_Variant
 
-e2c_variant = E2C_Variant.ELL2
-
 from ..glv import DisabledGLV
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
@@ -78,7 +76,7 @@ class Ed25519Curve(TECurve):
         """Return the challenge length in bytes for Ed25519 VRF."""
         return Ed25519Params.CHALLENGE_LENGTH
 
-    def __init__(self, e2c_variant: E2C_Variant = e2c_variant) -> None:
+    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
         """Initialize Ed25519 curve with RFC-compliant parameters."""
         # Default suite and dst
         SUITE_STRING = Ed25519Params.SUITE_STRING
@@ -189,6 +187,22 @@ class Ed25519Curve(TECurve):
 # Singleton instance
 Ed25519_TE_Curve: Final[Ed25519Curve] = Ed25519Curve()
 
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
+    # Create curve with the specified variant
+    curve = Ed25519Curve(e2c_variant)
+
+    # Create and return a point class with this curve
+    class Ed25519PointVariant(Ed25519Point):
+        """Point on Ed25519 with custom E2C variant"""
+        def __init__(self, x: int, y: int) -> None:
+            """Initialize a point with the variant curve."""
+            # Call TEAffinePoint.__init__ directly to avoid Ed25519Point's __init__
+            TEAffinePoint.__init__(self, x, y, curve)
+
+    # Set the curve as a class attribute
+    Ed25519PointVariant.curve = curve
+
+    return Ed25519PointVariant
 
 @dataclass(frozen=True)
 class Ed25519Point(TEAffinePoint):
