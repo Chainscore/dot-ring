@@ -13,7 +13,7 @@ from dot_ring.vrf.ietf.ietf import IETF_VRF
 def test_prove_bandersnatch_ed_sha512_ell2_ietf():
     # Get the directory of the current test file
     # Construct the relative path to the data folder
-    data_dir = os.path.join(HERE, 'vectors')
+    data_dir = os.path.join(HERE, "./..",'vectors')
     data_dir = os.path.abspath(data_dir)  # normalize the path
     limit = 10000
     for i, file in enumerate(os.listdir(data_dir)):
