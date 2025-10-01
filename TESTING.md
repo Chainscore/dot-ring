@@ -171,12 +171,14 @@ The test suite validates VRF implementations across multiple elliptic curves:
 To generate a coverage report:
 
 ```bash
+pip install pytest-cov
 pytest tests/ --cov=dot_ring --cov-report=term-missing
 ```
 
 For an HTML coverage report:
 
 ```bash
+pip install pytest-cov
 pytest tests/ --cov=dot_ring --cov-report=html
 open htmlcov/index.html
 ```
