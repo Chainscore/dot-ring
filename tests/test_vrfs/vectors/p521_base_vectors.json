@@ -1,0 +1,67 @@
+[
+  {
+    "test_name": "P521-SHA512-SSWU Basic Test",
+    "sk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40414243444546474849",
+    "pk": "0300fac8032b283b550be9c3b3163034497e20f5923a45bdc74606868bd3a1e1e439aceafc872ba23a3daa13b0911f9cd7190c8349f26d644f67db4014cd2f1613612d",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Basic test with 'sample' message and no additional data"
+  },
+  {
+    "test_name": "P521-SHA512-SSWU With Additional Data",
+    "sk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40414243444546474849",
+    "pk": "0300fac8032b283b550be9c3b3163034497e20f5923a45bdc74606868bd3a1e1e439aceafc872ba23a3daa13b0911f9cd7190c8349f26d644f67db4014cd2f1613612d",
+    "alpha": "74657374",
+    "ad": "6164646974696f6e616c5f64617461",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with additional data field"
+  },
+  {
+    "test_name": "P521-SHA512-SSWU Empty Message",
+    "sk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40414243444546474849",
+    "pk": "0300fac8032b283b550be9c3b3163034497e20f5923a45bdc74606868bd3a1e1e439aceafc872ba23a3daa13b0911f9cd7190c8349f26d644f67db4014cd2f1613612d",
+    "alpha": "",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with empty input message"
+  },
+  {
+    "test_name": "P521-SHA512-SSWU Long Message",
+    "sk": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40414243444546474849",
+    "pk": "0300fac8032b283b550be9c3b3163034497e20f5923a45bdc74606868bd3a1e1e439aceafc872ba23a3daa13b0911f9cd7190c8349f26d644f67db4014cd2f1613612d",
+    "alpha": "4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e6720656c69742c2073656420646f20656975736d6f642074656d706f7220696e6369646964756e74",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with longer input message"
+  },
+  {
+    "test_name": "P521-SHA512-SSWU Different Key",
+    "sk": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+    "pk": "0201797b53a9cbe2377aba259728d4503174543735839b2d3b2f29c3c78a2c1ec86ed8ac2439f9478c558a0d9b2d417c972adda238ad04e991e44502fb84fd5f7abaea",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with sk=1 (generates standard P521 generator as pk)"
+  }
+]
