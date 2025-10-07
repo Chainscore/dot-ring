@@ -242,6 +242,10 @@ class VRF(ABC):
 
         # Calculate positions in the proof
         gamma_end = point_len
+
+        if self.curve.UNCOMPRESSED:
+            gamma_end *=2
+
         c_end = gamma_end + challenge_len
         s_end = c_end + scalar_len
 
@@ -250,7 +254,7 @@ class VRF(ABC):
         c_string = pi_string[gamma_end:c_end]
         s_string = pi_string[c_end:s_end]
 
-        # Convert to appropriate types
+        # Convert to appropriate types]
         gamma = self.point_type.string_to_point(gamma_string)
         C = Helpers.b_endian_2_int(c_string) % self.curve.ORDER
         S = Helpers.b_endian_2_int(s_string) % self.curve.ORDER

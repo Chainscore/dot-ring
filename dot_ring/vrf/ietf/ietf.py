@@ -72,7 +72,6 @@ class IETF_VRF(VRF):
 
         # Encode input to curve point
         input_point = self.point_type.encode_to_curve(alpha, salt)
-
         # Compute output point and public key
         output_point = input_point * secret_key
         public_key = generator * secret_key
@@ -83,12 +82,13 @@ class IETF_VRF(VRF):
         # nonce=self.nonce_generation_rfc6979(secret_key, input_point_octet)
         U = generator * nonce
         V = input_point * nonce
+
         # Generate challenge
         c = self.challenge(
             [public_key, input_point, output_point, U, V],
             additional_data
         )
-        s = (nonce + c * secret_key) % self.curve.ORDER
+        s = (nonce + (c * secret_key)) % self.curve.ORDER
         proof= output_point.point_to_string()+ Helpers.to_l_endian(c,self.curve.CHALLENGE_LENGTH)+ Helpers.to_l_endian(s, self.point_len)
         return proof
 
@@ -120,9 +120,11 @@ class IETF_VRF(VRF):
 
         point_len = self.point_len # Compressed point length is fixed at 32 bytes for Bandersnatch\
         challenge_len = self.curve.CHALLENGE_LENGTH
-
+        output_point_end=point_len
         # Calculate positions in the proof
-        output_point_end = point_len
+        if self.curve.UNCOMPRESSED:
+            output_point_end *=2
+
         c_end = output_point_end + challenge_len
         # Extract components
         output_point = self.point_type.string_to_point(proof[:output_point_end])
@@ -133,7 +135,6 @@ class IETF_VRF(VRF):
         # Compute proof points
         U = (generator * s) - (public_key * c)
         V = (input_point * s) - (output_point * c)
-
         # Verify challenge
         expected_c = self.challenge(
             [public_key, input_point, output_point, U, V],
