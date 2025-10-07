@@ -91,10 +91,13 @@ class Point(Generic[C]):
         Returns:
             bytes: The compressed point representation
         """
+        if self.curve.UNCOMPRESSED:
+            return self.uncompressed_p2s()
+
         p = self.curve.PRIME_FIELD
         p_half = (p - 1) // 2
         x, y = self.x, self.y
-        y_bytes = bytearray(int(y).to_bytes(32, "little"))  # Encode y in little-endian
+        y_bytes = bytearray(int(y).to_bytes((p.bit_length() + 7) // 8, "little"))  # Encode y in little-endian
         x_sign_bit = 1 if x >= p_half else 0  # Sign is set if x >= p/2
         y_bytes[-1] |= (x_sign_bit << 7)
         return bytes(y_bytes)
@@ -114,45 +117,48 @@ class Point(Generic[C]):
         Raises:
             ValueError: If encoding is invalid
         """
+        if cls.curve.UNCOMPRESSED:
+            return cls.uncompressed_s2p(octet_string)
+
         if isinstance(octet_string, str):  # Convert hex string to bytes
             octet_string = bytes.fromhex(octet_string)
 
-        y = int.from_bytes(octet_string, 'little') & ((1 << 255) - 1)
-
+        y = int.from_bytes(octet_string, 'little') & ((1 << cls.curve.PRIME_FIELD.bit_length()) - 1)
         # Recover x-coordinate
         x = cls._x_recover(y)
         x_parity = (octet_string[-1] >> 7)
         p_half = (cls.curve.PRIME_FIELD - 1) // 2
-
         # Check if extracted LSB of x matches the stored bit
         if (x < p_half) == x_parity:
-            x = cls.curve.PRIME_FIELD - x  # Flip x if the bit doesn't match
+            x = cls.curve.PRIME_FIELD - x# Flip x if the bit doesn't match
         return cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
 
-    def to_bytes(self) -> bytes:
-        """
-        Convert point to compressed byte representation.
-
-        Returns:
-            bytes: Compressed point representation
-        """
-        return self.point_to_string()
+    def uncompressed_p2s(self)->bytes:
+        p = self.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+        # Encode u and v coordinates as little-endian bytes
+        x_bytes = self.x.to_bytes(byte_length, 'little')
+        y_bytes = self.y.to_bytes(byte_length, 'little')
+        return x_bytes + y_bytes
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> Self:
-        """
-        Create point from compressed byte representation.
+    def uncompressed_s2p(cls, octet_string: Union[str, bytes])-> 'Point[C]':
+        if isinstance(octet_string, str):
+            octet_string = bytes.fromhex(octet_string)
+        p = cls.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+        # Split into u and v coordinates
+        x_bytes = octet_string[:byte_length]
+        y_bytes = octet_string[byte_length:]
+        x = int.from_bytes(x_bytes, 'little')
+        y = int.from_bytes(y_bytes, 'little')
+        # Create the point
+        point = cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
+        # Verify the point is on the curve
+        if not point.is_on_curve():
+            raise ValueError("Point is not on the curve")
+        return point
 
-        Args:
-            data: Compressed point bytes
-
-        Returns:
-            BandersnatchPoint: Decoded point
-
-        Raises:
-            ValueError: If data is invalid
-        """
-        return cls.string_to_point(data)
 
     @classmethod
     def _x_recover(cls, y: int) -> int:

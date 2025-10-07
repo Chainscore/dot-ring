@@ -55,6 +55,7 @@ class Curve:
     # Blinding Base For Pedersen
     BBx: Final[int]
     BBy: Final[int]
+    UNCOMPRESSED:Final[bool]
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
