@@ -164,9 +164,7 @@ class Helpers:
     @staticmethod
     def ha_shake256(data: bytes, len_in_bytes:int=64) -> bytes:
         """SHA512 hash function"""
-        print(data, "data")
         if not isinstance(data, bytes):
-            print(data, "data")
             data = bytes(data)
         shake = shake_256()
         shake.update(data)
