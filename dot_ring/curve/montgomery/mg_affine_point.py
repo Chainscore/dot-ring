@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any
+from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any, Union
 from ..point import Point, PointProtocol
 from .mg_curve import MGCurve
 from dot_ring.curve.e2c import E2C_Variant
@@ -272,82 +272,6 @@ class MGAffinePoint(Point[C]):
         object.__setattr__(inst, "curve", curve)
         return inst
 
-    def point_to_string(self, compressed: bool = True) -> bytes:
-        """
-        Convert point to bytes representation.
-        For Montgomery curves like Curve25519, typically only x-coordinate is used.
-        """
-        if self.is_identity():
-            # Return zero bytes for identity
-            byte_length = (self.curve.PRIME_FIELD.bit_length() + 7) // 8
-            return b'\x00' * byte_length
-
-        x_bytes = self.x.to_bytes((self.curve.PRIME_FIELD.bit_length() + 7) // 8, 'little')
-
-        if compressed or not hasattr(self, 'y') or self.y is None:
-            return x_bytes
-        else:
-            # Include y-coordinate if requested and available
-            y_bytes = self.y.to_bytes((self.curve.PRIME_FIELD.bit_length() + 7) // 8, 'little')
-            return x_bytes + y_bytes
-
-    @classmethod
-    def string_to_point(cls, data: bytes, compressed: bool = True):
-        """
-        Create point from bytes representation.
-        """
-        if not data or all(b == 0 for b in data):
-            return cls.identity()
-
-        byte_length = (cls.curve.PRIME_FIELD.bit_length() + 7) // 8
-
-        if len(data) < byte_length:
-            raise ValueError(f"Data too short: expected at least {byte_length} bytes")
-
-        x = int.from_bytes(data[:byte_length], 'little')
-
-        if compressed or len(data) == byte_length:
-            # Reconstruct y-coordinate
-            # For Montgomery curves: B*y^2 = x^3 + A*x^2 + x
-            A, B = cls.curve.A, cls.curve.B
-            p = cls.curve.PRIME_FIELD
-
-            x = x % p
-            rhs = (x * x * x + A * x * x + x) % p
-
-            # Check if B has an inverse
-            try:
-                inv_B = pow(B, -1, p)
-                y_squared = (rhs * inv_B) % p
-            except ValueError:
-                raise ValueError("Invalid curve: B not invertible")
-
-            # Find square root
-            inst = object.__new__(cls)
-            object.__setattr__(inst, "curve", cls.curve)
-            y = inst._sqrt_mod_p(y_squared)
-
-            if y is None:
-                raise ValueError("Point not on curve")
-
-            # Choose canonical y (even LSB)
-            if y > p//2:
-                y = (-y) % p
-
-            return cls(x, y, cls.curve)
-        else:
-            # Uncompressed format with y-coordinate
-            if len(data) < 2 * byte_length:
-                raise ValueError(f"Data too short for uncompressed: expected {2 * byte_length} bytes")
-
-            y = int.from_bytes(data[byte_length:2 * byte_length], 'little')
-            point = cls(x, y, cls.curve)
-
-            if not point.is_on_curve():
-                raise ValueError("Point not on curve")
-
-            return point
-
     @classmethod
     def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
 
@@ -402,7 +326,6 @@ class MGAffinePoint(Point[C]):
         Returns:
             TEAffinePoint: Resulting curve point
         """
-        print("called ro")
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 2)
 
@@ -489,38 +412,44 @@ class MGAffinePoint(Point[C]):
 
         return cls(s, t, cls.curve)
 
-    @classmethod
-    def _x_recover(cls, u: int) -> Optional[int]:
-        """
-        Recover the v-coordinate from the given u-coordinate
-        for a Montgomery curve: B*v^2 = u^3 + A*u^2 + u
+    def point_to_string(self) -> bytes:
 
-        Args:
-            u: The u-coordinate (x-coordinate in Montgomery form)
+        if self.is_identity():
+            raise ValueError("Cannot serialize point at infinity")
+        p = self.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
 
-        Returns:
-            v (int): The recovered v-coordinate (one of the two possible ones)
-            None: if no valid v exists (point not on curve)
-        """
-        p = cls.curve.PRIME_FIELD
-        A = cls.curve.A
-        B = cls.curve.B
-
-        # Compute RHS = (u^3 + A*u^2 + u) / B mod p
-        rhs = (pow(u, 3, p) + A * pow(u, 2, p) + u) % p
-        if B != 1:
-            rhs = (rhs * pow(B, -1, p)) % p
-
-        # Check if RHS is a quadratic residue: if not, no solution
-        if pow(rhs, (p - 1) // 2, p) != 1:
-            return None
-
-        # Compute modular square root using p ≡ 3 mod 4 shortcut if available
-        if (p % 4) == 3:
-            v = pow(rhs, (p + 1) // 4, p)
+        if self.curve.UNCOMPRESSED:
+            # Encode u and v coordinates as little-endian bytes
+            u_bytes = self.x.to_bytes(byte_length, 'little')
+            v_bytes = self.y.to_bytes(byte_length, 'little')
+            return u_bytes + v_bytes
         else:
-            # Fallback: use Tonelli–Shanks for general p
-            v = cls.curve.mod_sqrt(rhs)
-            if v is None:
-                return None
-        return v
+            ...
+
+    @classmethod
+    def string_to_point(cls, data: Union[str, bytes]) -> 'MGAffinePoint':
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
+            
+        p = cls.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+        if cls.curve.UNCOMPRESSED:
+            # Split into u and v coordinates
+            u_bytes = data[:byte_length]
+            v_bytes = data[byte_length:]
+
+            u = int.from_bytes(u_bytes, 'little')
+            v = int.from_bytes(v_bytes, 'little')
+
+            # Create the point
+            point = cls(u, v, cls.curve)
+
+        else:
+            ...
+
+        # Verify the point is on the curve
+        if not point.is_on_curve():
+            raise ValueError("Point is not on the curve")
+            
+        return point
