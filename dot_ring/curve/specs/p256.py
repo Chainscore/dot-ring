@@ -50,6 +50,7 @@ class P256Params:
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs=None
+    UNCOMPRESSED = False
 
 
 class P256Curve(SWCurve):
@@ -96,6 +97,7 @@ class P256Curve(SWCurve):
             H_A=P256Params.H_A,
             Requires_Isogeny=P256Params.Requires_Isogeny,
             Isogeny_Coeffs=P256Params.Isogeny_Coeffs,
+            UNCOMPRESSED=P256Params.UNCOMPRESSED
 
         )
 

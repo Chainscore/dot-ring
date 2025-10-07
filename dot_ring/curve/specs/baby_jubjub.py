@@ -14,7 +14,7 @@ class BabyJubJubParams:
 
     Specification of the Baby JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b"Baby-JubJub_SHA-512_TAI"
+    SUITE_STRING = b"Babyjubjub_XMD:SHA-512_ELL2_RO_"
     DST = b""
 
     # Curve parameters
@@ -36,6 +36,14 @@ class BabyJubJubParams:
 
     # Z
     Z: Final[int] = 5
+    M: Final[int] = 1
+    K: Final[int] = 128
+    L: Final[int] = 48  # can define func as well
+    S_in_bytes: Final[int] = 48  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
+    H_A: Final[str] = "SHA-512"
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs = None
+
     
     # Challenge length in bytes for VRF (aligned with 128-bit security level)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
@@ -47,7 +55,7 @@ class BabyJubJubParams:
     BBy: Final[
         int
     ] = 16313972569917201570489077828713531620741538540099917729994937953803219324220#5472060717959818805561601436314318772137091100104008585924551046643952123905
-
+    UNCOMPRESSED=False
 
 JubJubGLVSpecs = GLVSpecs(
     is_enabled=True,
@@ -83,9 +91,17 @@ class BabyJubJubCurve(TECurve):
             EdwardsD=BabyJubJubParams.EDWARDS_D,
             SUITE_STRING=BabyJubJubParams.SUITE_STRING,
             DST=BabyJubJubParams.DST,
-            E2C=E2C_Variant.TAI,
+            E2C=E2C_Variant.ELL2,
             BBx=BabyJubJubParams.BBx,
-            BBy=BabyJubJubParams.BBy
+            BBy=BabyJubJubParams.BBy,
+            M=BabyJubJubParams.M,
+            K=BabyJubJubParams.K,
+            L=BabyJubJubParams.L,
+            S_in_bytes=BabyJubJubParams.S_in_bytes,
+            H_A=BabyJubJubParams.H_A,
+            Requires_Isogeny=BabyJubJubParams.Requires_Isogeny,
+            Isogeny_Coeffs=BabyJubJubParams.Isogeny_Coeffs,
+            UNCOMPRESSED=BabyJubJubParams.UNCOMPRESSED,
         )
 
 

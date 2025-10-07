@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Tuple
+from typing import Final, Self, Tuple, Union
 from dot_ring.curve.e2c import E2C_Variant
 from ..glv import DisabledGLV
 from ..twisted_edwards.te_curve import TECurve
@@ -33,7 +33,6 @@ class Ed448Params:
     # GENERATOR_Y: Final[int] = (
     #     608248142315725548579089613027470755631970544493249636720114649005312536082174920317165848102547021453544566006733948867319461398184873
     # )
-
     GENERATOR_X: Final[int] = (
         224580040295924300187604334099896036246789641632564134246125461686950415467406032909029192869357953282578032075146446173674602635247710
     )
@@ -63,12 +62,12 @@ class Ed448Params:
     # Generated using a deterministic method from a different seed point
     # These should be cryptographically independent from the generator
     BBx: Final[int] = (
-        0x5f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05f
+        GENERATOR_X#0x5f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05f
     )
     BBy: Final[int] = (
-        0x793f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa16
+        GENERATOR_Y#0x793f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa16
     )
-
+    UNCOMPRESSED=True
 
 class Ed448Curve(TECurve):
     """
@@ -113,7 +112,8 @@ class Ed448Curve(TECurve):
             K=Ed448Params.K,
             S_in_bytes=Ed448Params.S_in_bytes,
             Requires_Isogeny=Ed448Params.Requires_Isogeny,
-            Isogeny_Coeffs=Ed448Params.Isogeny_Coeffs
+            Isogeny_Coeffs=Ed448Params.Isogeny_Coeffs,
+            UNCOMPRESSED=Ed448Params.UNCOMPRESSED
         )
 
 
@@ -283,54 +283,3 @@ class Ed448Point(TEAffinePoint):
 
         y = (y_num * cls.curve.inv(y_den)) % p
         return cls(x, y)
-
-    def encode_point(self) -> bytes:
-        """
-        Encode point according to RFC 8032 Ed448 encoding.
-        Uses the base class point_to_string method with the curve's ENCODING_LENGTH.
-
-        Returns:
-            bytes: 57-byte encoded point
-        """
-        return super().point_to_string()
-
-    def to_bytes(self) -> bytes:
-        """
-        Convert point to bytes using Ed448 encoding.
-        Alias for encode_point() for compatibility with existing code.
-
-        Returns:
-            bytes: 57-byte encoded point
-        """
-        return self.encode_point()
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> Self:
-        """
-        Create point from bytes using Ed448 decoding.
-        Uses the base class string_to_point method.
-
-        Args:
-            data: 57-byte encoded point
-
-        Returns:
-            Ed448Point: Decoded point
-        """
-        return cls.string_to_point(data)
-
-    @classmethod
-    def decode_point(cls, data: bytes) -> Self:
-        """
-        Decode point according to RFC 8032 Ed448 encoding.
-        Alias for from_bytes for compatibility with existing code.
-
-        Args:
-            data: 57-byte encoded point
-
-        Returns:
-            Ed448Point: Decoded point
-
-        Raises:
-            ValueError: If decoding fails
-        """
-        return cls.from_bytes(data)

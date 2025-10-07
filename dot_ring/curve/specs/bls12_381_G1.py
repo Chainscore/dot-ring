@@ -64,6 +64,7 @@ class BLS12_381_G1Params:
     BBx: Final[int | None] = None
     BBy: Final[int | None] = None
     Isogeny_Coeffs: Final[object | None] = None
+    UNCOMPRESSED = False
 
 
 class BLS12_381_G1Curve(SWCurve):
@@ -109,6 +110,7 @@ class BLS12_381_G1Curve(SWCurve):
             H_A=BLS12_381_G1Params.H_A,
             Requires_Isogeny=BLS12_381_G1Params.Requires_Isogeny,
             Isogeny_Coeffs=BLS12_381_G1Params.Isogeny_Coeffs,
+            UNCOMPRESSED=BLS12_381_G1Params.UNCOMPRESSED,
         )
 
 

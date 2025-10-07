@@ -47,8 +47,9 @@ class Curve25519Params:
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
     # Blinding base for Pedersen VRF (project-specific: keep if you need them)
-    BBu: Final[int] = 0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
-    BBv: Final[int] = 0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
+    BBu: Final[int] = GENERATOR_U#0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
+    BBv: Final[int] = GENERATOR_V#0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
+    UNCOMPRESSED=True
 
 
 class Curve25519Curve(MGCurve):
@@ -94,6 +95,7 @@ class Curve25519Curve(MGCurve):
             S_in_bytes=Curve25519Params.S_in_bytes,
             Requires_Isogeny=Curve25519Params.Requires_Isogeny,
             Isogeny_Coeffs=Curve25519Params.Isogeny_Coeffs,
+            UNCOMPRESSED=Curve25519Params.UNCOMPRESSED,
         )
 
     @property

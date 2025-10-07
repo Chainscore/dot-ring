@@ -65,7 +65,7 @@ class BandersnatchParams:
     BBy: Final[
         int
     ] = 28442734166467795856797249030329035618871580593056783094884474814923353898473
-
+    UNCOMPRESSED = False
 
 """GLV endomorphism parameters for Bandersnatch curve."""
 BandersnatchGLVSpecs = GLVSpecs(
@@ -113,6 +113,7 @@ class BandersnatchCurve(TECurve):
             H_A=BandersnatchParams.H_A,
             Requires_Isogeny=BandersnatchParams.Requires_Isogeny,
             Isogeny_Coeffs=BandersnatchParams.Isogeny_Coeffs,
+            UNCOMPRESSED=BandersnatchParams.UNCOMPRESSED,
         )
 
 

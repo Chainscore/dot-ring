@@ -50,7 +50,6 @@ class Secp256k1Params:
     H_A: Final[str] = "SHA-256"
     L: [int] = 48
     S_in_bytes: Final[int] = 64
-
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
     BBx: Final[int] = 0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0
@@ -81,6 +80,7 @@ class Secp256k1Params:
                 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffff93b,
             ],
         }
+    UNCOMPRESSED = False
 
 
 """GLV endomorphism parameters for secp256k1 curve."""
@@ -114,8 +114,6 @@ class Secp256k1Curve(SWCurve):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
 
-        print(SUITE_STRING)
-        print(DST)
         super().__init__(
             PRIME_FIELD=Secp256k1Params.PRIME_FIELD,
             ORDER=Secp256k1Params.ORDER,
@@ -138,6 +136,7 @@ class Secp256k1Curve(SWCurve):
             H_A=Secp256k1Params.H_A,
             Requires_Isogeny=Secp256k1Params.Requires_Isogeny,
             Isogeny_Coeffs=Secp256k1Params.Isogeny_Coeffs,
+            UNCOMPRESSED=Secp256k1Params.UNCOMPRESSED
         )
 
 

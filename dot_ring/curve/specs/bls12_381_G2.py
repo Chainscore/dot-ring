@@ -69,6 +69,7 @@ class BLS12_381_G2Params:
     # Blinding base for Pedersen VRF (not used in basic implementation)
     BBx: Final[Fp2] = None
     BBy: Final[Fp2] = None
+    UNCOMPRESSED = False
 
 
 class BLS12_381_G2Curve(SWCurve):
@@ -127,6 +128,7 @@ class BLS12_381_G2Curve(SWCurve):
             H_A=BLS12_381_G2Params.H_A,
             Requires_Isogeny=BLS12_381_G2Params.Requires_Isogeny,
             Isogeny_Coeffs=BLS12_381_G2Params.Isogeny_Coeffs,
+            UNCOMPRESSED=BLS12_381_G2Params.UNCOMPRESSED,
         )
 
 

@@ -17,7 +17,7 @@ class JubJubParams:
 
     Specification of the JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b"JubJub_SHA-512_TAI"
+    SUITE_STRING = b"JubJub_SHA-512_TAI"#"Jubjub_XMD:SHA-512_ELL2_RO_"
     DST = b""
 
     # Curve parameters
@@ -40,6 +40,14 @@ class JubJubParams:
 
     # Z
     Z: Final[int] = 5
+    M: Final[int] = 1
+    K: Final[int] = 128
+    L: Final[int] = 48  # can define func as well
+    S_in_bytes: Final[int] = 48  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
+    H_A: Final[str] = "SHA-512"
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs = None
+
 
     # Blinding Base For Pedersen
     BBx: Final[
@@ -48,6 +56,7 @@ class JubJubParams:
     BBy: Final[
         int
     ] = 0x1d523cf1ddab1a1793132e78c866c0c33e26ba5cc220fed7cc3f870e59d292aa
+    UNCOMPRESSED = False
 
 
 class JubJubCurve(TECurve):
@@ -78,8 +87,17 @@ class JubJubCurve(TECurve):
             DST=JubJubParams.DST,
             E2C=E2C_Variant.TAI,
             BBx=JubJubParams.BBx,
-            BBy=JubJubParams.BBy
+            BBy=JubJubParams.BBy,
+            M=JubJubParams.M,
+            K=JubJubParams.K,
+            L=JubJubParams.L,
+            S_in_bytes=JubJubParams.S_in_bytes,
+            H_A=JubJubParams.H_A,
+            Requires_Isogeny=JubJubParams.Requires_Isogeny,
+            Isogeny_Coeffs=JubJubParams.Isogeny_Coeffs,
+            UNCOMPRESSED=JubJubParams.UNCOMPRESSED
         )
+
 
 
 # Singleton instance

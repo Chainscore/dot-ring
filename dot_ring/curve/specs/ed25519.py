@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Tuple
+from typing import Final, Self, Tuple, Union
 
 from dot_ring.curve.e2c import E2C_Variant
 
@@ -62,6 +62,8 @@ class Ed25519Params:
         int
     ] = 24364467899048426341436922427697710961180476432856951893648702734568269272170
 
+    UNCOMPRESSED=True
+
 class Ed25519Curve(TECurve):
     """
     Bandersnatch curve implementation.
@@ -110,7 +112,8 @@ class Ed25519Curve(TECurve):
             K=Ed25519Params.K,
             S_in_bytes=Ed25519Params.S_in_bytes,
             Requires_Isogeny=Ed25519Params.Requires_Isogeny,
-            Isogeny_Coeffs=Ed25519Params.Isogeny_Coeffs
+            Isogeny_Coeffs=Ed25519Params.Isogeny_Coeffs,
+            UNCOMPRESSED=Ed25519Params.UNCOMPRESSED
         )
 
     def modular_sqrt(self, a: int, p: int) -> int:
@@ -271,3 +274,30 @@ class Ed25519Point(TEAffinePoint):
         # x = sqrt(-486664) * u / v mod p
         x = (sqrt_neg_A_minus_2 * u * pow(v, -1, p)) % p
         return cls(x, y)
+
+    # uncompressed
+    def point_to_string(self) -> bytes:
+        p = self.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+        # Encode u and v coordinates as little-endian bytes
+        x_bytes = self.x.to_bytes(byte_length, 'little')
+        y_bytes = self.y.to_bytes(byte_length, 'little')
+        return x_bytes + y_bytes
+
+    @classmethod
+    def string_to_point(cls, data: Union[str, bytes]) -> Self:
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
+        p = cls.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+        # Split into u and v coordinates
+        x_bytes = data[:byte_length]
+        y_bytes = data[byte_length:]
+        u = int.from_bytes(x_bytes, 'little')
+        v = int.from_bytes(y_bytes, 'little')
+        # Create the point
+        point = cls(u, v)
+        # Verify the point is on the curve
+        if not point.is_on_curve():
+            raise ValueError("Point is not on the curve")
+        return point
