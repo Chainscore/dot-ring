@@ -21,10 +21,9 @@ class Ed25519Params:
     DST = b"QUUX-V01-CS02-with-edwards25519_XMD:SHA-512_ELL2_RO_"
 
     # Curve parameters
-    PRIME_FIELD: Final[int] = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed
-    ORDER: Final[int] = 2 ^ 252 + 0x14def9dea2f79cd65812631a5cf5d3ed
+    PRIME_FIELD: Final[int] = 2**255 - 19
+    ORDER: Final[int] = 2 **252 + 0x14def9dea2f79cd65812631a5cf5d3ed
     COFACTOR: Final[int] = 8
-
     # Generator point
     GENERATOR_X: Final[int] = 0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A
     GENERATOR_Y: Final[int] = 0x6666666666666666666666666666666666666666666666666666666666666658
@@ -48,13 +47,6 @@ class Ed25519Params:
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
-    # Blinding Base For Pedersen
-    # BBx: Final[
-    #     int
-    # ] = 0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A
-    # BBy: Final[
-    #     int
-    # ] = 0x6666666666666666666666666666666666666666666666666666666666666658
     BBx: Final[
         int
     ] = 52417091031015867055192825304177001039906336859819158874861527659737645967040
@@ -62,7 +54,7 @@ class Ed25519Params:
         int
     ] = 24364467899048426341436922427697710961180476432856951893648702734568269272170
 
-    UNCOMPRESSED=True
+    UNCOMPRESSED=False
 
 class Ed25519Curve(TECurve):
     """
@@ -89,8 +81,7 @@ class Ed25519Curve(TECurve):
             DST = DST.replace(b"_RO_", b"_NU_")
         if e2c_variant.value=="TryAndIncrement":
             SUITE_STRING= b"Ed25519_SHA-512_TAI" #as per davxy
-            DST = b""+SUITE_STRING
-
+            DST = b""
         super().__init__(
             PRIME_FIELD=Ed25519Params.PRIME_FIELD,
             ORDER=Ed25519Params.ORDER,
@@ -115,6 +106,7 @@ class Ed25519Curve(TECurve):
             Isogeny_Coeffs=Ed25519Params.Isogeny_Coeffs,
             UNCOMPRESSED=Ed25519Params.UNCOMPRESSED
         )
+        print("SUITE STRING:", self.SUITE_STRING)
 
     def modular_sqrt(self, a: int, p: int) -> int:
         """
@@ -193,7 +185,7 @@ Ed25519_TE_Curve: Final[Ed25519Curve] = Ed25519Curve()
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
     # Create curve with the specified variant
     curve = Ed25519Curve(e2c_variant)
-
+    print("Hey am i called?")
     # Create and return a point class with this curve
     class Ed25519PointVariant(Ed25519Point):
         """Point on Ed25519 with custom E2C variant"""
@@ -274,30 +266,3 @@ class Ed25519Point(TEAffinePoint):
         # x = sqrt(-486664) * u / v mod p
         x = (sqrt_neg_A_minus_2 * u * pow(v, -1, p)) % p
         return cls(x, y)
-
-    # uncompressed
-    def point_to_string(self) -> bytes:
-        p = self.curve.PRIME_FIELD
-        byte_length = (p.bit_length() + 7) // 8
-        # Encode u and v coordinates as little-endian bytes
-        x_bytes = self.x.to_bytes(byte_length, 'little')
-        y_bytes = self.y.to_bytes(byte_length, 'little')
-        return x_bytes + y_bytes
-
-    @classmethod
-    def string_to_point(cls, data: Union[str, bytes]) -> Self:
-        if isinstance(data, str):
-            data = bytes.fromhex(data)
-        p = cls.curve.PRIME_FIELD
-        byte_length = (p.bit_length() + 7) // 8
-        # Split into u and v coordinates
-        x_bytes = data[:byte_length]
-        y_bytes = data[byte_length:]
-        u = int.from_bytes(x_bytes, 'little')
-        v = int.from_bytes(y_bytes, 'little')
-        # Create the point
-        point = cls(u, v)
-        # Verify the point is on the curve
-        if not point.is_on_curve():
-            raise ValueError("Point is not on the curve")
-        return point

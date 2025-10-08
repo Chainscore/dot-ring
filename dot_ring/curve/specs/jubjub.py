@@ -17,21 +17,21 @@ class JubJubParams:
 
     Specification of the JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b"JubJub_SHA-512_TAI"#"Jubjub_XMD:SHA-512_ELL2_RO_"
+    SUITE_STRING =  b"JubJub_SHA-512_TAI"#"Jubjub_XMD:SHA-512_ELL2_RO_"
     DST = b""
-
+    #f_len=q_len=32
     # Curve parameters
     PRIME_FIELD: Final[int] = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
-    ORDER: Final[int] = 0xe7db4ea6533afa906673b0101343b00a6682093ccc81082d0970e5ed6f72cb7
+    ORDER: Final[int] = 0x0e7db4ea6533afa906673b0101343b00a6682093ccc81082d0970e5ed6f72cb7
     COFACTOR: Final[int] = 8
 
     # Generator point
-    GENERATOR_X: Final[int] = 0x11dafe5d23e1218086a365b99fbf3d3be72f6afd7d1f72623e6b071492d1122b
-    GENERATOR_Y: Final[int] = 0x1d523cf1ddab1a1793132e78c866c0c33e26ba5cc220fed7cc3f870e59d292aa
+    GENERATOR_X: Final[int] = 8076246640662884909881801758704306714034609987455869804520522091855516602923
+    GENERATOR_Y: Final[int] = 13262374693698910701929044844600465831413122818447359594527400194675274060458
 
     # Edwards curve parameters
-    EDWARDS_A: Final[int] = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000000
-    EDWARDS_D: Final[int] = 0x2a9318e74bfa2b48f5fd9207e6bd7fd4292d7f6d37579d2601065fd6d6343eb1
+    EDWARDS_A: Final[int] = -1
+    EDWARDS_D: Final[int] = 19257038036680949359750312669786877991949435402254120286184196891950884077233
 
     # GLV parameters
     GLV_LAMBDA: Final[int] = 0x13b4f3dc4a39a493edf849562b38c72bcfc49db970a5056ed13d21408783df05
@@ -47,15 +47,15 @@ class JubJubParams:
     H_A: Final[str] = "SHA-512"
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
-
+    CHALLENGE_LENGTH: Final[int] = 32
 
     # Blinding Base For Pedersen
     BBx: Final[
         int
-    ] = 0x11dafe5d23e1218086a365b99fbf3d3be72f6afd7d1f72623e6b071492d1122b
+    ] = 42257337814662035284373945156525735092765968053982822992704750832078779438788
     BBy: Final[
         int
-    ] = 0x1d523cf1ddab1a1793132e78c866c0c33e26ba5cc220fed7cc3f870e59d292aa
+    ] = 47476395315228831116309413527962830333178159651930104661512857647213254194102
     UNCOMPRESSED = False
 
 
@@ -69,7 +69,7 @@ class JubJubCurve(TECurve):
     @property
     def CHALLENGE_LENGTH(self) -> int:
         """Return the challenge length in bytes for JubJub VRF."""
-        return 32  # 256-bit security level
+        return JubJubParams.CHALLENGE_LENGTH # 256-bit security level
 
     def __init__(self) -> None:
         """Initialize Bandersnatch curve with its parameters."""
@@ -139,3 +139,14 @@ class JubJubPoint(TEAffinePoint):
             JubJubParams.GENERATOR_X,
             JubJubParams.GENERATOR_Y
         )
+
+    @classmethod
+    def identity_point(cls) -> 'JubJubPoint':
+        """
+        Get the identity point (0, 1) of the curve.
+
+        Returns:
+            JubJubPoint: Identity point
+        """
+        # The identity point in Twisted Edwards coordinates is (0, 1)
+        return cls(0, 1)
