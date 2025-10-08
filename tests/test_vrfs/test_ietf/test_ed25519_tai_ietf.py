@@ -33,15 +33,12 @@ def test_bandersnatch_ed_sha512_ell2_ietf():
                 vrf = IETF_VRF(curve, point)
                 public_key=point.string_to_point(vrf.get_public_key(vector['sk']))
                 assert public_key.point_to_string().hex() == vector['pk']
-                print("Expected input point:", point.string_to_point(vector['h']))
                 input_point = point.encode_to_curve(vector['alpha'])
-                print("Input Point is same:", input_point.point_to_string().hex() == vector['h'])
                 assert input_point.point_to_string().hex() == vector['h']
                 proof = vrf.proof(vector["alpha"], secret_scalar, vector["ad"])
-                gamma, prrof_c, proof_s = proof[:32].hex(), proof[32:-32].hex(), proof[-32:].hex()
+                gamma, proof_c, proof_s = proof[:32].hex(), proof[32:-32].hex(), proof[-32:].hex()
                 assert gamma == vector['gamma']
-                assert prrof_c == vector['proof_c']
+                assert proof_c == vector['proof_c']
                 assert proof_s == vector['proof_s']
-                print("Proof we got:", proof.hex())
                 assert vrf.verify(public_key, input_point, vector["ad"], proof)
                 print(f"✅ Testcase {i + 1} of {file}")
