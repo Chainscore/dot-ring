@@ -133,13 +133,21 @@ class PedersenVRF(VRF):
 
         generator = self.point_type.generator_point()
 
-        output_point=self.point_type.string_to_point(proof[self.point_len*0:self.point_len*1])
+        scalr_pt_len=self.point_len
+
+        point_length=self.point_len
+
+        if self.curve.UNCOMPRESSED:
+            point_length*=2
+
+        output_point=self.point_type.string_to_point(proof[point_length*0:point_length*1])
         b_base = self.point_type(self.curve.BBx, self.curve.BBy)
-        public_key_cp, R, Ok, s, Sb = (self.point_type.string_to_point(proof[self.point_len*1:self.point_len*2]),
-                                       self.point_type.string_to_point(proof[self.point_len*2:self.point_len*3]) ,
-                                       self.point_type.string_to_point(proof[self.point_len*3:self.point_len*4])
-                                       ,Helpers.l_endian_2_int(proof[self.point_len*4:self.point_len*5]),
-                                       Helpers.l_endian_2_int(proof[self.point_len*5:self.point_len*6]))
+
+        public_key_cp, R, Ok, s, Sb = (self.point_type.string_to_point(proof[point_length * 1:point_length * 2]),
+                                       self.point_type.string_to_point(proof[point_length * 2:point_length * 3]),
+                                       self.point_type.string_to_point(proof[point_length * 3:point_length * 4])
+                                       , Helpers.l_endian_2_int(proof[-scalr_pt_len*2:-scalr_pt_len]),
+                                       Helpers.l_endian_2_int(proof[-scalr_pt_len:]))
 
         c = self.challenge(
             [public_key_cp, input_point, output_point, R, Ok], additional_data
