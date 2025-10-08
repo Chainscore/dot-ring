@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
-
+import hashlib
 C = TypeVar('C', bound='CurveProtocol')
 
 
@@ -103,7 +103,7 @@ class Point(Generic[C]):
         return bytes(y_bytes)
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]':
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]'|str:
         """
         Convert compressed octet string back to point.
 
@@ -131,6 +131,8 @@ class Point(Generic[C]):
         # Check if extracted LSB of x matches the stored bit
         if (x < p_half) == x_parity:
             x = cls.curve.PRIME_FIELD - x# Flip x if the bit doesn't match
+        if x==0 or x%cls.curve.PRIME_FIELD==0:
+            return "INVALID"
         return cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
 
     def uncompressed_p2s(self)->bytes:

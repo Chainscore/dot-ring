@@ -5,6 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import TypeVar, Self, Any
 
+from mpmath import apery
 from sympy import mod_inverse, sqrt_mod
 
 from dot_ring.curve.e2c import E2C_Variant
@@ -401,27 +402,23 @@ class TEAffinePoint(Point[C]):
             TEAffinePoint: Resulting curve point
         """
         ctr = 0
-        H = None
+        H = "INVALID"
         front = b'\x01'
         back = b'\x00'
         alpha_string=alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string =cls.curve.SUITE_STRING
-        print("am i called")
-        while H is None or H == "INVALID" or H == (0, 1):
-            ctr_string = ctr.to_bytes(1, "big")
+        while H == "INVALID" or H == cls.identity_point():
+            ctr_string = ctr.to_bytes(1, "little")
             hash_input = (suite_string + front + salt + alpha_string + ctr_string + back)
-
-            if cls.__name__ == "BandersnatchPoint":
-                hash_output = hashlib.sha256(hash_input).digest()
-            else:
-                hash_output = hashlib.sha512(hash_input).digest()
-            H = cls.string_to_point(bytes([0x02]) + hash_output[:31])
-            if H not in (None, "INVALID")  and cls.curve.COFACTOR > 1:
+            hash_output = hashlib.sha512(hash_input).digest()
+            H = cls.string_to_point(hash_output[:32])
+            if H is not "INVALID" and cls.curve.COFACTOR > 1:
                 H = cls.scalar_mul(H, cls.curve.COFACTOR)
             ctr += 1
-        return H
 
+        print("Counter :", ctr)
+        return H
 
     def clear_cofactor(self) -> Self:
         """
@@ -488,7 +485,58 @@ class TEAffinePoint(Point[C]):
         rhs = cls.curve.EdwardsA - (cls.curve.EdwardsD * (y ** 2)) % cls.curve.PRIME_FIELD
         val = cls.curve.mod_inverse(rhs)
         do_sqrt = lhs * val % cls.curve.PRIME_FIELD
-        x = sqrt_mod(do_sqrt, cls.curve.PRIME_FIELD)
+        x = cls.sqrt_mod(do_sqrt)
         if not x:
             return 0
         return x%cls.curve.PRIME_FIELD
+
+    @classmethod
+    def sqrt_mod(cls, n: int) -> int | None:
+        """Tonelli-Shanks sqrt mod p. Returns r such that r*r % p == n, or None."""
+        p = cls.curve.PRIME_FIELD
+        n %= p
+        if n == 0:
+            return 0
+        # Legendre symbol
+        ls = pow(n, (p - 1) // 2, p)
+        if ls == p - 1:
+            return None
+        if p % 4 == 3:
+            return pow(n, (p + 1) // 4, p)
+
+        # Factor p-1 = q * 2^s
+        q = p - 1
+        s = 0
+        while q % 2 == 0:
+            q //= 2
+            s += 1
+
+        # find a quadratic non-residue z
+        z = 2
+        while pow(z, (p - 1) // 2, p) != p - 1:
+            z += 1
+
+        m = s
+        c = pow(z, q, p)
+        t = pow(n, q, p)
+        r = pow(n, (q + 1) // 2, p)
+
+        while True:
+            if t == 0:
+                return 0
+            if t == 1:
+                return r
+            # find smallest i (0 < i < m) with t^(2^i) == 1
+            i = 1
+            t2i = pow(t, 2, p)
+            while i < m and t2i != 1:
+                t2i = pow(t2i, 2, p)
+                i += 1
+            if i == m:
+                return None
+            b = pow(c, 1 << (m - i - 1), p)
+            m = i
+            c = (b * b) % p
+            t = (t * c) % p
+            r = (r * b) % p
+
