@@ -1,0 +1,67 @@
+[
+  {
+    "test_name": "Ed25519-SHA512 Basic Test",
+    "sk": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+    "pk": "",
+    "alpha": "74657374206d657373616765",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Basic test with 'test message' and no additional data"
+  },
+  {
+    "test_name": "Ed25519-SHA512 With Additional Data",
+    "sk": "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb",
+    "pk": "",
+    "alpha": "74657374206d657373616765",
+    "ad": "6164646974696f6e616c5f64617461",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with additional data field"
+  },
+  {
+    "test_name": "Ed25519-SHA512 Empty Message",
+    "sk": "1c9240a5eb55d38af333888604f6b5f0a25a0f8a10a12185d4b2ce6e6dcdaf38",
+    "pk": "",
+    "alpha": "",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with empty input message"
+  },
+  {
+    "test_name": "Ed25519-SHA512 Long Message",
+    "sk": "c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7",
+    "pk": "",
+    "alpha": "4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e6720656c69742c2073656420646f20656975736d6f642074656d706f7220696e6369646964756e74",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with longer input message"
+  },
+  {
+    "test_name": "Ed25519-SHA512 Different Key",
+    "sk": "0000000000000000000000000000000000000000000000000000000000000001",
+    "pk": "",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "",
+    "gamma": "",
+    "proof_c": "",
+    "proof_s": "",
+    "beta": "",
+    "description": "Test with sk=1 (generates standard Ed25519 generator as pk)"
+  }
+]
