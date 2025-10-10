@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Union, Optional, Any, List, Type, TypeVar
+from typing import  Self, Union, Optional, Any, TypeVar
 
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
 from ..field_element import FieldElement
-from dot_ring.ring_proof.helpers import Helpers
 
 T = TypeVar('T', bound='SWAffinePoint')
 
@@ -150,7 +149,6 @@ class SWAffinePoint(Point[SWCurve]):
         """
         return self + (-other)
 
-
     def point_to_string(self, compressed: bool = True) -> bytes:
         """
         Convert elliptic curve point (x, y) to compressed octet string
@@ -182,7 +180,7 @@ class SWAffinePoint(Point[SWCurve]):
 
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]':
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]'|str:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
@@ -224,9 +222,10 @@ class SWAffinePoint(Point[SWCurve]):
             # Compute square root using Tonelli-Shanks
             y = cls.tonelli_shanks(y_squared, p)
             if y is None:
-                raise ValueError(
-                    f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
-                )
+                # raise ValueError(
+                #     f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
+                # )
+                return "INVALID"
 
             # Choose correct square root based on parity indicated by prefix
             # prefix 0x02: y should be even
@@ -564,8 +563,11 @@ class SWAffinePoint(Point[SWCurve]):
             if cls.curve.E2C.value.endswith("_NU_"):
                 return cls.sswu_hash2_curve_nu(alpha_string, salt, General_Check)
             return cls.sswu_hash2_curve_ro(alpha_string, salt, General_Check)
+        elif cls.curve.E2C == E2C_Variant.TAI:
+            return cls.encode_to_curve_tai(alpha_string, salt)
         else:
-            raise ValueError("Unexpected E2C Variant")
+            raise ValueError(f"Unexpected E2C Variant: {cls.curve.E2C}")
+
 
     @classmethod
     def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"",
