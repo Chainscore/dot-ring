@@ -102,7 +102,7 @@ class BLS12_381_G1Curve(SWCurve):
             Requires_Isogeny=BLS12_381_G1Params.Requires_Isogeny,
             Isogeny_Coeffs=BLS12_381_G1Params.Isogeny_Coeffs,
             UNCOMPRESSED=BLS12_381_G1Params.UNCOMPRESSED,
-            EDIAN=BLS12_381_G1Params.ENDIAN
+            ENDIAN=BLS12_381_G1Params.ENDIAN
         )
 
 
