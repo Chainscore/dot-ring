@@ -50,7 +50,6 @@ class TEAffinePoint(Point[C]):
 
         lhs = (self.curve.EdwardsA * pow(v, 2, p) + pow(w, 2, p)) % p
         rhs = (1 + self.curve.EdwardsD * pow(v, 2, p) * pow(w, 2, p)) % p
-
         return lhs == rhs
 
     def __add__(self, other: PointProtocol[C]) -> Self:
@@ -388,37 +387,6 @@ class TEAffinePoint(Point[C]):
                 "P": [P.x, P.y]
             }
         return R.clear_cofactor()
-
-    @classmethod #modified
-    def encode_to_curve_tai(cls, alpha_string: bytes|str, salt: bytes = b"") -> Self:
-        """
-        Encode a string to a curve point using try-and-increment method for ECVRF.
-
-        Args:
-            alpha: String to encode
-            salt: Optional salt for the encoding
-
-        Returns:
-            TEAffinePoint: Resulting curve point
-        """
-        ctr = 0
-        H = "INVALID"
-        front = b'\x01'
-        back = b'\x00'
-        alpha_string=alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
-        salt = salt.encode() if isinstance(salt, str) else salt
-        suite_string =cls.curve.SUITE_STRING
-        while H == "INVALID" or H == cls.identity_point():
-            ctr_string = ctr.to_bytes(1, "little")
-            hash_input = (suite_string + front + salt + alpha_string + ctr_string + back)
-            hash_output = hashlib.sha512(hash_input).digest()
-            H = cls.string_to_point(hash_output[:32])
-            if H is not "INVALID" and cls.curve.COFACTOR > 1:
-                H = cls.scalar_mul(H, cls.curve.COFACTOR)
-            ctr += 1
-
-        print("Counter :", ctr)
-        return H
 
     def clear_cofactor(self) -> Self:
         """

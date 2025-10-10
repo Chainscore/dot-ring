@@ -4,6 +4,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
 import hashlib
+
 C = TypeVar('C', bound='CurveProtocol')
 
 
@@ -97,7 +98,7 @@ class Point(Generic[C]):
         p = self.curve.PRIME_FIELD
         p_half = (p - 1) // 2
         x, y = self.x, self.y
-        y_bytes = bytearray(int(y).to_bytes((p.bit_length() + 7) // 8, "little"))  # Encode y in little-endian
+        y_bytes = bytearray(int(y).to_bytes((p.bit_length() + 7) // 8, self.curve.ENDIAN))  # Encode y in little-endian
         x_sign_bit = 1 if x >= p_half else 0  # Sign is set if x >= p/2
         y_bytes[-1] |= (x_sign_bit << 7)
         return bytes(y_bytes)
@@ -123,7 +124,7 @@ class Point(Generic[C]):
         if isinstance(octet_string, str):  # Convert hex string to bytes
             octet_string = bytes.fromhex(octet_string)
 
-        y = int.from_bytes(octet_string, 'little') & ((1 << cls.curve.PRIME_FIELD.bit_length()) - 1)
+        y = int.from_bytes(octet_string, cls.curve.ENDIAN) & ((1 << cls.curve.PRIME_FIELD.bit_length()) - 1)
         # Recover x-coordinate
         x = cls._x_recover(y)
         x_parity = (octet_string[-1] >> 7)
@@ -139,8 +140,8 @@ class Point(Generic[C]):
         p = self.curve.PRIME_FIELD
         byte_length = (p.bit_length() + 7) // 8
         # Encode u and v coordinates as little-endian bytes
-        x_bytes = self.x.to_bytes(byte_length, 'little')
-        y_bytes = self.y.to_bytes(byte_length, 'little')
+        x_bytes = self.x.to_bytes(byte_length,  self.curve.ENDIAN)
+        y_bytes = self.y.to_bytes(byte_length,  self.curve.ENDIAN)
         return x_bytes + y_bytes
 
     @classmethod
@@ -152,8 +153,8 @@ class Point(Generic[C]):
         # Split into u and v coordinates
         x_bytes = octet_string[:byte_length]
         y_bytes = octet_string[byte_length:]
-        x = int.from_bytes(x_bytes, 'little')
-        y = int.from_bytes(y_bytes, 'little')
+        x = int.from_bytes(x_bytes, cls.curve.ENDIAN)
+        y = int.from_bytes(y_bytes,  cls.curve.ENDIAN)
         # Create the point
         point = cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
         # Verify the point is on the curve
@@ -193,3 +194,36 @@ class Point(Generic[C]):
         byte_index = bit_index // 8
         bit_offset = bit_index % 8
         return (data[byte_index] >> bit_offset) & 1
+
+    @classmethod  # modified
+    def encode_to_curve_tai(cls, alpha_string: bytes | str, salt: bytes = b"") -> Self:
+        """
+        Encode a string to a curve point using try-and-increment method for ECVRF.
+
+        Args:
+            alpha: String to encode
+            salt: Optional salt for the encoding
+
+        Returns:
+            TEAffinePoint: Resulting curve point
+        """
+        ctr = 0
+        H = "INVALID"
+        front = b'\x01'
+        back = b'\x00'
+        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+        salt = salt.encode() if isinstance(salt, str) else salt
+        suite_string = cls.curve.SUITE_STRING
+        while H == "INVALID" or H == cls.identity_point():
+            ctr_string = ctr.to_bytes(1, "big")
+            hash_input = (suite_string + front + salt + alpha_string + ctr_string + back)
+            if cls.__name__ == "P256PointVariant":
+                hash_output = hashlib.sha256(hash_input).digest()
+                H = cls.string_to_point(b"\x02" + hash_output[:32])
+            else:
+                hash_output = hashlib.sha512(hash_input).digest()
+                H = cls.string_to_point(hash_output[:32])
+            if H is not "INVALID" and cls.curve.COFACTOR > 1:
+                H = H.clear_cofactor()
+            ctr += 1
+        return H
