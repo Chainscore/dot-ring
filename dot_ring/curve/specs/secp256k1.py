@@ -48,6 +48,7 @@ class Secp256k1Params:
     K: Final[int] = 128  # Security level
     # expand_message: Final[str] = "XMD"
     H_A: Final[str] = "SHA-256"
+    ENDIAN = 'little'
     L: [int] = 48
     S_in_bytes: Final[int] = 64
     # Blinding Base For Pedersen VRF
@@ -136,7 +137,8 @@ class Secp256k1Curve(SWCurve):
             H_A=Secp256k1Params.H_A,
             Requires_Isogeny=Secp256k1Params.Requires_Isogeny,
             Isogeny_Coeffs=Secp256k1Params.Isogeny_Coeffs,
-            UNCOMPRESSED=Secp256k1Params.UNCOMPRESSED
+            UNCOMPRESSED=Secp256k1Params.UNCOMPRESSED,
+            ENDIAN=Secp256k1Params.ENDIAN
         )
 
 

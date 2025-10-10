@@ -45,6 +45,7 @@ class JubJubParams:
     L: Final[int] = 48  # can define func as well
     S_in_bytes: Final[int] = 48  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
     H_A: Final[str] = "SHA-512"
+    ENDIAN='little'
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     CHALLENGE_LENGTH: Final[int] = 32
@@ -95,7 +96,8 @@ class JubJubCurve(TECurve):
             H_A=JubJubParams.H_A,
             Requires_Isogeny=JubJubParams.Requires_Isogeny,
             Isogeny_Coeffs=JubJubParams.Isogeny_Coeffs,
-            UNCOMPRESSED=JubJubParams.UNCOMPRESSED
+            UNCOMPRESSED=JubJubParams.UNCOMPRESSED,
+            ENDIAN=JubJubParams.ENDIAN
         )
 
 

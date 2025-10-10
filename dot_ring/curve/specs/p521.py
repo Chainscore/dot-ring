@@ -40,6 +40,7 @@ class P521Params:
     K: Final[int] = 256  # Security level
     # expand_message: Final[str] = "XMD"
     H_A: Final[str] = "SHA-512"
+    ENDIAN = 'little'
     L: [int] = 98
     S_in_bytes:[Final]= 128# 64 128 136 72
     # Challenge length in bytes for VRF (from RFC 9381)
@@ -96,7 +97,8 @@ class P521Curve(SWCurve):
             H_A=P521Params.H_A,
             Requires_Isogeny=P521Params.Requires_Isogeny,
             Isogeny_Coeffs=P521Params.Isogeny_Coeffs,
-            UNCOMPRESSED=P521Params.UNCOMPRESSED
+            UNCOMPRESSED=P521Params.UNCOMPRESSED,
+            ENDIAN=P521Params.ENDIAN
         )
 
 # Singleton instance

@@ -46,19 +46,10 @@ class BandersnatchParams:
     L: Final[int] = 48  # can define func as well
     S_in_bytes: Final[int] = 48 #can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
     H_A: Final[str] = "SHA-512"
+    ENDIAN = 'little'
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs=None
 
-
-    # Blinding Base For Pedersen (old)
-    # BBx: Final[
-    #     int
-    # ] = 14576224270591906826192118712803723445031237947873156025406837473427562701854
-    # BBy: Final[
-    #     int
-    # ] = 38436873314098705092845609371301773715650206984323659492499960072785679638442
-
-    # new
     BBx: Final[
         int
     ] = 6150229251051246713677296363717454238956877613358614224171740096471278798312
@@ -114,6 +105,7 @@ class BandersnatchCurve(TECurve):
             Requires_Isogeny=BandersnatchParams.Requires_Isogeny,
             Isogeny_Coeffs=BandersnatchParams.Isogeny_Coeffs,
             UNCOMPRESSED=BandersnatchParams.UNCOMPRESSED,
+            ENDIAN=BandersnatchParams.ENDIAN
         )
 
 

@@ -40,6 +40,7 @@ class P384Params:
     K: Final[int] = 192  # Security level
     # expand_message: Final[str] = "XMD"
     H_A: Final[str] = "SHA-384"
+    ENDIAN = 'little'
     L: [int] = 72
     S_in_bytes:[Final]=128
     # Challenge length in bytes for VRF (from RFC 9381)
@@ -97,7 +98,8 @@ class P384Curve(SWCurve):
             H_A=P384Params.H_A,
             Requires_Isogeny=P384Params.Requires_Isogeny,
             Isogeny_Coeffs=P384Params.Isogeny_Coeffs,
-            UNCOMPRESSED=P384Params.UNCOMPRESSED
+            UNCOMPRESSED=P384Params.UNCOMPRESSED,
+            ENDIAN=P384Params.ENDIAN
         )
 
 # Singleton instance

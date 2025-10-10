@@ -13,13 +13,6 @@ from ..short_weierstrass.sw_affine_point import SWAffinePoint
 class BLS12_381_G1Params:
     """
     Parameters for the BLS12-381 G1 curve (Weierstrass form).
-
-    NOTE: This is the commonly-used BLS12-381 curve where the curve equation
-    for G1 is:
-        y^2 = x^3 + 4  (over F_p)
-
-    The values below are the standard constants used by many implementations
-    (noble-curves, zkcrypto/arkworks, etc.).
     """
     # Domain separation / hash-to-curve strings (RFC drafts / implementations)
     SUITE_STRING: Final[bytes] = b"BLS12381G1_XMD:SHA-256_SSWU_RO_"
@@ -42,9 +35,6 @@ class BLS12_381_G1Params:
     WEIERSTRASS_A: Final[int] = 0x00
     WEIERSTRASS_B: Final[int] = 0x04
 
-    # Parameters useful for hash-to-curve (SSWU) - implementations differ,
-    # but the curve uses a small non-zero Z for the map. Many implementations
-    # expose a Z constant per-curve; set a sensible default here.
     Z: Final[int] = 11
 
     # Field/encoding sizes
@@ -55,6 +45,7 @@ class BLS12_381_G1Params:
 
     # Hash used by default in hash-to-curve suites for this curve
     H_A: Final[str] = "SHA-256"
+    ENDIAN = 'little'
 
     # Challenge length for VRF / challenge bytes (48 bytes is typical for 381-bit)
     CHALLENGE_LENGTH: Final[int] = 48
@@ -111,6 +102,7 @@ class BLS12_381_G1Curve(SWCurve):
             Requires_Isogeny=BLS12_381_G1Params.Requires_Isogeny,
             Isogeny_Coeffs=BLS12_381_G1Params.Isogeny_Coeffs,
             UNCOMPRESSED=BLS12_381_G1Params.UNCOMPRESSED,
+            EDIAN=BLS12_381_G1Params.ENDIAN
         )
 
 

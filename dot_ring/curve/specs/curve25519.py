@@ -37,6 +37,7 @@ class Curve25519Params:
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
     L:Final[int]=48
     H_A:[Final]="SHA-512"
+    ENDIAN = 'little'
     M:[Final]=1
     K:[Final]=128
     S_in_bytes:[Final]=128 #48 64 136 172\
@@ -96,6 +97,7 @@ class Curve25519Curve(MGCurve):
             Requires_Isogeny=Curve25519Params.Requires_Isogeny,
             Isogeny_Coeffs=Curve25519Params.Isogeny_Coeffs,
             UNCOMPRESSED=Curve25519Params.UNCOMPRESSED,
+            ENDIAN=Curve25519Params.ENDIAN
         )
 
     @property

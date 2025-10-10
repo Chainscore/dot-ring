@@ -42,6 +42,7 @@ class P256Params:
     # expand_message: Final[str]="XMD"
     S_in_bytes: Final[int] = 64
     H_A:Final[str]= "SHA-256"
+    ENDIAN = 'big'
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
     BBx: Final[int] = 55516455597544811540149985232155473070193196202193483189274003004283034832642
@@ -51,6 +52,7 @@ class P256Params:
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs=None
     UNCOMPRESSED = False
+
 
 
 class P256Curve(SWCurve):
@@ -74,6 +76,9 @@ class P256Curve(SWCurve):
         if e2c_variant.value.endswith("NU_"):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
+        elif e2c_variant.value=="TryAndIncrement":
+            SUITE_STRING= b"\x01" #as per davxy
+            DST = b""
 
         super().__init__(
             PRIME_FIELD=P256Params.PRIME_FIELD,
@@ -97,7 +102,8 @@ class P256Curve(SWCurve):
             H_A=P256Params.H_A,
             Requires_Isogeny=P256Params.Requires_Isogeny,
             Isogeny_Coeffs=P256Params.Isogeny_Coeffs,
-            UNCOMPRESSED=P256Params.UNCOMPRESSED
+            UNCOMPRESSED=P256Params.UNCOMPRESSED,
+            ENDIAN=P256Params.ENDIAN
 
         )
 
@@ -110,19 +116,19 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
 
     # Create curve with the specified variant
     curve = P256Curve(e2c_variant)
-
     # Create and return a point class with this curve
-    class P256PointVariant(SWAffinePoint):
+    class P256PointVariant(P256Point):
         """Point on P256 with custom E2C variant"""
-        
+
         def __init__(self, x: int, y: int) -> None:
             """Initialize a point with the variant curve."""
-            super().__init__(x, y, curve)
+            SWAffinePoint.__init__(self,x, y, curve)
 
     # Set the curve as a class attribute
     P256PointVariant.curve = curve
 
     return P256PointVariant
+
 
 
 @dataclass(frozen=True)
@@ -146,6 +152,16 @@ class P256Point(SWAffinePoint):
             ValueError: If point is not on curve
         """
         super().__init__(x, y, self.curve)
+
+    @classmethod
+    def identity_point(cls):
+        """
+        Get the identity point (0, 1) of the curve.
+        Returns:
+            Ed25519Point: Identity point
+        """
+        # The identity point
+        return None
 
     @classmethod
     def _x_recover(cls, y: int) -> int:

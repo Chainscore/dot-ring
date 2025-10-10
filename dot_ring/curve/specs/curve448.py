@@ -41,6 +41,7 @@ class Curve448Params:
     Z: Final[int] = -1
     L: Final[int] = 84
     H_A: [Final] = "Shake-256"
+    ENDIAN = 'little'
     M: [Final] = 1
     K: [Final] = 224
     S_in_bytes: [Final] = None
@@ -98,6 +99,7 @@ class Curve448Curve(MGCurve):
             Requires_Isogeny=Curve448Params.Requires_Isogeny,
             Isogeny_Coeffs=Curve448Params.Isogeny_Coeffs,
             UNCOMPRESSED=Curve448Params.UNCOMPRESSED,
+            ENDIAN=Curve448Params.ENDIAN
         )
 
     @property

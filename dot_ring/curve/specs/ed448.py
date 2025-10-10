@@ -49,6 +49,7 @@ class Ed448Params:
     Z: Final[int] = -1
     L: Final[int] = 84
     H_A: [Final] = "Shake-256"
+    ENDIAN = 'little'
     M: [Final] = 1
     K: [Final] = 224
     S_in_bytes: [Final] = None
@@ -113,7 +114,8 @@ class Ed448Curve(TECurve):
             S_in_bytes=Ed448Params.S_in_bytes,
             Requires_Isogeny=Ed448Params.Requires_Isogeny,
             Isogeny_Coeffs=Ed448Params.Isogeny_Coeffs,
-            UNCOMPRESSED=Ed448Params.UNCOMPRESSED
+            UNCOMPRESSED=Ed448Params.UNCOMPRESSED,
+            ENDIAN=Ed448Params.ENDIAN
         )
 
 

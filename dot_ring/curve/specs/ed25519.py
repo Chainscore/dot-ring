@@ -39,6 +39,7 @@ class Ed25519Params:
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
     L: Final[int] = 48
     H_A: [Final] = "SHA-512"
+    ENDIAN = 'little'
     M: [Final] = 1
     K: [Final] = 128
     S_in_bytes: [Final] = 128  # 48 64 136 172\
@@ -104,9 +105,9 @@ class Ed25519Curve(TECurve):
             S_in_bytes=Ed25519Params.S_in_bytes,
             Requires_Isogeny=Ed25519Params.Requires_Isogeny,
             Isogeny_Coeffs=Ed25519Params.Isogeny_Coeffs,
-            UNCOMPRESSED=Ed25519Params.UNCOMPRESSED
+            UNCOMPRESSED=Ed25519Params.UNCOMPRESSED,
+            ENDIAN=Ed25519Params.ENDIAN
         )
-        print("SUITE STRING:", self.SUITE_STRING)
 
     def modular_sqrt(self, a: int, p: int) -> int:
         """
@@ -185,7 +186,6 @@ Ed25519_TE_Curve: Final[Ed25519Curve] = Ed25519Curve()
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
     # Create curve with the specified variant
     curve = Ed25519Curve(e2c_variant)
-    print("Hey am i called?")
     # Create and return a point class with this curve
     class Ed25519PointVariant(Ed25519Point):
         """Point on Ed25519 with custom E2C variant"""

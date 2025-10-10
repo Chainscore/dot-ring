@@ -58,7 +58,7 @@ class BLS12_381_G2Params:
     L: Final[int] = 64  # Number of bytes for XMD
     S_in_bytes: Final[int] = 64  # Length of domain separation tag
     H_A: Final[str] = "SHA-256"  # Hash function
-
+    ENDIAN = 'little'
     # VRF parameters
     CHALLENGE_LENGTH: Final[int] = 32  # 256-bit challenge
 
@@ -129,6 +129,7 @@ class BLS12_381_G2Curve(SWCurve):
             Requires_Isogeny=BLS12_381_G2Params.Requires_Isogeny,
             Isogeny_Coeffs=BLS12_381_G2Params.Isogeny_Coeffs,
             UNCOMPRESSED=BLS12_381_G2Params.UNCOMPRESSED,
+            ENDIAN=BLS12_381_G2Params.ENDIAN
         )
 
 
