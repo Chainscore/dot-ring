@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
-import hmac, math
+import hmac, hashlib
 
 from ..curve.curve import Curve
 from ..curve.point import Point
@@ -56,7 +56,7 @@ class VRF(ABC):
         """
         self.curve = curve
         self.point_type = point_type
-        if self.point_type.__name__ in ["P256Point", "P384Point", "P521Point", "Secp256k1Point"]:
+        if self.point_type.__name__ in ["P256Point","P256PointVariant", "P384Point", "P521Point", "Secp256k1Point"]:
             self.point_len = Helpers.pt_len(curve.PRIME_FIELD)+1
         else:
             self.point_len = Helpers.pt_len(curve.PRIME_FIELD)
@@ -76,17 +76,16 @@ class VRF(ABC):
             int: Generated nonce
         """
         # Hash secret key (little-endian)
-        sk_encoded = Helpers.to_l_endian(secret_key%self.curve.ORDER, self.point_len)
+        sk_encoded = Helpers.int_to_str(secret_key%self.curve.ORDER, self.curve.ENDIAN,self.point_len)
         # hashed_sk = bytes(Hash.sha512(sk_encoded))
         hashed_sk=self.hash(sk_encoded)
         sk_hash = hashed_sk[32:64]  # Use second half of SHA-512 output
-
         # Concatenate with input point encoding
         point_octet = input_point.point_to_string()
         data = sk_hash + point_octet
         # Generate final nonce
         nonce_hash = bytes(self.hash(data))
-        nonce = Helpers.l_endian_2_int(nonce_hash)
+        nonce = Helpers.str_to_int(nonce_hash, self.curve.ENDIAN)
         return nonce % self.curve.ORDER
 
     def challenge(self, points: List[Point], additional_data: bytes) -> int:
@@ -123,104 +122,37 @@ class VRF(ABC):
         return Helpers.b_endian_2_int(challenge_hash) % self.curve.ORDER
 
     #other way of nonce generation
-    def nonce_generation_rfc6979(self, SK: int, h_string: bytes) -> int:
+    def ecvrf_nonce_rfc6979(self,secret_scalar: int, h_string: bytes, hash_func="sha256"):
+
         """
-        RFC 6979 deterministic nonce generation.
-
-        Args:
-            SK: Secret scalar (integer)
-            h_string: Message to sign (bytes)
-
-        Returns:
-            Deterministic nonce k in [1, order-1]
+        nonce generation as per rfc_6979
+        Deterministically derives a nonce from secret scalar and input bytes.
+        Simplified: one HMAC pass, no loop.
         """
-        # Get curve parameters
-        q = self.curve.ORDER
-        qlen = q.bit_length()
-        qbytes = (qlen + 7) // 8  # Convert bits to bytes, rounded up
-
-        # Get the hash function from Helpers
-        hash_func = self.hash
-
-        # Create a wrapper function that works with hmac
-        def hmac_hash(key, msg):
-            # Create HMAC with the specified hash function
-            h = hmac.new(key, msg, digestmod=hash_sha512)
-            return h.digest()
-
-        # Get hash output size in bytes
-        import hashlib
-        if hash_func == Helpers.ha_sha256:
-            hlen_bytes = 32
-            hash_sha512 = hashlib.sha256
-        elif hash_func == Helpers.ha_sha384:
-            hlen_bytes = 48
-            hash_sha512 = hashlib.sha384
-        elif hash_func == Helpers.ha_sha512:
-            hlen_bytes = 64
-            hash_sha512 = hashlib.sha512
-        elif hash_func == Helpers.ha_shake256:
-            hlen_bytes = 64
-            hash_sha512 = hashlib.shake_128
-        else:
-            raise ValueError("Unsupported hash function")
-
-        # # Validate secret key
-        # if not 0 < SK < q:
-        #     raise ValueError("Invalid secret key")
-
-        # Step a: h1 = H(m)
-        h1 = self.hash(h_string)  # This already returns bytes from your helper
-
-        # Convert h1 to integer and reduce mod q
-        h1_int = int.from_bytes(h1, 'big') % q
-        h1_bytes = h1_int.to_bytes(self.point_len, 'big')
-
-        # Convert secret key to bytes
-        x = SK.to_bytes(self.point_len, 'big')
-
-        # Step b: V = 0x01 0x01 ... of length hlen_bytes
-        V = b'\x01' * hlen_bytes
-
-        # Step c: K = 0x00 0x00 ... of length hlen_bytes
-        K = b'\x00' * hlen_bytes
-
-        # Step d: K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
-        K = hmac_hash(K, V + b'\x00' + x + h1_bytes)
-
-        # Step e: V = HMAC_K(V)
-        V = hmac_hash(K, V)
-
-        # Step f: K = HMAC_K(V || 0x01 || int2octets(x) || bits2octets(h1))
-        K = hmac_hash(K, V + b'\x01' + x + h1_bytes)
-
-        # Step g: V = HMAC_K(V)
-        V = hmac_hash(K, V)
-
-        # Step h: Repeat until we get a valid k
-        while True:
-            # Step h1: Generate T
-            T = b''
-            tlen = 0
-            while tlen < self.point_len:
-                V = hmac_hash(K, V)
-                T += V
-                tlen += len(V) * 8
-
-            # Convert T to integer
-            k = int.from_bytes(T, 'big')
-
-            # Take the leftmost qlen bits
-            k >>= (len(T) * 8 - qlen)
-
-            # Check if k is in the valid range
-            if 1 <= k < q:
-                return k
-
-            # If not, update K and V and try again
-            K = hmac_hash(K, V + b'\x00')
-            V = hmac_hash(K, V)
-
+        hasher = getattr(hashlib, hash_func)
+        hlen = hasher().digest_size
+        q=self.curve.ORDER
+        # Convert inputs
+        x_bytes = secret_scalar.to_bytes((q.bit_length() + 7) // 8, "big")
+        h1 = hasher(h_string).digest()
+        # Initialize V, K
+        V = b"\x01" * hlen
+        K = b"\x00" * hlen
+        # Step 1: K = HMAC_K(V || 0x00 || x || h1)
+        K = hmac.new(K, V + b"\x00" + x_bytes + h1, hasher).digest()
+        # Step 2: V = HMAC_K(V)
+        V = hmac.new(K, V, hasher).digest()
+        # Step 3: K = HMAC_K(V || 0x01 || x || h1)
+        K = hmac.new(K, V + b"\x01" + x_bytes + h1, hasher).digest()
+        # Step 4: V = HMAC_K(V)
+        V = hmac.new(K, V, hasher).digest()
+        # Step 5: one more HMAC_K(V)
+        V = hmac.new(K, V, hasher).digest()
+        # Interpret V as integer and mod q
+        k = int.from_bytes(V, 'big') % q
+        if k == 0:
+            k = 1  # (optional) avoid zero, as per RFC6979 loop idea
+        return k
 
     def ecvrf_decode_proof(self, pi_string: bytes|str) -> Tuple[Point, int, int]:
         """Decode VRF proof.
