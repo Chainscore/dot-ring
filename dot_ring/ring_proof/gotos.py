@@ -47,12 +47,11 @@ def generate_bls_signature(secret_t:bytes|str,producer_key:bytes|str, keys: List
     # return signature
     if not isinstance(producer_key, bytes):
         producer_key_point = BandersnatchPoint.string_to_point(bytes.fromhex(producer_key))
-        if not producer_key_point:
-            producer_key_point= BandersnatchPoint(PaddingPoint[0], PaddingPoint[1])
     else:
         producer_key_point = BandersnatchPoint.string_to_point(producer_key)
-        if not producer_key_point:
-            producer_key_point= BandersnatchPoint(PaddingPoint[0], PaddingPoint[1])
+
+    if not producer_key_point or producer_key_point=="INVALID":
+        producer_key_point= BandersnatchPoint(PaddingPoint[0], PaddingPoint[1])
 
     secret_t=Helpers.l_endian_2_int(secret_t)
     producer_key_pt= (producer_key_point.x, producer_key_point.y)
@@ -127,10 +126,12 @@ def construct_ring_root(keys: List[Any]|str|bytes, third_party_msm:bool)->bytes:
     keys_as_bs_points = []
     for key in keys:
         point = BandersnatchPoint.string_to_point(bytes(key))
-        if point:
-            keys_as_bs_points.append((point.x, point.y))
-        else:
+
+        if not point or point == "INVALID":
             keys_as_bs_points.append((PaddingPoint[0], PaddingPoint[1]))
+
+        else:
+            keys_as_bs_points.append((point.x, point.y))
 
     ring_root = PC()  # ring_root builder
     fixed_cols = ring_root.build(keys_as_bs_points, kzg)
