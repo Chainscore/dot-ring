@@ -149,18 +149,18 @@ pytest tests/ --lf
 The test suite validates VRF implementations across multiple elliptic curves:
 
 | Curve | Family | Hash-to-Curve Method |   H2C-Suite-Tests | IETF VRF | Pedersen VRF | Ring VRF |
-|-------|--------|---------------------|----|----------|--------------|----------|
-| **Bandersnatch** | Twisted Edwards | Elligator 2| ✅    | ✅       | ✅ | ✅ |
-| **P-256** | Short Weierstrass | SSWU              |  ✅   | ✅ | ✅ | ⏳ |
-| **P-384** | Short Weierstrass | SSWU                | ✅    | ✅ | ✅ | ⏳ |
-| **P-521** | Short Weierstrass | SSWU                |  ✅   | ⏳ | ⏳ | ⏳ |
-| **secp256k1** | Short Weierstrass | SSWU             |  ✅   | ✅ | ✅ | ⏳ |
-| **Curve25519** | Montgomery | Elligator 2         | ✅    | ⏳ | ⏳ | ⏳ |
-| **Curve448** | Montgomery | Elligator 2         |  ✅   | ⏳ | ⏳ | ⏳ |
-| **Ed25519** | Twisted Edwards | Elligator 2      | ✅    | ⏳ | ⏳ | ⏳ |
-| **Ed448** | Twisted Edwards | Elligator 2        |   ✅  | ⏳ | ⏳ | ⏳ |
-|**JubJub** | Twisted Edwards | Elligator 2        |   ✅  | ⏳ | ⏳ | ⏳ |
-|**BabyJubJub** | Twisted Edwards | Elligator 2     |  ✅   | ⏳ | ⏳ | ⏳ |
+|-------|--------|----------------------|----|----------|--------------|----------|
+| **Bandersnatch** | Twisted Edwards | Elligator 2          | ✅    | ✅       | ✅ | ✅ |
+| **P-256** | Short Weierstrass | SSWU                 |  ✅   | ✅ | ✅ | ⏳ |
+| **P-384** | Short Weierstrass | SSWU                 | ✅    | ✅ | ✅ | ⏳ |
+| **P-521** | Short Weierstrass | SSWU                 |  ✅   | ✅   | ✅  | ⏳ |
+| **secp256k1** | Short Weierstrass | SSWU                 |  ✅   | ✅ | ✅ | ⏳ |
+| **Curve25519** | Montgomery | Elligator 2          | ✅    | ✅  | ✅   | ⏳ |
+| **Curve448** | Montgomery | Elligator 2          |  ✅   | ✅  | ✅   | ⏳ |
+| **Ed25519** | Twisted Edwards | Elligator 2 & TAI    | ✅    | ✅   | ✅   | ⏳ |
+| **Ed448** | Twisted Edwards | Elligator 2          |   ✅  | ✅   | ✅   | ⏳ |
+|**JubJub** | Twisted Edwards | TAI                  |   ✅  | ✅   | ✅  | ⏳ |
+|**BabyJubJub** | Twisted Edwards | TAI                  |  ✅   | ⏳ | ⏳ | ⏳ |
 
 ✅ = Implemented and tested | ⏳ = Planned/In progress
 
