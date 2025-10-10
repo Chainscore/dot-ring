@@ -43,6 +43,7 @@ class Curve:
     L:Final[int]
     S_in_bytes:Final[int]
     H_A:Final[str]
+    ENDIAN:Final[str]
 
     #isogeny
     Requires_Isogeny:Final[bool]
@@ -221,7 +222,6 @@ class Curve:
 
         Args:
             val: Value to invert
-            field: Modulus
 
         Returns:
             int: Modular inverse
