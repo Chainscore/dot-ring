@@ -1,6 +1,5 @@
 from py_ecc.bls import point_compression
 from py_ecc.optimized_bls12_381 import FQ,FQ2, is_on_curve
-from dot_ring.ring_proof.constants import S_PRIME
 from hashlib import sha256, sha512, shake_256, sha384
 class Helpers:
     @staticmethod
@@ -21,22 +20,6 @@ class Helpers:
         y_c = [pt[1] for pt in points]
         return x_c, y_c
 
-    @staticmethod
-    def do_modulus(poly):
-
-        # Expand the polynomial to ensure all terms are explicitly separated
-        expanded_poly = poly
-
-        # Extract all terms and their coefficients
-        coeff_dict = expanded_poly.as_coefficients_dict()
-
-        # Apply modulus to all coefficients
-        coeff_mod = {term: coeff % S_PRIME for term, coeff in coeff_dict.items()}
-
-        # Reconstruct the polynomial
-        poly_mod = sum(coeff * term for term, coeff in coeff_mod.items())
-
-        return poly_mod
 
     @staticmethod
     # bls point to string
@@ -126,6 +109,16 @@ class Helpers:
         if isinstance(byte_array, str):
             return int.from_bytes(bytes.fromhex(byte_array),'little')
         return int.from_bytes(byte_array, "little")
+
+    @staticmethod
+    def str_to_int(byte_array: bytes, order:str) -> int:
+        if isinstance(byte_array, str):
+            return int.from_bytes(bytes.fromhex(byte_array),order)
+        return int.from_bytes(byte_array, order)
+
+    @staticmethod
+    def int_to_str(val:int,order:str, n_bytes:int=32):
+        return val.to_bytes(n_bytes, order)
 
     @staticmethod
     def b_endian_2_int(byte_array: bytes)->int:
