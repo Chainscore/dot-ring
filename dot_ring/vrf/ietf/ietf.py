@@ -65,7 +65,7 @@ class IETF_VRF(VRF):
         if not isinstance(alpha, bytes):
             alpha= bytes.fromhex(alpha)
 
-        secret_key = Helpers.l_endian_2_int(secret_key)%self.curve.ORDER
+        secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN)%self.curve.ORDER
 
         # Create generator point
         generator = self.point_type.generator_point()
@@ -76,10 +76,13 @@ class IETF_VRF(VRF):
         output_point = input_point * secret_key
         public_key = generator * secret_key
 
-        # Generate nonce and compute proof points
-        nonce = self.generate_nonce(secret_key, input_point)
-        # input_point_octet=input_point.point_to_string()
-        # nonce=self.nonce_generation_rfc6979(secret_key, input_point_octet)
+        if self.point_type.__name__ == "P256PointVariant":
+            input_point_octet = input_point.point_to_string()
+            nonce = self.ecvrf_nonce_rfc6979(secret_key, input_point_octet)
+        else:
+            # Generate nonce and compute proof points
+            nonce = self.generate_nonce(secret_key, input_point)
+
         U = generator * nonce
         V = input_point * nonce
 
@@ -89,7 +92,8 @@ class IETF_VRF(VRF):
             additional_data
         )
         s = (nonce + (c * secret_key)) % self.curve.ORDER
-        proof= output_point.point_to_string()+ Helpers.to_l_endian(c,self.curve.CHALLENGE_LENGTH)+ Helpers.to_l_endian(s, self.point_len)
+        scalar_len=(self.curve.PRIME_FIELD.bit_length() + 7) // 8
+        proof= output_point.point_to_string()+ Helpers.int_to_str(c,self.curve.ENDIAN,self.curve.CHALLENGE_LENGTH)+ Helpers.int_to_str(s,self.curve.ENDIAN, scalar_len)
         return proof
 
     #to make the point type dynamic
@@ -128,8 +132,8 @@ class IETF_VRF(VRF):
         c_end = output_point_end + challenge_len
         # Extract components
         output_point = self.point_type.string_to_point(proof[:output_point_end])
-        c = Helpers.l_endian_2_int(proof[output_point_end:c_end])%self.curve.ORDER
-        s = Helpers.l_endian_2_int(proof[c_end:])%self.curve.ORDER
+        c = Helpers.str_to_int(proof[output_point_end:c_end], self.curve.ENDIAN)%self.curve.ORDER
+        s = Helpers.str_to_int(proof[c_end:], self.curve.ENDIAN)%self.curve.ORDER
         # Create generator point
         generator = self.point_type.generator_point()
         # Compute proof points
@@ -145,7 +149,8 @@ class IETF_VRF(VRF):
 
     def get_public_key(self, secret_key:bytes|str)->bytes:
         """Take the Secret_Key and return Public Key"""
-        secret_key = Helpers.l_endian_2_int(secret_key)
+
+        secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN) % self.curve.ORDER
         # Create generator point
         generator = self.point_type.generator_point()
         public_key = generator * secret_key

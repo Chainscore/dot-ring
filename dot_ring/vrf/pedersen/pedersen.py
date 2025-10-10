@@ -7,7 +7,6 @@ from typing import Final, Optional, Tuple, Type, Any
 from dot_ring.curve.point import Point
 
 from ...curve.curve import Curve
-from ...curve.specs.bandersnatch import BandersnatchPoint
 from ..vrf import VRF
 from ...ring_proof.helpers import Helpers
 
@@ -81,18 +80,27 @@ class PedersenVRF(VRF):
         if not isinstance(alpha, bytes):
             alpha= bytes.fromhex(alpha)
 
-        secret_key=Helpers.l_endian_2_int(secret_key)%self.curve.ORDER
+        scalar_len=(self.curve.PRIME_FIELD.bit_length() + 7) // 8
+        secret_key=Helpers.str_to_int(secret_key, self.curve.ENDIAN)%self.curve.ORDER
 
         # Create generator point
         generator = self.point_type.generator_point()
 
         b_base = self.point_type(self.curve.BBx, self.curve.BBy)
         input_point = self.point_type.encode_to_curve(alpha, salt)
-        blinding = Helpers.to_l_endian(self.blinding(secret_key.to_bytes(self.point_len,'little'), input_point.point_to_string(),additional_data), self.point_len)
-        blinding_factor = Helpers.l_endian_2_int(blinding)
+        blinding = Helpers.int_to_str(self.blinding(secret_key.to_bytes(scalar_len,self.curve.ENDIAN), input_point.point_to_string(),additional_data),self.curve.ENDIAN, scalar_len)
+        blinding_factor = Helpers.str_to_int(blinding, self.curve.ENDIAN)
         output_point = input_point * secret_key
-        k = self.generate_nonce(secret_key, input_point)
-        Kb = self.generate_nonce(blinding_factor, input_point)
+
+        if self.point_type.__name__=="P256PointVariant":
+            input_point_octet=input_point.point_to_string()
+            k=self.ecvrf_nonce_rfc6979(secret_key, input_point_octet)
+            Kb=self.ecvrf_nonce_rfc6979(blinding_factor, input_point_octet)
+
+        else:
+            k = self.generate_nonce(secret_key, input_point)
+            Kb = self.generate_nonce(blinding_factor, input_point)
+
         public_key_cp = generator * secret_key + b_base * blinding_factor
         R = generator * k + b_base * Kb
         Ok = input_point * k
@@ -101,7 +109,7 @@ class PedersenVRF(VRF):
         )
         s = (k + c * secret_key) % self.curve.ORDER
         Sb = (Kb + c * blinding_factor) % self.curve.ORDER
-        proof= output_point.point_to_string() + public_key_cp.point_to_string()+ R.point_to_string() +Ok.point_to_string()+ Helpers.to_l_endian(s, self.point_len)+ Helpers.to_l_endian(Sb, self.point_len)
+        proof= output_point.point_to_string() + public_key_cp.point_to_string()+ R.point_to_string() +Ok.point_to_string()+ Helpers.int_to_str(s, self.curve.ENDIAN,scalar_len)+ Helpers.int_to_str(Sb, self.curve.ENDIAN,scalar_len)
         if need_blinding:
             return proof, blinding
         return proof
@@ -133,7 +141,7 @@ class PedersenVRF(VRF):
 
         generator = self.point_type.generator_point()
 
-        scalr_pt_len=self.point_len
+        scalr_len=(self.curve.PRIME_FIELD.bit_length() + 7) // 8
 
         point_length=self.point_len
 
@@ -146,8 +154,8 @@ class PedersenVRF(VRF):
         public_key_cp, R, Ok, s, Sb = (self.point_type.string_to_point(proof[point_length * 1:point_length * 2]),
                                        self.point_type.string_to_point(proof[point_length * 2:point_length * 3]),
                                        self.point_type.string_to_point(proof[point_length * 3:point_length * 4])
-                                       , Helpers.l_endian_2_int(proof[-scalr_pt_len*2:-scalr_pt_len]),
-                                       Helpers.l_endian_2_int(proof[-scalr_pt_len:]))
+                                       , Helpers.str_to_int(proof[-scalr_len*2:-scalr_len], self.curve.ENDIAN),
+                                       Helpers.str_to_int(proof[-scalr_len:], self.curve.ENDIAN))
 
         c = self.challenge(
             [public_key_cp, input_point, output_point, R, Ok], additional_data
@@ -158,7 +166,7 @@ class PedersenVRF(VRF):
 
     def get_public_key(self, secret_key:bytes|str)->bytes:
         """Take the Secret_Key and return Public Key"""
-        secret_key = Helpers.l_endian_2_int(secret_key)
+        secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN)
         # Create generator point
         generator = self.point_type.generator_point()
         public_key = generator * secret_key
