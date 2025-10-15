@@ -85,6 +85,7 @@ is_valid = rvrf.ring_vrf_proof_verify(add,ring_root,ring_vrf_proof, alpha)
 To use third-party MSM optimizations in the KZG commitment (i.e., third_party_msm=True), you must install blst, which provides efficient multi-scalar multiplication support.
 ### (Optional) Enable third-party MSM with blst
 To use third_party_msm=True (for fast multi-scalar multiplication):
+Clone it from [here](https://github.com/supranational/blst)
 ```bash
 git clone https://github.com/supranational/blst.git
 cd blst/bindings/python
