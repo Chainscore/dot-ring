@@ -150,28 +150,6 @@ class KZG:
     #
     #     print("Inside Commit func:", end_time - start_time)
     #     return acc
-    @staticmethod
-    def fq_to_bytes(fq_element, byte_length=48):
-        """Convert optimized_bls12_381_FQ to 48-byte big-endian format"""
-        try:
-            # Try different methods to extract the integer value
-            if hasattr(fq_element, 'n'):
-                # Some libraries store the value in .n attribute
-                value = fq_element.n
-            elif hasattr(fq_element, 'value'):
-                # Some libraries store the value in .value attribute
-                value = fq_element.value
-            elif hasattr(fq_element, '__int__'):
-                # If it supports direct int conversion
-                value = int(fq_element)
-            else:
-                # Try to convert to string then int (last resort)
-                value = int(str(fq_element))
-
-            # Convert to 48-byte big-endian format as required by blst
-            return value.to_bytes(byte_length, 'big')
-        except Exception as e:
-            raise ValueError(f"Cannot convert FQ element to bytes: {e}")
 
     @staticmethod
     def jacobian_to_affine_coords(x, y, z):
@@ -417,4 +395,3 @@ class KZG:
         kzg = cls(srs)
         kzg.use_third_party_commit = use_third_party_commit  # <== Add this flag to instance
         return kzg
-
