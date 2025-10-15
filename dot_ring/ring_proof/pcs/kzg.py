@@ -411,12 +411,10 @@ class KZG:
         left_pairing =miller_loop(shifted_g2,proof)
         return left_pairing == right_pairing
 
-
     @classmethod
     def default(cls, *, max_deg: int = 2048, use_third_party_commit=True) -> "KZG":
         srs = SRS.default(max_deg)
         kzg = cls(srs)
         kzg.use_third_party_commit = use_third_party_commit  # <== Add this flag to instance
         return kzg
-
 

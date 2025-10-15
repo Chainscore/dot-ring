@@ -5,7 +5,7 @@ from dot_ring.ring_proof.polynomial.ops import (
     poly_multiply, vect_scalar_mul, vect_add,
 )
 from dot_ring.ring_proof.constants import OMEGA_2048 as omega_2048, D_512 as D
-from dot_ring.ring_proof.polynomial.interpolation  import poly_interpolate_fft
+from dot_ring.ring_proof.polynomial.interpolation  import poly_interpolate_fft, poly_mul_fft
 
 __all__ = [
     "vanishing_poly",
@@ -17,7 +17,7 @@ def vanishing_poly(k: int, omega_root: int, prime: int = S_PRIME) -> List[int]:
 
     vanishing_term = [1]
     for i in range(1, k+1):
-        vanishing_term = poly_multiply(vanishing_term, [-D[-i], 1],
+        vanishing_term = poly_mul_fft(vanishing_term, [-D[-i], 1],
                                        prime)
     return vanishing_term
 
