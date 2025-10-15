@@ -36,6 +36,27 @@ class TEAffinePoint(Point[C]):
         if not isinstance(self.curve, TECurve):
             raise TypeError("Curve must be a Twisted Edwards curve")
 
+    def is_identity(self) -> bool:
+        """
+        Check if this is the identity element (point at infinity).
+        The identity point is represented with None coordinates.
+
+        Returns:
+            bool: True if this is the identity element
+        """
+        return self.x==0 and self.y==1
+
+    @classmethod
+    def identity(cls) -> Self:
+        """
+        Get the identity element (point at infinity).
+
+        Returns:
+            SWAffinePoint: Identity element
+        """
+        # Return a identity point (0, 1)
+        return cls(0, 1)
+
     def is_on_curve(self) -> bool:
         """
         Check if point lies on the Twisted Edwards curve.
@@ -388,40 +409,34 @@ class TEAffinePoint(Point[C]):
             }
         return R.clear_cofactor()
 
-    @classmethod #modified
-    def encode_to_curve_tai(cls, alpha_string: bytes|str, salt: bytes = b"") -> Self:
+    @classmethod  # modified
+    def encode_to_curve_tai(cls, alpha_string: bytes | str, salt: bytes = b"") -> Self:
         """
         Encode a string to a curve point using try-and-increment method for ECVRF.
 
         Args:
-            alpha: String to encode
+            alpha_string:String to encode
             salt: Optional salt for the encoding
 
         Returns:
             TEAffinePoint: Resulting curve point
         """
         ctr = 0
-        H = None
+        H = "INVALID"
         front = b'\x01'
         back = b'\x00'
-        alpha_string=alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
         salt = salt.encode() if isinstance(salt, str) else salt
-        suite_string =cls.curve.SUITE_STRING
-        print("am i called")
-        while H is None or H == "INVALID" or H == (0, 1):
+        suite_string = cls.curve.SUITE_STRING
+        while H == "INVALID" or H == cls.identity_point():
             ctr_string = ctr.to_bytes(1, "big")
             hash_input = (suite_string + front + salt + alpha_string + ctr_string + back)
-
-            if cls.__name__ == "BandersnatchPoint":
-                hash_output = hashlib.sha256(hash_input).digest()
-            else:
-                hash_output = hashlib.sha512(hash_input).digest()
-            H = cls.string_to_point(bytes([0x02]) + hash_output[:31])
-            if H not in (None, "INVALID")  and cls.curve.COFACTOR > 1:
-                H = cls.scalar_mul(H, cls.curve.COFACTOR)
+            hash_output = hashlib.sha512(hash_input).digest()
+            H = cls.string_to_point(hash_output[:32])
+            if H !="INVALID" and cls.curve.COFACTOR > 1:
+                H = H.clear_cofactor()
             ctr += 1
         return H
-
 
     def clear_cofactor(self) -> Self:
         """
