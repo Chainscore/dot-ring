@@ -22,23 +22,6 @@ class Helpers:
         return x_c, y_c
 
     @staticmethod
-    def do_modulus(poly):
-
-        # Expand the polynomial to ensure all terms are explicitly separated
-        expanded_poly = poly
-
-        # Extract all terms and their coefficients
-        coeff_dict = expanded_poly.as_coefficients_dict()
-
-        # Apply modulus to all coefficients
-        coeff_mod = {term: coeff % S_PRIME for term, coeff in coeff_dict.items()}
-
-        # Reconstruct the polynomial
-        poly_mod = sum(coeff * term for term, coeff in coeff_mod.items())
-
-        return poly_mod
-
-    @staticmethod
     # bls point to string
     def bls_g1_compress(bls_point):
         if len(bls_point) == 2:
@@ -69,18 +52,18 @@ class Helpers:
         assert is_on_curve(decompressed, 4), "INVALID POINT"
         return decompressed
 
-    @staticmethod
-    def bls_g2_compress(g2_point):
-        if len(g2_point) == 3:
-            x,y,z=g2_point
-            point=(FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([z[0], z[1]]))
-        else:
-            x,y=g2_point
-            point=(FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0]))
-
-        #compress the point
-        compressed= point_compression.compress_G2(point)
-        return compressed[0].to_bytes(48, 'big').hex()+ compressed[1].to_bytes(48, 'big').hex()
+    # @staticmethod
+    # def bls_g2_compress(g2_point):
+    #     if len(g2_point) == 3:
+    #         x,y,z=g2_point
+    #         point=(FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([z[0], z[1]]))
+    #     else:
+    #         x,y=g2_point
+    #         point=(FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0]))
+    #
+    #     #compress the point
+    #     compressed= point_compression.compress_G2(point)
+    #     return compressed[0].to_bytes(48, 'big').hex()+ compressed[1].to_bytes(48, 'big').hex()
 
     @staticmethod
     # for fiat_shamir
