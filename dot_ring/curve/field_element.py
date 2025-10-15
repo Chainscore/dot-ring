@@ -47,21 +47,21 @@ class FieldElement:
             self.p
         )
 
-    def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
-        """Subtract two field elements or a field element and an integer."""
-        if isinstance(other, FieldElement):
-            if self.p != other.p:
-                raise ValueError("Cannot subtract elements from different fields")
-            return FieldElement(
-                (self.re - other.re) % self.p,
-                (self.im - other.im) % self.p,
-                self.p
-            )
-        return FieldElement(
-            (self.re - other) % self.p,
-            self.im,
-            self.p
-        )
+    # def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
+    #     """Subtract two field elements or a field element and an integer."""
+    #     if isinstance(other, FieldElement):
+    #         if self.p != other.p:
+    #             raise ValueError("Cannot subtract elements from different fields")
+    #         return FieldElement(
+    #             (self.re - other.re) % self.p,
+    #             (self.im - other.im) % self.p,
+    #             self.p
+    #         )
+    #     return FieldElement(
+    #         (self.re - other) % self.p,
+    #         self.im,
+    #         self.p
+    #     )
 
     def __mul__(self, other: Union[FieldElement, int]) -> FieldElement:
         """Multiply two field elements or a field element and an integer."""
@@ -77,7 +77,6 @@ class FieldElement:
             (self.im * other) % self.p,
             self.p
         )
-
 
     def __truediv__(self, other: Union[FieldElement, int]) -> FieldElement:
         """Divide two field elements or a field element by an integer."""
@@ -121,42 +120,18 @@ class FieldElement:
         norm = (self.re * self.re + self.im * self.im) % self.p
         return pow(norm, (self.p - 1) // 2, self.p) == 1
 
-    def sgn0(self) -> int:
-        """
-        Return the sign of the element (0 or 1).
 
-        Implements the sgn0 function from RFC 9380.
-        """
-        sign_0 = self.re % 2
-        zero_0 = 1 if self.re == 0 else 0
-        sign_1 = self.im % 2
-        return sign_0 | (zero_0 & sign_1)
-
-    def __str__(self) -> str:
-        """String representation of the field element."""
-        if self.im == 0:
-            return str(self.re)
-        return f"({self.re} + {self.im}i)"
-
-    def __repr__(self) -> str:
-        """Canonical string representation of the field element."""
-        return f"FieldElement({self.re}, {self.im}, {self.p})"
+    # def __repr__(self) -> str:
+    #     """Canonical string representation of the field element."""
+    #     return f"FieldElement({self.re}, {self.im}, {self.p})"
 
     def __radd__(self, other: int) -> FieldElement:
         """Handle integer addition from the left."""
         return self + other
 
-    def __rsub__(self, other: int) -> FieldElement:
-        """Handle integer subtraction from the left."""
-        return (-self) + other
-
-    def __rmul__(self, other: int) -> FieldElement:
-        """Handle integer multiplication from the left."""
-        return self * other
-
-    def __rtruediv__(self, other: int) -> FieldElement:
-        """Handle integer division from the left."""
-        return FieldElement(other, 0, self.p) / self
+    # def __rtruediv__(self, other: int) -> FieldElement:
+    #     """Handle integer division from the left."""
+    #     return FieldElement(other, 0, self.p) / self
 
     def __pow__(self, exponent: int) -> FieldElement:
         """Raise the field element to an integer power."""
@@ -241,12 +216,7 @@ class FieldElement:
         # Step 5: compute imaginary part: x = a1 / (2*y)
         inv_2y = pow(2 * y.re, -1, p)
         x = (a1 * inv_2y) % p
-
         return FieldElement(y.re, x, p)
-
-
-
-
 
 
 
