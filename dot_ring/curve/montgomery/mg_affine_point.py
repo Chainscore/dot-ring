@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any
-from ..point import Point, PointProtocol
+from typing import TypeVar, Optional, Any, Union
+from ..point import Point
 from .mg_curve import MGCurve
 from dot_ring.curve.e2c import E2C_Variant
 
@@ -35,23 +35,8 @@ class MGAffinePoint(Point[C]):
         """
         cls = self.__class__
         curve = self.curve
-        try:
-            # try (x, y, curve)
-            return cls(x, y, curve)
-        except TypeError:
-            pass
-        try:
-            # try (x, y)
-            return cls(x, y)
-        except TypeError:
-            pass
+        return cls(x, y, curve)
 
-        # fallback: create without calling __init__ and set attributes directly
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", x)
-        object.__setattr__(inst, "y", y)
-        object.__setattr__(inst, "curve", curve)
-        return inst
 
     def is_on_curve(self) -> bool:
         """Check if point is on the curve."""
@@ -133,72 +118,6 @@ class MGAffinePoint(Point[C]):
         """Subtract points by adding the negation."""
         return self + (-other)
 
-    def _sqrt_mod_p(self, n: int) -> Optional[int]:
-        """
-        Compute sqrt(n) mod p. Use p % 8 == 5 optimization if applicable, else
-        Tonelli-Shanks.
-        Returns one square root or None if none exists.
-        """
-        p = self.curve.PRIME_FIELD
-        n = n % p  # Ensure n is in range [0, p)
-
-        if n == 0:
-            return 0
-
-        # Legendre symbol check
-        if pow(n, (p - 1) // 2, p) != 1:
-            return None
-
-        # Special case for p ≡ 3 (mod 4) - simpler than p ≡ 5 (mod 8)
-        if p % 4 == 3:
-            return pow(n, (p + 1) // 4, p)
-
-        if p % 8 == 5:
-            # sqrt = n^{(p+3)/8} or times sqrt(-1)
-            r = pow(n, (p + 3) // 8, p)
-            if (r * r) % p == n % p:
-                return r
-            # Try r * sqrt(-1) where sqrt(-1) = 2^((p-1)/4)
-            sqrt_minus_one = pow(2, (p - 1) // 4, p)
-            r = (r * sqrt_minus_one) % p
-            if (r * r) % p == n % p:
-                return r
-            return None
-
-        # Tonelli-Shanks general method
-        # Factor p-1 = Q * 2^S with Q odd
-        Q = p - 1
-        S = 0
-        while Q % 2 == 0:
-            Q //= 2
-            S += 1
-
-        # find a quadratic non-residue z
-        z = 2
-        while pow(z, (p - 1) // 2, p) != p - 1:
-            z += 1
-
-        M = S
-        c = pow(z, Q, p)
-        t = pow(n, Q, p)
-        R = pow(n, (Q + 1) // 2, p)
-
-        while t != 1:
-            # find least i (0 < i < M) such that t^{2^i} == 1
-            i = 1
-            t2i = (t * t) % p
-            while i < M and t2i != 1:
-                t2i = (t2i * t2i) % p
-                i += 1
-            if i == M:
-                return None
-            b = pow(c, 1 << (M - i - 1), p)
-            M = i
-            c = (b * b) % p
-            R = (R * b) % p
-            t = (t * c) % p
-
-        return R
 
     def __mul__(self, scalar: int) -> "MGAffinePoint[C]":
         """
@@ -263,90 +182,7 @@ class MGAffinePoint(Point[C]):
     def identity(cls) -> "MGAffinePoint":
         """Get the identity element (point at infinity)."""
         # build without calling curve-specific __init__
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", None)
-        object.__setattr__(inst, "y", None)
-        # use a curve instance if available via class attribute, else None
-        # Many specific point classes set `curve` as a class attribute (see your Curve25519Point)
-        curve = getattr(cls, "curve", None)
-        object.__setattr__(inst, "curve", curve)
-        return inst
-
-    def point_to_string(self, compressed: bool = True) -> bytes:
-        """
-        Convert point to bytes representation.
-        For Montgomery curves like Curve25519, typically only x-coordinate is used.
-        """
-        if self.is_identity():
-            # Return zero bytes for identity
-            byte_length = (self.curve.PRIME_FIELD.bit_length() + 7) // 8
-            return b'\x00' * byte_length
-
-        x_bytes = self.x.to_bytes((self.curve.PRIME_FIELD.bit_length() + 7) // 8, 'little')
-
-        if compressed or not hasattr(self, 'y') or self.y is None:
-            return x_bytes
-        else:
-            # Include y-coordinate if requested and available
-            y_bytes = self.y.to_bytes((self.curve.PRIME_FIELD.bit_length() + 7) // 8, 'little')
-            return x_bytes + y_bytes
-
-    @classmethod
-    def string_to_point(cls, data: bytes, compressed: bool = True):
-        """
-        Create point from bytes representation.
-        """
-        if not data or all(b == 0 for b in data):
-            return cls.identity()
-
-        byte_length = (cls.curve.PRIME_FIELD.bit_length() + 7) // 8
-
-        if len(data) < byte_length:
-            raise ValueError(f"Data too short: expected at least {byte_length} bytes")
-
-        x = int.from_bytes(data[:byte_length], 'little')
-
-        if compressed or len(data) == byte_length:
-            # Reconstruct y-coordinate
-            # For Montgomery curves: B*y^2 = x^3 + A*x^2 + x
-            A, B = cls.curve.A, cls.curve.B
-            p = cls.curve.PRIME_FIELD
-
-            x = x % p
-            rhs = (x * x * x + A * x * x + x) % p
-
-            # Check if B has an inverse
-            try:
-                inv_B = pow(B, -1, p)
-                y_squared = (rhs * inv_B) % p
-            except ValueError:
-                raise ValueError("Invalid curve: B not invertible")
-
-            # Find square root
-            inst = object.__new__(cls)
-            object.__setattr__(inst, "curve", cls.curve)
-            y = inst._sqrt_mod_p(y_squared)
-
-            if y is None:
-                raise ValueError("Point not on curve")
-
-            # Choose canonical y (even LSB)
-            if y > p//2:
-                y = (-y) % p
-
-            return cls(x, y, cls.curve)
-        else:
-            # Uncompressed format with y-coordinate
-            if len(data) < 2 * byte_length:
-                raise ValueError(f"Data too short for uncompressed: expected {2 * byte_length} bytes")
-
-            y = int.from_bytes(data[byte_length:2 * byte_length], 'little')
-            point = cls(x, y, cls.curve)
-
-            if not point.is_on_curve():
-                raise ValueError("Point not on curve")
-
-            return point
+        return cls(None, None)
 
     @classmethod
     def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
@@ -420,7 +256,6 @@ class MGAffinePoint(Point[C]):
         return R.clear_cofactor()
 
 
-
     def clear_cofactor(self) -> "MGAffinePoint[C]":
         """
         Clear the cofactor to ensure point is in prime-order subgroup.
@@ -489,38 +324,38 @@ class MGAffinePoint(Point[C]):
 
         return cls(s, t, cls.curve)
 
+    def point_to_string(self) -> bytes:
+
+        if self.is_identity():
+            raise ValueError("Cannot serialize point at infinity")
+        p = self.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+
+        # Encode u and v coordinates as little-endian bytes
+        u_bytes = self.x.to_bytes(byte_length, 'little')
+        v_bytes = self.y.to_bytes(byte_length, 'little')
+        return u_bytes + v_bytes
+
     @classmethod
-    def _x_recover(cls, u: int) -> Optional[int]:
-        """
-        Recover the v-coordinate from the given u-coordinate
-        for a Montgomery curve: B*v^2 = u^3 + A*u^2 + u
+    def string_to_point(cls, data: Union[str, bytes]) -> 'MGAffinePoint':
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
 
-        Args:
-            u: The u-coordinate (x-coordinate in Montgomery form)
-
-        Returns:
-            v (int): The recovered v-coordinate (one of the two possible ones)
-            None: if no valid v exists (point not on curve)
-        """
         p = cls.curve.PRIME_FIELD
-        A = cls.curve.A
-        B = cls.curve.B
+        byte_length = (p.bit_length() + 7) // 8
 
-        # Compute RHS = (u^3 + A*u^2 + u) / B mod p
-        rhs = (pow(u, 3, p) + A * pow(u, 2, p) + u) % p
-        if B != 1:
-            rhs = (rhs * pow(B, -1, p)) % p
+        # Split into u and v coordinates
+        u_bytes = data[:byte_length]
+        v_bytes = data[byte_length:]
 
-        # Check if RHS is a quadratic residue: if not, no solution
-        if pow(rhs, (p - 1) // 2, p) != 1:
-            return None
+        u = int.from_bytes(u_bytes, 'little')
+        v = int.from_bytes(v_bytes, 'little')
 
-        # Compute modular square root using p ≡ 3 mod 4 shortcut if available
-        if (p % 4) == 3:
-            v = pow(rhs, (p + 1) // 4, p)
-        else:
-            # Fallback: use Tonelli–Shanks for general p
-            v = cls.curve.mod_sqrt(rhs)
-            if v is None:
-                return None
-        return v
+        # Create the point
+        point = cls(u, v, cls.curve)
+
+        # Verify the point is on the curve
+        if not point.is_on_curve():
+            raise ValueError("Point is not on the curve")
+
+        return point
