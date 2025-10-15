@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self, Union, Optional, Any, List, Type, TypeVar
+from typing import Self, Union, Optional, Any, TypeVar
 
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
 from ..field_element import FieldElement
-from dot_ring.ring_proof.helpers import Helpers
 
 T = TypeVar('T', bound='SWAffinePoint')
 
@@ -271,36 +270,6 @@ class SWAffinePoint(Point[SWCurve]):
 
             return point
 
-        # Handle hybrid format (0x06 or 0x07) - optional, not commonly used
-        elif prefix in (0x06, 0x07):
-            # Hybrid format: prefix + x + y, where prefix encodes y parity redundantly
-            expected_len = 1 + 2 * field_byte_len
-            if len(octet_string) != expected_len:
-                raise ValueError(
-                    f"Invalid hybrid point length: expected {expected_len}, got {len(octet_string)}"
-                )
-
-            x_bytes = octet_string[1:1 + field_byte_len]
-            y_bytes = octet_string[1 + field_byte_len:]
-
-            x = int.from_bytes(x_bytes, "big")
-            y = int.from_bytes(y_bytes, "big")
-
-            # Validate coordinates are in field
-            if x >= p or y >= p:
-                raise ValueError("Coordinates not in field")
-
-            # Verify y parity matches prefix
-            if (y % 2 == 0 and prefix == 0x07) or (y % 2 == 1 and prefix == 0x06):
-                raise ValueError("Hybrid format: y parity doesn't match prefix")
-
-            point = cls(x, y)
-
-            if not point.is_on_curve():
-                raise ValueError(f"Point ({x}, {y}) is not on curve")
-
-            return point
-
         else:
             raise ValueError(
                 f"Invalid point encoding prefix: 0x{prefix:02x}. "
@@ -461,23 +430,6 @@ class SWAffinePoint(Point[SWCurve]):
             r = (r * b) % p
 
         return r
-
-    @classmethod
-    def _x_recover(cls, y: int) -> int:
-        p = cls.curve.PRIME_FIELD
-        A = cls.curve.WeierstrassA
-        B = cls.curve.WeierstrassB
-
-        # Compute right-hand side of the curve equation
-        rhs = (pow(y, 2, p) - B) % p
-
-        # Solve for x: x³ + A x = rhs mod p
-        # This requires solving cubic — but we do it by Tonelli–Shanks
-        x = cls.tonelli_shanks(rhs, p)
-        if x is None:
-            raise ValueError("No x found for given y")
-
-        return x
 
 
     @classmethod
