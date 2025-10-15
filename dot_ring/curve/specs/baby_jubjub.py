@@ -19,16 +19,16 @@ class BabyJubJubParams:
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-    ORDER: Final[int] = 273603115188753742007522749811879420859037173
+    ORDER: Final[int] = 2736030358979909402780800718157159386076813972158567259200215660948447373041
     COFACTOR: Final[int] = 8
 
     # Generator point
-    GENERATOR_X: Final[int] = 995203441582195749578291179787384436505546430278305826713579947235728471134
-    GENERATOR_Y: Final[int] = 5472060717959818805561601436314318772137091100104008585924551046643952123905
+    GENERATOR_X: Final[int] = 19698561148652590122159747500897617769866003486955115824547446575314762165298
+    GENERATOR_Y: Final[int] = 19298250018296453272277890825869354524455968081175474282777126169995084727839
 
     # Edwards curve parameters
-    EDWARDS_A: Final[int] = 168700
-    EDWARDS_D: Final[int] = 168696
+    EDWARDS_A: Final[int] = 1
+    EDWARDS_D: Final[int] = 9706598848417545097372247223557719406784115219466060233080913168975159366771
 
     GLV_LAMBDA: Final[int] = 0x13b4f3dc4a39a493edf849562b38c72bcfc49db970a5056ed13d21408783df05
     GLV_B: Final[int] = 0x52c9f28b828426a561f00d3a63511a882ea712770d9af4d6ee0f014d172510b4
@@ -36,9 +36,15 @@ class BabyJubJubParams:
 
     # Z
     Z: Final[int] = 5
-    
+    M: Final[int] = 1
+    K: Final[int] = 128
+    L: Final[int] = 32  # can define func as well
+    S_in_bytes: Final[int] = 128  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
+    H_A: Final[str] = "SHA-512"
+    Requires_Isogeny: Final[bool] = False
+    Isogeny_Coeffs = None
     # Challenge length in bytes for VRF (aligned with 128-bit security level)
-    CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
+    CHALLENGE_LENGTH: Final[int] = 32  # 128 bits
 
     # Blinding Base For Pedersen
     BBx: Final[
@@ -85,7 +91,14 @@ class BabyJubJubCurve(TECurve):
             DST=BabyJubJubParams.DST,
             E2C=E2C_Variant.TAI,
             BBx=BabyJubJubParams.BBx,
-            BBy=BabyJubJubParams.BBy
+            BBy=BabyJubJubParams.BBy,
+            M=BabyJubJubParams.M,
+            K=BabyJubJubParams.K,
+            L=BabyJubJubParams.L,
+            S_in_bytes=BabyJubJubParams.S_in_bytes,
+            H_A=BabyJubJubParams.H_A,
+            Requires_Isogeny=BabyJubJubParams.Requires_Isogeny,
+            Isogeny_Coeffs=BabyJubJubParams.Isogeny_Coeffs,
         )
 
 

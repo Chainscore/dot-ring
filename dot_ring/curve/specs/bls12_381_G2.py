@@ -84,18 +84,6 @@ class BLS12_381_G2Curve(SWCurve):
         """Return the challenge length in bytes for VRF."""
         return BLS12_381_G2Params.CHALLENGE_LENGTH
 
-    def identity(self) -> BLS12_381_G2Point:
-        """
-        Return the point at infinity (identity element) for this curve.
-
-        Returns:
-            BLS12_381_G2Point: The identity point (point at infinity)
-        """
-        # Create a point with (0, 0) coordinates and set _is_identity to True
-        # Using object.__setattr__ to work with frozen dataclass
-        point = BLS12_381_G2Point((0, 0), (0, 0))
-        object.__setattr__(point, '_is_identity', True)
-        return point
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         SUITE_STRING = BLS12_381_G2Params.SUITE_STRING
@@ -193,18 +181,76 @@ class BLS12_381_G2Point(SWAffinePoint):
         if other.is_identity():
             return self
 
+        # Helper function to convert coordinates to FQ2 format
+        def to_fq2(x, y):
+            # If x is a tuple, use it directly
+            if isinstance(x, tuple) and isinstance(y, tuple):
+                return (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]))
+            # If x is a FieldElement, use its re and im attributes
+            elif hasattr(x, 're') and hasattr(x, 'im'):
+                return (FQ2([x.re, x.im]), FQ2([y.re, y.im]))
+            # Fallback for other cases (shouldn't happen)
+            else:
+                return (FQ2([x, 0]), FQ2([y, 0]))
+        
         # Convert points to FQ2 format for py_ecc
-        p1 = (FQ2([self.x.re, self.x.im]), FQ2([self.y.re, self.y.im]))
-        p2 = (FQ2([other.x.re, other.x.im]), FQ2([other.y.re, other.y.im]))
+        p1 = to_fq2(self.x, self.y)
+        p2 = to_fq2(other.x, other.y)
 
         # Perform addition using py_ecc
         result = add(p1, p2)
+        if result is None:
+            return self.identity()
 
         # Convert back to tuple format
         x = (int(result[0].coeffs[0]), int(result[0].coeffs[1]))
         y = (int(result[1].coeffs[0]), int(result[1].coeffs[1]))
 
         return self.__class__(x, y)
+
+    def __neg__(self) -> 'BLS12_381_G2Point':
+        """
+        Negate a point on the BLS12-381 G2 curve.
+        For a point (x, y), the negation is (x, -y).
+
+        Returns:
+            BLS12_381_G2Point: The negated point
+        """
+        if self.is_identity():
+            return self
+            
+        # Use FieldElement's negation if y is a FieldElement
+        if hasattr(self.y, '__neg__'):
+            neg_y = -self.y
+        # Handle tuple case (Fp2 elements)
+        elif isinstance(self.y, tuple):
+            from ..field_element import FieldElement
+            p = self.curve.PRIME_FIELD
+            # Convert tuple to FieldElement, negate, then convert back
+            y_fe = FieldElement(self.y[0], self.y[1], p)
+            neg_y_fe = -y_fe
+            neg_y = (neg_y_fe.re, neg_y_fe.im)
+        else:
+            # Fallback for regular integers
+            neg_y = (-self.y) % self.curve.PRIME_FIELD
+            
+        return self.__class__(self.x, neg_y)
+
+    def __sub__(self, other: 'BLS12_381_G2Point') -> 'BLS12_381_G2Point':
+        """
+        Subtract one point from another on the BLS12-381 G2 curve.
+        This is equivalent to adding the negation of the other point.
+
+        Args:
+            other: Point to subtract
+
+        Returns:
+            BLS12_381_G2Point: Result of point subtraction
+        """
+        if not isinstance(other, BLS12_381_G2Point):
+            raise TypeError("Can only subtract BLS12_381_G2Point instances")
+            
+        return self + (-other)
 
     def __mul__(self, scalar: int) -> BLS12_381_G2Point:
         """
@@ -230,6 +276,9 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         # Perform scalar multiplication using py_ecc
         result = multiply(p, scalar)
+
+        if result is None:
+            return self.identity()
 
         # Convert back to tuple format
         x = (int(result[0].coeffs[0]), int(result[0].coeffs[1]))
