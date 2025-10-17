@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple, Type
@@ -39,8 +38,6 @@ class IETF_VRF(VRF):
         super().__init__(curve, point_type)
         if not isinstance(curve, Curve):
             raise TypeError("Curve must be a valid elliptic curve")
-
-
     def proof(
             self,
             alpha: bytes|str,
@@ -119,7 +116,7 @@ class IETF_VRF(VRF):
         if not isinstance(additional_data, bytes):
             additional_data= bytes.fromhex(additional_data)
 
-        if not isinstance(proof, bytes):
+        if  not isinstance(proof, bytes):
             proof = bytes.fromhex(proof)
 
         point_len = self.point_len # Compressed point length is fixed at 32 bytes for Bandersnatch\
@@ -149,7 +146,6 @@ class IETF_VRF(VRF):
 
     def get_public_key(self, secret_key:bytes|str)->bytes:
         """Take the Secret_Key and return Public Key"""
-
         secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN) % self.curve.ORDER
         # Create generator point
         generator = self.point_type.generator_point()
