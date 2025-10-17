@@ -1,15 +1,11 @@
 from __future__ import annotations
-
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import TypeVar, Self, Any
-
-from mpmath import apery
-from sympy import mod_inverse, sqrt_mod
+from typing import TypeVar, Self, Any, Tuple
+from sympy import mod_inverse
 
 from dot_ring.curve.e2c import E2C_Variant
-
 from ..point import Point, PointProtocol
 from .te_curve import TECurve
 
@@ -443,20 +439,27 @@ class TEAffinePoint(Point[C]):
 
         return cls(v, w)
 
-
     @classmethod
-    def _x_recover(cls, y: int) -> int:
+    def _x_recover(cls, y: int) -> Tuple[int, int] | int:
         """
-        Recover x-coordinate from y.
         """
-        lhs = 1 - (y ** 2) % cls.curve.PRIME_FIELD
-        rhs = cls.curve.EdwardsA - (cls.curve.EdwardsD * (y ** 2)) % cls.curve.PRIME_FIELD
-        val = cls.curve.mod_inverse(rhs)
-        do_sqrt = lhs * val % cls.curve.PRIME_FIELD
-        x = cls.sqrt_mod(do_sqrt)
-        if not x:
-            return 0
-        return x%cls.curve.PRIME_FIELD
+        p = cls.curve.PRIME_FIELD
+        lhs = (1 - y * y) % p
+        rhs = (cls.curve.EdwardsA - cls.curve.EdwardsD * y * y) % p
+
+        try:
+            inv_rhs = pow(rhs, -1, p)
+        except ValueError:
+            return None
+
+        x2 = (lhs * inv_rhs) % p
+        x = cls.sqrt_mod(x2)
+        if x is None:
+            return None
+
+        neg_x = (-x) % p
+        # consistent ordering
+        return (x, neg_x) if x <= neg_x else (neg_x, x)
 
     @classmethod
     def sqrt_mod(cls, n: int) -> int | None:
@@ -507,4 +510,3 @@ class TEAffinePoint(Point[C]):
             c = (b * b) % p
             t = (t * c) % p
             r = (r * b) % p
-
