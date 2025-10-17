@@ -1,9 +1,7 @@
 from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
 import hmac, hashlib
-
 from ..curve.curve import Curve
 from ..curve.point import Point
 from ..ring_proof.helpers import Helpers
@@ -56,7 +54,7 @@ class VRF(ABC):
         """
         self.curve = curve
         self.point_type = point_type
-        if self.point_type.__name__ in ["P256Point","P256PointVariant", "P384Point", "P521Point", "Secp256k1Point"]:
+        if self.point_type.__name__ in ["P256Point","P256PointVariant", "P384Point", "P521Point", "Secp256k1Point", "Bandersnatch_SW_Point"]:
             self.point_len = Helpers.pt_len(curve.PRIME_FIELD)+1
         else:
             self.point_len = Helpers.pt_len(curve.PRIME_FIELD)
@@ -76,7 +74,8 @@ class VRF(ABC):
             int: Generated nonce
         """
         # Hash secret key (little-endian)
-        sk_encoded = Helpers.int_to_str(secret_key%self.curve.ORDER, self.curve.ENDIAN,self.point_len)
+        scalr_len=(self.curve.ORDER.bit_length()+7)//8
+        sk_encoded = Helpers.int_to_str(secret_key%self.curve.ORDER, self.curve.ENDIAN,scalr_len)
         # hashed_sk = bytes(Hash.sha512(sk_encoded))
         hashed_sk=self.hash(sk_encoded)
         sk_hash = hashed_sk[32:64]  # Use second half of SHA-512 output
