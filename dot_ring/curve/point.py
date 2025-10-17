@@ -80,6 +80,7 @@ class Point(Generic[C]):
         """
         raise NotImplementedError("Must be implemented by subclass")
 
+
     def point_to_string(self) -> bytes:
         """
         Convert elliptic curve point (x, y) to compressed octet string.
@@ -92,49 +93,57 @@ class Point(Generic[C]):
         Returns:
             bytes: The compressed point representation
         """
+
         if self.curve.UNCOMPRESSED:
             return self.uncompressed_p2s()
 
         p = self.curve.PRIME_FIELD
-        p_half = (p - 1) // 2
-        x, y = self.x, self.y
-        y_bytes = bytearray(int(y).to_bytes((p.bit_length() + 7) // 8, self.curve.ENDIAN))  # Encode y in little-endian
-        x_sign_bit = 1 if x >= p_half else 0  # Sign is set if x >= p/2
+        n_bytes = (p.bit_length() + 7) // 8
+        y_bytes = bytearray(self.y.to_bytes(n_bytes, self.curve.ENDIAN))
+
+        # Compute x sign bit
+        x_sign_bit = 1 if self.x > (-self.x % p) else 0
         y_bytes[-1] |= (x_sign_bit << 7)
         return bytes(y_bytes)
 
+
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]'|str:
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> Self | str:
         """
-        Convert compressed octet string back to point.
+            Convert compressed octet string back to point.
+            Args:
+                octet_string: Compressed point bytes
 
-        Args:
-            encoded: Compressed point bytes
-            curve: The curve to create point on
-
-        Returns:
-            Point: Decoded point
-
-        Raises:
-            ValueError: If encoding is invalid
+            Returns:
+                Point: Decoded point or returns "INVALID" If encoding is invalid
         """
+
         if cls.curve.UNCOMPRESSED:
             return cls.uncompressed_s2p(octet_string)
 
-        if isinstance(octet_string, str):  # Convert hex string to bytes
+        if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
-        y = int.from_bytes(octet_string, cls.curve.ENDIAN) & ((1 << cls.curve.PRIME_FIELD.bit_length()) - 1)
-        # Recover x-coordinate
-        x = cls._x_recover(y)
-        x_parity = (octet_string[-1] >> 7)
-        p_half = (cls.curve.PRIME_FIELD - 1) // 2
-        # Check if extracted LSB of x matches the stored bit
-        if (x < p_half) == x_parity:
-            x = cls.curve.PRIME_FIELD - x# Flip x if the bit doesn't match
-        if x==0 or x%cls.curve.PRIME_FIELD==0:
+        # Extract x sign bit from MSB of last byte
+        x_sign_bit = (octet_string[-1] >> 7) & 1
+
+        # Mask out MSB to recover y
+        y_bytes = bytearray(octet_string)
+        y_bytes[-1] &= 0x7F
+        y = int.from_bytes(y_bytes, cls.curve.ENDIAN)
+        x_candidates = cls._x_recover(y)
+
+        if x_candidates is None:
             return "INVALID"
-        return cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
+
+        x, neg_x = x_candidates
+
+        # Pick x using x_sign_bit
+        chosen_x = neg_x if x_sign_bit else x
+        try:
+            return cls(chosen_x, y)
+        except ValueError:
+            return "INVALID" #Needed for TAI_Case
 
     def uncompressed_p2s(self)->bytes:
         p = self.curve.PRIME_FIELD
@@ -161,7 +170,6 @@ class Point(Generic[C]):
         if not point.is_on_curve():
             raise ValueError("Point is not on the curve")
         return point
-
 
     @classmethod
     def _x_recover(cls, y: int) -> int:
@@ -207,7 +215,7 @@ class Point(Generic[C]):
         Returns:
             TEAffinePoint: Resulting curve point
         """
-        ctr = 0
+        ctr =0
         H = "INVALID"
         front = b'\x01'
         back = b'\x00'
@@ -223,7 +231,7 @@ class Point(Generic[C]):
             else:
                 hash_output = hashlib.sha512(hash_input).digest()
                 H = cls.string_to_point(hash_output[:32])
-            if H is not "INVALID" and cls.curve.COFACTOR > 1:
+            if H !="INVALID" and cls.curve.COFACTOR > 1:
                 H = H.clear_cofactor()
             ctr += 1
         return H
