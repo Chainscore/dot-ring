@@ -13,19 +13,37 @@ The test suite is organized into the following categories:
 
 #### **IETF VRF Tests** (`test_ietf/`)
 Tests the IETF VRF implementation against official test vectors for multiple curves:
-- **`test_bandersnatch_ietf.py`** - Bandersnatch curve (Twisted Edwards) with Elligator 2
-- **`test_p256_sswu_ietf.py`** - P-256 (NIST) curve with SSWU mapping
-- **`test_p384_sswu_ietf.py`** - P-384 (NIST) curve with SSWU mapping
-- **`test_secp256K1_sswu_ietf.py`** - secp256k1 curve with SSWU mapping
+- **`test_bandersnatch_ietf.py`** - Bandersnatch (Twisted Edwards) curve with Elligator 2
+- **`test_p256_sswu_ietf.py`** - P-256 (NIST/Weierstrass) curve with SSWU mapping
+- **`test_p384_sswu_ietf.py`** - P-384 (NIST/Weierstrass) curve with SSWU mapping
+- **`test_secp256K1_sswu_ietf.py`** - secp256k1( Weierstrass) curve with SSWU mapping
+- **`test_curve25519_ell2_ietf.py`** - Curve25519 (Montgomery) curve with Elligator 2
+- **`test_curve448_ell2_ietf.py`** - Curve448 (Montgomery) curve with Elligator 2
+- **`test_ed448_ell2_ietf.py`** - Ed448 (Twisted Edwards) curve with Elligator 2
+- **`test_ed25519_ell2_ietf.py`** - Ed25519 (Twisted Edwards) curve with Elligator 2
+- **`test_ed25519_ell2_ietf.py`** - Ed25519 (Twisted Edwards) curve with TAI
+- **`test_jubjub_tai_ietf.py`** - JubJub (Twisted Edwards)  curve with TAI
+- **`test_babyjubjub_tai_ietf.py`** - BabyJubJub (Twisted Edwards) curve with TAI
+- **`test_bandersnatch_sw_tai_ietf.py`** - Bandersnatch ( Weierstrass) with TAI
+- **`test_secp256r1_tai_ietf.py`** - P256 ( Weierstrass) curve with TAI
 
 Test vectors are located in `tests/ark-vrf/` for Bandersnatch and `tests/test_vrfs/vectors/` for other curves.
 
 #### **Pedersen VRF Tests** (`test_pedersen/`)
 Tests the Pedersen VRF implementation (commitment-based VRF without exposing public key):
-- **`test_bandersnatch_pedersen.py`** - Bandersnatch curve implementation
-- **`test_p256_sswu_pedersen.py`** - P-256 curve implementation
-- **`test_p384_sswu_pedersen.py`** - P-384 curve implementation
-- **`test_secp256k1_sswu_pedersen.py`** - secp256k1 curve implementation
+- **`test_bandersnatch_pedersen.py`** - Bandersnatch curve (Twisted Edwards) curve with Elligator 2
+- **`test_p256_sswu_pedersen.py`** - P-256 (NIST/Weierstrass) curve with SSWU mapping
+- **`test_p384_sswu_pedersen.py`** -P-384 (NIST/Weierstrass) curve with SSWU mapping
+- **`test_secp256k1_sswu_pedersen.py`** - secp256k1( Weierstrass) curve with SSWU mapping
+- **`test_curve25519_ell2_pedersen.py`** - Curve25519 (Montgomery) curve with Elligator 2
+- **`test_curve448_ell2_pedersen.py`** - Curve448 (Montgomery) curve with Elligator 2
+- **`test_ed448_ell2_pedersen.py`** - Ed448 (Twisted Edwards) curve with Elligator 2
+- **`test_ed25519_ell2_pedersen.py`** - Ed25519 (Twisted Edwards) curve with Elligator 2
+- **`test_ed25519_ell2_pedersen.py`** - Ed25519 (Twisted Edwards) curve with TAI
+- **`test_jubjub_tai_pedersen.py`** - JubJub (Twisted Edwards)  curve with TAI
+- **`test_baby_jubjub_tai_pedersen.py`** - BabyJubJub (Twisted Edwards) curve with TAI
+- **`test_bandersnatch_sw_tai_pedersen.py`** - Bandersnatch ( Weierstrass) with TAI
+- **`test_secp256r1_tai_pedersen.py`** - P256 ( Weierstrass) curve with TAI
 
 #### **Ring Proof Tests** (`test_ring_proof/`)
 - **`test_ring_proof.py`** - Validates ring proofs using BLS12-381 signatures, including ring root construction and signature verification
@@ -160,7 +178,9 @@ The test suite validates VRF implementations across multiple elliptic curves:
 | **Ed25519**          | Twisted Edwards | Elligator 2 & TAI    | ✅    | ✅   | ✅   | ⏳ |
 | **Ed448**            | Twisted Edwards | Elligator 2          |   ✅  | ✅   | ✅   | ⏳ |
 | **JubJub**           | Twisted Edwards | TAI                  |   ✅  | ✅   | ✅  | ⏳ |
-| **BabyJubJub**       | Twisted Edwards | TAI                  |  ✅   | ⏳ | ⏳ | ⏳ |
+| **BabyJubJub**       | Twisted Edwards | TAI                  |  ✅   | ✅  |  ✅ | ⏳ |
+| **Bandersnatch_SW**  | Twisted Edwards | TAI                  |  ✅   | ✅ | ✅ | ⏳ |
+
 
 
 ✅ = Implemented and tested | ⏳ = Planned/In progress
