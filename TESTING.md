@@ -21,7 +21,7 @@ Tests the IETF VRF implementation against official test vectors for multiple cur
 - **`test_curve448_ell2_ietf.py`** - Curve448 (Montgomery) curve with Elligator 2
 - **`test_ed448_ell2_ietf.py`** - Ed448 (Twisted Edwards) curve with Elligator 2
 - **`test_ed25519_ell2_ietf.py`** - Ed25519 (Twisted Edwards) curve with Elligator 2
-- **`test_ed25519_ell2_ietf.py`** - Ed25519 (Twisted Edwards) curve with TAI
+- **`test_ed25519_tai_ietf.py`** - Ed25519 (Twisted Edwards) curve with TAI
 - **`test_jubjub_tai_ietf.py`** - JubJub (Twisted Edwards)  curve with TAI
 - **`test_babyjubjub_tai_ietf.py`** - BabyJubJub (Twisted Edwards) curve with TAI
 - **`test_bandersnatch_sw_tai_ietf.py`** - Bandersnatch ( Weierstrass) with TAI
@@ -39,7 +39,7 @@ Tests the Pedersen VRF implementation (commitment-based VRF without exposing pub
 - **`test_curve448_ell2_pedersen.py`** - Curve448 (Montgomery) curve with Elligator 2
 - **`test_ed448_ell2_pedersen.py`** - Ed448 (Twisted Edwards) curve with Elligator 2
 - **`test_ed25519_ell2_pedersen.py`** - Ed25519 (Twisted Edwards) curve with Elligator 2
-- **`test_ed25519_ell2_pedersen.py`** - Ed25519 (Twisted Edwards) curve with TAI
+- **`test_ed25519_tai_pedersen.py`** - Ed25519 (Twisted Edwards) curve with TAI
 - **`test_jubjub_tai_pedersen.py`** - JubJub (Twisted Edwards)  curve with TAI
 - **`test_baby_jubjub_tai_pedersen.py`** - BabyJubJub (Twisted Edwards) curve with TAI
 - **`test_bandersnatch_sw_tai_pedersen.py`** - Bandersnatch ( Weierstrass) with TAI
