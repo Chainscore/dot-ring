@@ -221,7 +221,7 @@ class SWAffinePoint(Point[SWCurve]):
             y_squared = (pow(x, 3, p) + A * x + B) % p
 
             # Compute square root using Tonelli-Shanks
-            y = cls.tonelli_shanks(y_squared, p)
+            y = cls.curve.mod_sqrt(y_squared)
             if y is None:
                 raise ValueError(
                     f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
@@ -385,51 +385,6 @@ class SWAffinePoint(Point[SWCurve]):
         # Return a point at infinity (None, None)
         # The curve will be set by the child class's __init__
         return cls(None, None)
-
-    @staticmethod
-    def tonelli_shanks(n: int, p: int) -> Optional[int]:
-        if pow(n, (p - 1) // 2, p) != 1:
-            return None  # No square root exists
-
-            # Special case for p ≡ 3 (mod 4)
-        if p % 4 == 3:
-            return pow(n, (p + 1) // 4, p)
-
-            # General case: Tonelli-Shanks algorithm
-            # Factor p - 1 = q * 2^s where q is odd
-        q, s = p - 1, 0
-        while q % 2 == 0:
-            q //= 2
-            s += 1
-
-        # Find a quadratic non-residue z
-        z = 2
-        while pow(z, (p - 1) // 2, p) != p - 1:
-            z += 1
-
-        # Initialize variables
-        m = s
-        c = pow(z, q, p)
-        t = pow(n, q, p)
-        r = pow(n, (q + 1) // 2, p)
-
-        # Iteratively compute the square root
-        while t != 1:
-            # Find the least i such that t^(2^i) = 1
-            t2i = t
-            for i in range(1, m):
-                t2i = pow(t2i, 2, p)
-                if t2i == 1:
-                    break
-
-            # Update variables
-            b = pow(c, 1 << (m - i - 1), p)
-            m = i
-            c = pow(b, 2, p)
-            t = (t * c) % p
-            r = (r * b) % p
-
-        return r
 
 
     @classmethod
