@@ -1,10 +1,19 @@
 import time
+import pytest
 import json
 import os
 start_time=time.time()
 from dot_ring.vrf.ring.ring_vrf import RingVrf as RVRF
 HERE = os.path.dirname(__file__)
 
+# Try to import the local blst Python bindings
+try:
+    import blst
+    HAS_BLST = True
+except ImportError:
+    HAS_BLST = False
+
+@pytest.mark.skipif(not HAS_BLST, reason="Skipping MSM test: blst bindings not installed")
 def test_ring_proof():
     file_path = os.path.join(HERE, "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
     with open(file_path, 'r') as f:
