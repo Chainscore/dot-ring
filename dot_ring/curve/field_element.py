@@ -161,27 +161,27 @@ class FieldElement:
             while Q % 2 == 0:
                 Q //= 2
                 S += 1
-            z = 2
-            while pow(z, (self.p - 1) // 2, self.p) != self.p - 1:
-                z += 1
+            # z = 2
+            # while pow(z, (self.p - 1) // 2, self.p) != self.p - 1:
+            #     z += 1
 
-            c = pow(z, Q, self.p)
+            # c = pow(z, Q, self.p)
             x = pow(a, (Q + 1) // 2, self.p)
-            t = pow(a, Q, self.p)
-            m = S
+            # t = pow(a, Q, self.p)
+            # m = S
 
-            while t != 1:
-                i, temp = 0, t
-                while temp != 1 and i < m:
-                    temp = (temp * temp) % self.p
-                    i += 1
-                if i == m:
-                    return None
-                b = pow(c, 1 << (m - i - 1), self.p)
-                x = (x * b) % self.p
-                t = (t * b * b) % self.p
-                c = (b * b) % self.p
-                m = i
+            # while t != 1:
+            #     i, temp = 0, t
+            #     while temp != 1 and i < m:
+            #         temp = (temp * temp) % self.p
+            #         i += 1
+            #     if i == m:
+            #         return None
+            #     b = pow(c, 1 << (m - i - 1), self.p)
+            #     x = (x * b) % self.p
+            #     t = (t * b * b) % self.p
+            #     c = (b * b) % self.p
+            #     m = i
             return FieldElement(x, 0, self.p)
 
         # --- Fp2 case (fixed) ---
