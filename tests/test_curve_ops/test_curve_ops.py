@@ -1,4 +1,6 @@
-from  dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchPoint
+import pytest
+import random
+from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchPoint
 from dot_ring.curve.specs.jubjub import JubJub_TE_Curve, JubJubPoint
 from dot_ring.curve.specs.baby_jubjub import BabyJubJub_TE_Curve, BabyJubJubPoint
 from dot_ring.curve.specs.ed448 import Ed448_TE_Curve, Ed448Point
@@ -11,74 +13,95 @@ from dot_ring.curve.specs.curve25519 import Curve25519_MG_Curve, Curve25519Point
 from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1_SW_Curve, BLS12_381_G1Point
 from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2_SW_Curve, BLS12_381_G2Point
 
-#Test Curve Operations w.r.t Fundamental Properties
-#Addition Property (Point+Identity=Point)
-#Scalar Multiplication Property (Generator*Order=Identity)
-#Negation Property (Point+(-Point)=Identity)
+#PROPERTY-BASED TESTS; General mathematical group properties
+@pytest.mark.parametrize("PointClass, CurveClass", [
+    (BandersnatchPoint, Bandersnatch_TE_Curve),
+    (JubJubPoint, JubJub_TE_Curve),
+    (BabyJubJubPoint, BabyJubJub_TE_Curve),
+    (Ed448Point, Ed448_TE_Curve),
+    (Ed25519Point, Ed25519_TE_Curve),
+    (Curve448Point, Curve448_MG_Curve),
+    (Curve25519Point, Curve25519_MG_Curve),
+    (P256Point, P256_SW_Curve),
+    (P384Point, P384_SW_Curve),
+    (P521Point, P521_SW_Curve),
+    (BLS12_381_G1Point, BLS12_381_G1_SW_Curve),
+    (BLS12_381_G2Point, BLS12_381_G2_SW_Curve),
+])
+def test_curve_property_based(PointClass, CurveClass):
+    """
+    Property-based tests for fundamental group operations:
+    - Commutativity: P + Q == Q + P
+    - Associativity: (P + Q) + R == P + (Q + R)
+    - Distributivity: (a + b)P == aP + bP
+    - Scalar wrap-around: (order * P) == identity
+    - Negation: P + (-P) == identity
+    """
+    Generator = PointClass.generator_point()
+    order = CurveClass.ORDER
 
-def test_curve_arth_ops():
+    # Random scalars within valid range
+    a = random.randint(1, order - 1)
+    b = random.randint(1, order - 1)
+    c = random.randint(1, order - 1)
 
-    #Check For Edwards Curves
-    Generator=BandersnatchPoint.generator_point()
-    #addition property
-    assert Generator+BandersnatchPoint.identity()==Generator
-    assert Generator+(-Generator)==BandersnatchPoint.identity()
-    assert (BandersnatchPoint.scalar_mul(Generator,Bandersnatch_TE_Curve.ORDER)).is_identity()
+    P = Generator * a
+    Q = Generator * b
+    R = Generator * c
+
+    #Commutativity
+    assert (P + Q) == (Q + P)
+
+    #Associativity
+    assert ((P + Q) + R) == (P + (Q + R))
+
+    #Distributivity
+    lhs = Generator * ((a + b) % order)
+    rhs = (Generator * a) + (Generator * b)
+    assert lhs == rhs
+
+    #Scalar wrap-around
+    assert (Generator * order).is_identity()
+
+    #Negation
+    assert (P + (-P)).is_identity()
 
 
-    Generator=JubJubPoint.generator_point()
-    assert Generator + JubJubPoint.identity() == Generator
-    assert Generator+(-Generator)==JubJubPoint.identity()
-    assert (Generator*JubJub_TE_Curve.ORDER).is_identity()
+# SANITY TESTS; Simple deterministic checks per curve
+def test_curve_sanity_operations():
+    """
+    Sanity checks for basic curve operations:
+    - Point + Identity = Point
+    - Point + (-Point) = Identity
+    - Generator * Order = Identity
+    """
 
-    Generator=BabyJubJubPoint.generator_point()
-    assert Generator + BabyJubJubPoint.identity() == Generator
-    assert Generator+(-Generator)==BabyJubJubPoint.identity()
-    assert (Generator*BabyJubJub_TE_Curve.ORDER).is_identity()
+    curve_data = [
+        (BandersnatchPoint, Bandersnatch_TE_Curve),
+        (JubJubPoint, JubJub_TE_Curve),
+        (BabyJubJubPoint, BabyJubJub_TE_Curve),
+        (Ed448Point, Ed448_TE_Curve),
+        (Ed25519Point, Ed25519_TE_Curve),
+        (Curve448Point, Curve448_MG_Curve),
+        (Curve25519Point, Curve25519_MG_Curve),
+        (P256Point, P256_SW_Curve),
+        (P384Point, P384_SW_Curve),
+        (P521Point, P521_SW_Curve),
+        (BLS12_381_G1Point, BLS12_381_G1_SW_Curve),
+        (BLS12_381_G2Point, BLS12_381_G2_SW_Curve),
+    ]
 
-    Generator = Ed448Point.generator_point()
-    assert Generator+Ed448Point.identity()==Generator
-    assert Generator+(-Generator)==Ed448Point.identity()
-    assert (Generator * Ed448_TE_Curve.ORDER).is_identity()
+    for PointClass, CurveClass in curve_data:
+        Generator = PointClass.generator_point()
+        Identity = PointClass.identity()
+        Order = CurveClass.ORDER
 
-    Generator = Ed25519Point.generator_point()
-    assert Generator+Ed25519Point.identity()==Generator
-    assert Generator+(-Generator)==Ed25519Point.identity()
-    assert (Generator * Ed25519_TE_Curve.ORDER).is_identity()
+        # Addition with identity
+        assert Generator + Identity == Generator
+        assert Identity + Generator == Generator
 
-    #Check For Montgomery Curves
-    Generator = Curve448Point.generator_point()
-    assert Generator+Curve448Point.identity()==Generator
-    assert Generator+(-Generator)==Curve448Point.identity()
-    assert (Generator * Curve448_MG_Curve.ORDER).is_identity()
+        # Negation property
+        assert Generator + (-Generator) == Identity
 
-    Generator = Curve25519Point.generator_point()
-    assert Generator+Curve25519Point.identity()==Generator
-    assert Generator+(-Generator)==Curve25519Point.identity()
-    assert (Generator * Curve25519_MG_Curve.ORDER).is_identity()
-
-    #Check For Weierstrass Curves
-    Generator = P256Point.generator_point()
-    assert Generator + P256Point.identity()== Generator
-    assert Generator+(-Generator)==P256Point.identity()
-    assert (Generator * P256_SW_Curve.ORDER).is_identity()
-
-    Generator = P384Point.generator_point()
-    assert Generator + P384Point.identity()== Generator
-    assert Generator+(-Generator)==P384Point.identity()
-    assert (Generator * P384_SW_Curve.ORDER).is_identity()
-
-    Generator = P521Point.generator_point()
-    assert Generator + P521Point.identity()== Generator
-    assert Generator+(-Generator)==P521Point.identity()
-    assert (Generator * P521_SW_Curve.ORDER).is_identity()
-
-    Generator = BLS12_381_G1Point.generator_point()
-    assert Generator + BLS12_381_G1Point.identity()== Generator
-    assert Generator+(-Generator)==BLS12_381_G1Point.identity()
-    assert (Generator * BLS12_381_G1_SW_Curve.ORDER).is_identity()
-
-    Generator=BLS12_381_G2Point.generator_point()
-    assert Generator + BLS12_381_G2Point.identity()== Generator
-    assert Generator+(-Generator)==BLS12_381_G2Point.identity()
-    assert (Generator*BLS12_381_G2_SW_Curve.ORDER).is_identity()
+        # Scalar multiplication order property
+        assert (Generator * Order).is_identity()
