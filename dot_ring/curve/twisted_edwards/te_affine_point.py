@@ -85,18 +85,20 @@ class TEAffinePoint(Point[C]):
 
         Raises:
             TypeError: If other is not a TEAffinePoint
+            ValueError: If points cannot be added (e.g., when denominators are zero)
         """
         if not isinstance(other, TEAffinePoint):
             raise TypeError("Can only add TEAffinePoints")
 
-        if self == other:
-            return self.double()
-
+        # Handle identity element
         if self == self.identity_point():
             return other
-
         if other == self.identity_point():
             return self
+
+        # Handle point doubling
+        if self == other:
+            return self.double()
 
         p = self.curve.PRIME_FIELD
         x1, y1 = self.x, self.y
@@ -109,11 +111,55 @@ class TEAffinePoint(Point[C]):
         x1x2 = (x1 * x2) % p
         dx1x2y1y2 = (self.curve.EdwardsD * x1x2 * y1y2) % p
 
-        # Compute result coordinates
-        x3 = ((x1y2 + x2y1) * self.curve.mod_inverse(1 + dx1x2y1y2)) % p
-        y3 = (
-                     (y1y2 - self.curve.EdwardsA * x1x2) * self.curve.mod_inverse(1 - dx1x2y1y2)
-             ) % p
+        # Compute denominators
+        denom1 = (1 + dx1x2y1y2) % p
+        denom2 = (1 - dx1x2y1y2) % p
+
+        # Handle edge cases
+        if denom1 == 0 or denom2 == 0:
+            # If either denominator is zero, use the addition formula for points
+            # that are inverses of each other (x1 = -x2, y1 = y2)
+            if (x1 + x2) % p == 0 and y1 == y2:
+                return self.identity_point()
+            # Otherwise, use the complete addition formula
+            return self.complete_add(other)
+
+        # Standard addition formula
+        x3 = ((x1y2 + x2y1) * self.curve.mod_inverse(denom1)) % p
+        y3 = ((y1y2 - self.curve.EdwardsA * x1x2) * self.curve.mod_inverse(denom2)) % p
+
+        return self.__class__(x3, y3)
+
+    def complete_add(self, other: 'TEAffinePoint') -> 'TEAffinePoint':
+        """
+        Complete addition formula that works for all points, including edge cases.
+        Implements the unified addition formula from https://eprint.iacr.org/2008/013.pdf
+        """
+        if not isinstance(other, TEAffinePoint):
+            raise TypeError("Can only add TEAffinePoints")
+
+        p = self.curve.PRIME_FIELD
+        a = self.curve.EdwardsA
+        d = self.curve.EdwardsD
+
+        x1, y1 = self.x, self.y
+        x2, y2 = other.x, other.y
+
+        # Unified addition formula
+        A = (y1 - x1) * (y2 - x2) % p
+        B = (y1 + x1) * (y2 + x2) % p
+        C = (2 * d * x1 * x2 * y1 * y2) % p
+        D = (2 * (1 + C)) % p
+        E = (B - A) % p
+        F = (B + A) % p
+        G = (2 - D) % p
+
+        # Handle division by zero (shouldn't happen with this formula)
+        if D == 0 or G == 0:
+            return self.identity_point()
+
+        x3 = (E * self.curve.mod_inverse(D)) % p
+        y3 = (F * self.curve.mod_inverse(G)) % p
 
         return self.__class__(x3, y3)
 
