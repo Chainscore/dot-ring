@@ -22,7 +22,7 @@ class Ed25519Params:
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed
-    ORDER: Final[int] = 2 ^ 252 + 0x14def9dea2f79cd65812631a5cf5d3ed
+    ORDER: Final[int] = 2**252 + 0x14def9dea2f79cd65812631a5cf5d3ed
     COFACTOR: Final[int] = 8
 
     # Generator point
