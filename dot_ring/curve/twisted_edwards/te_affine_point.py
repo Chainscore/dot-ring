@@ -1,15 +1,10 @@
 from __future__ import annotations
-import hashlib
 import math
 from dataclasses import dataclass
 from typing import TypeVar, Self, Any, Tuple
-from sympy import mod_inverse
-
 from dot_ring.curve.e2c import E2C_Variant
 from ..point import Point, PointProtocol
 from .te_curve import TECurve
-
-
 C = TypeVar("C", bound=TECurve)
 
 
@@ -85,9 +80,9 @@ class TEAffinePoint(Point[C]):
         dx1x2y1y2 = (self.curve.EdwardsD * x1x2 * y1y2) % p
 
         # Compute result coordinates
-        x3 = ((x1y2 + x2y1) * self.curve.mod_inverse(1 + dx1x2y1y2)) % p
+        x3 = ((x1y2 + x2y1) * pow(1 + dx1x2y1y2, -1, self.curve.PRIME_FIELD)) % p
         y3 = (
-                     (y1y2 - self.curve.EdwardsA * x1x2) * self.curve.mod_inverse(1 - dx1x2y1y2)
+                     (y1y2 - self.curve.EdwardsA * x1x2) * pow(1 - dx1x2y1y2,-1, self.curve.PRIME_FIELD)
              ) % p
 
         return self.__class__(x3, y3)
@@ -135,9 +130,9 @@ class TEAffinePoint(Point[C]):
             return self.identity_point()
 
         # Calculate new coordinates
-        x3 = (2 * x1 * y1 * self.curve.mod_inverse(denom_x)) % p
+        x3 = (2 * x1 * y1 * pow(denom_x, -1, self.curve.PRIME_FIELD)) % p
         y3 = (
-                     (y1 ** 2 - self.curve.EdwardsA * x1 ** 2) * self.curve.mod_inverse(denom_y)
+                     (y1 ** 2 - self.curve.EdwardsA * x1 ** 2) * pow(denom_y,-1, self.curve.PRIME_FIELD)
              ) % p
 
         return self.__class__(x3, y3)
@@ -300,8 +295,8 @@ class TEAffinePoint(Point[C]):
         y_p = (g_y * xy) % p
         z_p = (h_y * xy) % p
 
-        x_a = (x_p * mod_inverse(z_p, p)) % p
-        y_a = (y_p * mod_inverse(z_p, p)) % p
+        x_a = (x_p * pow(z_p,-1, p)) % p
+        y_a = (y_p * pow(z_p,-1,p)) % p
 
         return self.__class__(x_a, y_a)
 
@@ -427,7 +422,7 @@ class TEAffinePoint(Point[C]):
         tv2 = (tv1 * t) % field
 
         try:
-            tv2 = cls.curve.mod_inverse(tv2)
+            tv2 = pow(tv2,-1, cls.curve.PRIME_FIELD)
         except ValueError:
             tv2 = 0
 
