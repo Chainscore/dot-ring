@@ -1,13 +1,10 @@
 from __future__ import annotations
-from concurrent.futures import ProcessPoolExecutor
 import time
-
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 # from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
 from dot_ring.ring_proof.constants import SeedPoint
 from dataclasses import dataclass, field
 from typing import Dict, List, Mapping, Sequence, Any
-
 from dot_ring.ring_proof.constants import (
     S_PRIME,
     OMEGA,
@@ -74,22 +71,21 @@ class RingConstraintBuilder:
     _accy4: List[int] = field(init=False, repr=False)
     _accip4: List[int] = field(init=False, repr=False)
 
-
     def __post_init__(self):
+        # Convert all input polynomials to radix-4 in a single batch
+        input_polys = [
+            self.px, self.py, self.s, self.b,
+            self.acc_x, self.acc_y, self.acc_ip
+        ]
 
-        # self._px4    = _to_radix4(self.px)
-        # self._py4    = _to_radix4(self.py)
-        # self._s4     = _to_radix4(self.s)
-        # self._b4     = _to_radix4(self.b)
-        # self._accx4  = _to_radix4(self.acc_x)
-        # self._accy4  = _to_radix4(self.acc_y)
-        # self._accip4 = _to_radix4(self.acc_ip)
-        input_polys = [self.px, self.py, self.s, self.b, self.acc_x, self.acc_y, self.acc_ip]
+        # Process all polynomials in a single batch
+        results = [_to_radix4(poly) for poly in input_polys]
 
-        with ProcessPoolExecutor() as executor:
-            results = list(executor.map(_to_radix4, input_polys))
-
-        self._px4, self._py4, self._s4, self._b4, self._accx4, self._accy4, self._accip4 = results
+        # Unpack results
+        (
+            self._px4, self._py4, self._s4,
+            self._b4, self._accx4, self._accy4, self._accip4
+        ) = results
 
     # convenient classmethod for Column builders
     @classmethod
