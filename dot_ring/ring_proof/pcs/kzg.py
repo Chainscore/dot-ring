@@ -1,21 +1,18 @@
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Sequence, Tuple, Any
-
-import time
 import py_ecc.optimized_bls12_381 as bls
 from py_ecc.optimized_bls12_381 import (
     G1,
     add,
     multiply,
-    neg, Z1, pairing, normalize, double)
+    neg)
 from py_ecc.optimized_bls12_381.optimized_pairing import miller_loop
 from py_ecc.optimized_bls12_381 import FQ, FQ2
 #use either of pyblst or blst from github
-from pyblst import BlstP1Element, final_verify, BlstP2Element
+from pyblst import BlstP1Element
 
 from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.ring_proof.pcs.load_powers import (
@@ -124,17 +121,41 @@ class KZG:
         else:
             return self.in_built_commit(scalars)
 
-    #commitment generation using py_blst
-    def in_built_commit(self, scalars:CoeffVector)->G1Point:
-        # bases_py_ecc = self._srs.g1[:len(scalars)]
-        bases=self._blst_g1_cache[:len(scalars)]
-        # bases = [self.py_ecc_point_to_blst(p) for p in bases_py_ecc]
+    # def in_built_commit(self, scalars: CoeffVector) -> G1Point:
+    #     # Get the required bases from cache
+    #     bases = self._blst_g1_cache[:len(scalars)]
+    #
+    #     # Process in chunks to balance memory and CPU usage
+    #     chunk_size = 256
+    #     chunks = [(bases[i:i + chunk_size], scalars[i:i + chunk_size])
+    #               for i in range(0, len(scalars), chunk_size)]
+    #
+    #     acc = BlstP1Element()
+    #
+    #     for bases_chunk, scalars_chunk in chunks:
+    #         # Process each chunk in a single thread
+    #         chunk_acc = BlstP1Element()
+    #         for base, scalar in zip(bases_chunk, scalars_chunk):
+    #             chunk_acc += base.scalar_mul(scalar)
+    #         acc += chunk_acc
+    #
+    #     # Convert the result back to the expected format
+    #     decompressed = Helpers.bls_g1_decompress(acc.compress().hex())
+    #     return decompressed
+    def in_built_commit(self, scalars: CoeffVector) -> G1Point:
+        bases = self._blst_g1_cache[:len(scalars)]
         acc = BlstP1Element()
-        for base, scalar in zip(bases, scalars):
-            acc += base.scalar_mul(scalar)
-        res=acc
-        decompressed = Helpers.bls_g1_decompress(res.compress().hex()) #compress the blst to byte_string and then to bls g1 point type
-        return decompressed
+
+        # Process in a single thread with larger chunks
+        chunk_size =1024 # Increased chunk size to reduce loop overhead
+        for i in range(0, len(scalars), chunk_size):
+            chunk_end = min(i + chunk_size, len(scalars))
+            chunk_acc = BlstP1Element()
+            for j in range(i, chunk_end):
+                chunk_acc += bases[j].scalar_mul(scalars[j])
+            acc += chunk_acc
+
+        return Helpers.bls_g1_decompress(acc.compress().hex())
 
     # w.o using multi scalar multiplication
     # def commit(self, coeffs: CoeffVector) -> G1Point:
@@ -411,12 +432,9 @@ class KZG:
         left_pairing =miller_loop(shifted_g2,proof)
         return left_pairing == right_pairing
 
-
     @classmethod
     def default(cls, *, max_deg: int = 2048, use_third_party_commit=True) -> "KZG":
         srs = SRS.default(max_deg)
         kzg = cls(srs)
         kzg.use_third_party_commit = use_third_party_commit  # <== Add this flag to instance
         return kzg
-
-
