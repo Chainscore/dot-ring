@@ -143,19 +143,36 @@ class KZG:
     #     decompressed = Helpers.bls_g1_decompress(acc.compress().hex())
     #     return decompressed
     def in_built_commit(self, scalars: CoeffVector) -> G1Point:
+        # Early exit for empty input
+        if not scalars:
+            return Helpers.bls_g1_decompress(BlstP1Element().compress().hex())
+            
+        # Use list comprehension for faster base extraction
         bases = self._blst_g1_cache[:len(scalars)]
         acc = BlstP1Element()
-
-        # Process in a single thread with larger chunks
-        chunk_size =1024 # Increased chunk size to reduce loop overhead
-        for i in range(0, len(scalars), chunk_size):
-            chunk_end = min(i + chunk_size, len(scalars))
+        
+        # Use a larger chunk size for better cache utilization
+        chunk_size = 4096
+        
+        # Pre-allocate memory for chunks
+        chunks = [(bases[i:i + chunk_size], scalars[i:i + chunk_size]) 
+                 for i in range(0, len(scalars), chunk_size)]
+        
+        # Process chunks with optimized loop
+        for bases_chunk, scalars_chunk in chunks:
             chunk_acc = BlstP1Element()
-            for j in range(i, chunk_end):
-                chunk_acc += bases[j].scalar_mul(scalars[j])
+            # Use zip for cleaner iteration and better performance
+            for base, scalar in zip(bases_chunk, scalars_chunk):
+                if scalar:  # Skip zero scalars
+                    chunk_acc += base.scalar_mul(scalar)
             acc += chunk_acc
-
-        return Helpers.bls_g1_decompress(acc.compress().hex())
+        
+        # Only decompress if needed (if the point is not at infinity)
+        if acc == BlstP1Element():
+            return acc
+            
+        compressed = acc.compress()
+        return Helpers.bls_g1_decompress(compressed.hex())
 
     # w.o using multi scalar multiplication
     # def commit(self, coeffs: CoeffVector) -> G1Point:
