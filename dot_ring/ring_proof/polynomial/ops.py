@@ -1,5 +1,5 @@
-from dot_ring.ring_proof.constants import S_PRIME, D_512 as D
 
+from dot_ring.ring_proof.constants import S_PRIME
 def mod_inverse(val, prime):
     """Find the modular multiplicative inverse of a under modulo m."""
     if pow(val, prime - 1, prime) != 1:
@@ -44,49 +44,40 @@ def poly_multiply(poly1, poly2, prime):
             result[i + j] = (result[i + j] + poly1[i] * poly2[j]) % prime
     return result
 
-
-import time
-
-def poly_division_general(c, d, p=S_PRIME):
+def poly_division_general(coeffs, domain_size):
     """
-    c: list of coefficients for numerator (highest degree last)
-    d: list of coefficients for denominator
-    p: optional modulus (for finite field arithmetic)
-    returns (quotient, remainder)
+    Divide polynomial f(x) by vanishing polynomial Z_H(x) = x^domain_size - 1
+
+    Args:
+        coeffs: list[int or Fp] - coefficients of f(x), lowest degree first
+        domain_size: int - size of the evaluation domain (n)
+
+    Returns:
+        (quotient) a lists of coefficients
     """
-    start=time.time()
-    c = c[:]  # copy to avoid modifying input
-    deg_c = len(c) - 1
-    deg_d = len(d) - 1
 
-    if deg_c < deg_d:
-        return ([0], c)
+    n = domain_size
+    deg_f = len(coeffs)
 
-    quotient = [0] * (deg_c - deg_d + 1)
+    # Case 1: degree(f) < domain_size -> quotient = 0, remainder = f
+    if deg_f < n:
+        return [0], coeffs[:]
 
-    while len(c) >= len(d):
-        coeff = c[-1]
-        deg_diff = len(c) - len(d)
+    # Step 1️: initial quotient is the higher-degree coefficients
+    quotient = coeffs[n:].copy()
 
-        if p:
-            inv = mod_inverse(d[-1], p)
-            coeff = (coeff * inv) % p
-        else:
-            coeff = coeff / d[-1]
+    # Step 2️: accumulate wrapped parts if polynomial is longer than 2n
+    # Equivalent to folding coefficients every n steps
+    for i in range(1, deg_f // n):
+        for j in range(len(quotient)):
+            src_index = n * (i + 1) + j
+            if src_index < deg_f:
+                quotient[j] += coeffs[src_index]
 
-        quotient[deg_diff] = coeff
-
-        # Subtract (coeff * d * x^deg_diff) from c
-        for i in range(len(d)):
-            if p:
-                c[deg_diff + i] = (c[deg_diff + i] - coeff * d[i]) % p
-            else:
-                c[deg_diff + i] -= coeff * d[i]
-
-        # Remove trailing zeroes
-        while c and c[-1] == 0:
-            c.pop()
-    return quotient#, c
+    #trim trailing zeros for cleaner output
+    while quotient and quotient[-1] == 0:
+        quotient.pop()
+    return quotient
 
 
 def poly_scalar(poly, scalar, prime):
@@ -102,7 +93,7 @@ def poly_scalar(poly, scalar, prime):
 #         result = (result * x + coef) % prime
 #     return result
 
-#30%
+#
 # import gmpy2
 # def poly_evaluate(poly, x, prime):
 #     x = gmpy2.mpz(x)
@@ -111,16 +102,15 @@ def poly_scalar(poly, scalar, prime):
 #         result = (result * x + coef) % prime
 #     return int(result)
 
-#70%
-from multiprocessing import Pool, cpu_count
 
+from multiprocessing import Pool, cpu_count
 def poly_evaluate_single(args):
     poly, x, prime = args
     result=0
     for coef in reversed(poly):
         result = (result * x + coef) % prime
     return result  # Ensure plain Python int
-
+#
 def poly_evaluate(poly, xs, prime):
     prime = int(prime)
     # Single-point evaluation
@@ -132,7 +122,6 @@ def poly_evaluate(poly, xs, prime):
         args = [(poly, x, prime) for x in xs]
         results = pool.map(poly_evaluate_single, args)
         return results
-
 
 def lagrange_basis_polynomial(x_coords, i, prime=S_PRIME):
     """
@@ -155,7 +144,8 @@ def lagrange_basis_polynomial(x_coords, i, prime=S_PRIME):
             denominator = (denominator * diff) % prime
 
     # Calculate modular inverse of denominator
-    inv_denominator = mod_inverse(denominator, prime)
+    # inv_denominator = mod_inverse(denominator, prime)
+    inv_denominator = pow(denominator, -1, prime)
     # Scale the numerator polynomial
     basis_poly = poly_scalar(numerator, inv_denominator, prime)
 
