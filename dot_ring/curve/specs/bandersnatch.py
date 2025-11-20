@@ -88,7 +88,7 @@ class BandersnatchCurve(TECurve):
             GENERATOR_X=BandersnatchParams.GENERATOR_X,
             GENERATOR_Y=BandersnatchParams.GENERATOR_Y,
             COFACTOR=BandersnatchParams.COFACTOR,
-            glv=GLVSpecs,
+            glv=BandersnatchGLVSpecs,
             Z=BandersnatchParams.Z,
             EdwardsA=BandersnatchParams.EDWARDS_A,
             EdwardsD=BandersnatchParams.EDWARDS_D,

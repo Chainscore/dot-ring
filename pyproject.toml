@@ -56,8 +56,10 @@ dev = [
     "pytest-xdist>=3.0.0"
 ]
 
-blst = [
-    "pyblst>=0.3.13"
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*SwigPy.*:DeprecationWarning",
+    "ignore:.*swigvarlink.*:DeprecationWarning"
 ]
 
 [project.urls]

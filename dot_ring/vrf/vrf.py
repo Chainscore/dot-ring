@@ -1,7 +1,8 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
-import hmac, hashlib
+import hmac,hashlib
+
 from ..curve.curve import Curve
 from ..curve.point import Point
 from ..ring_proof.helpers import Helpers
@@ -120,9 +121,8 @@ class VRF(ABC):
         # Convert to integer and reduce modulo curve order
         return Helpers.b_endian_2_int(challenge_hash) % self.curve.ORDER
 
-    #other way of nonce generation
-    def ecvrf_nonce_rfc6979(self,secret_scalar: int, h_string: bytes, hash_func="sha256"):
-
+        # other way of nonce generation
+    def ecvrf_nonce_rfc6979(self, secret_scalar: int, h_string: bytes, hash_func="sha256"):
         """
         nonce generation as per rfc_6979
         Deterministically derives a nonce from secret scalar and input bytes.
@@ -130,7 +130,7 @@ class VRF(ABC):
         """
         hasher = getattr(hashlib, hash_func)
         hlen = hasher().digest_size
-        q=self.curve.ORDER
+        q = self.curve.ORDER
         # Convert inputs
         x_bytes = secret_scalar.to_bytes((q.bit_length() + 7) // 8, "big")
         h1 = hasher(h_string).digest()
@@ -152,6 +152,8 @@ class VRF(ABC):
         if k == 0:
             k = 1  # (optional) avoid zero, as per RFC6979 loop idea
         return k
+
+
 
     def ecvrf_decode_proof(self, pi_string: bytes|str) -> Tuple[Point, int, int]:
         """Decode VRF proof.

@@ -11,8 +11,8 @@ from py_ecc.optimized_bls12_381 import (
     neg)
 from py_ecc.optimized_bls12_381.optimized_pairing import miller_loop
 from py_ecc.optimized_bls12_381 import FQ, FQ2
-#use either of pyblst or blst from github
-from pyblst import BlstP1Element
+# use either of pyblst or blst from github
+from pyblst import BlstP1Element, final_verify, BlstP2Element
 
 from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.ring_proof.pcs.load_powers import (
@@ -24,7 +24,7 @@ Scalar = int
 CoeffVector = List[Scalar]
 G1Point = Tuple[FQ, FQ, FQ]
 G2Point = Tuple[FQ2, FQ2, FQ2]
-Point_G1=Any
+Point_G1 = Any
 
 
 def _horner_eval(poly: CoeffVector, x: Scalar) -> Scalar:
@@ -69,8 +69,8 @@ class SRS:
     def _to_jacobian_g2(cls, pt) -> G2Point:
         if len(pt) == 3:
             return pt
-        x,y=pt
-        res=(FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0]))
+        x, y = pt
+        res = (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0]))
         return res
 
     @classmethod
@@ -89,18 +89,16 @@ class SRS:
         return SRS.from_loaded(max_deg)
 
 
-
-
 @dataclass(slots=True, frozen=True)
 class Opening:
     proof: G1Point  # commitment to the quotient polynomial
     y: Scalar  # claimed evaluation f(x)
 
+
 class KZG:
     """Commit‑and‑open abstraction hiding group math from callers."""
 
-    __slots__ = ("_srs","_blst_g1_cache","use_third_party_commit")
-
+    __slots__ = ("_srs", "_blst_g1_cache", "use_third_party_commit")
 
     def __init__(self, srs: SRS, use_third_party_commit: bool = True):
         self._srs = srs
@@ -110,10 +108,9 @@ class KZG:
     # convert py_ecc's bls g1 type point to blst_P1
     @staticmethod
     def py_ecc_point_to_blst(p):
-            compressed_hex = Helpers.bls_g1_compress(p)  # gives valid compressed hex string
-            compressed_bytes = bytes.fromhex(compressed_hex)
-            return BlstP1Element().uncompress(compressed_bytes)
-
+        compressed_hex = Helpers.bls_g1_compress(p)  # gives valid compressed hex string
+        compressed_bytes = bytes.fromhex(compressed_hex)
+        return BlstP1Element().uncompress(compressed_bytes)
 
     def commit(self, scalars: CoeffVector) -> G1Point:
         if getattr(self, "use_third_party_commit", True):
@@ -121,58 +118,18 @@ class KZG:
         else:
             return self.in_built_commit(scalars)
 
-    # def in_built_commit(self, scalars: CoeffVector) -> G1Point:
-    #     # Get the required bases from cache
-    #     bases = self._blst_g1_cache[:len(scalars)]
-    #
-    #     # Process in chunks to balance memory and CPU usage
-    #     chunk_size = 256
-    #     chunks = [(bases[i:i + chunk_size], scalars[i:i + chunk_size])
-    #               for i in range(0, len(scalars), chunk_size)]
-    #
-    #     acc = BlstP1Element()
-    #
-    #     for bases_chunk, scalars_chunk in chunks:
-    #         # Process each chunk in a single thread
-    #         chunk_acc = BlstP1Element()
-    #         for base, scalar in zip(bases_chunk, scalars_chunk):
-    #             chunk_acc += base.scalar_mul(scalar)
-    #         acc += chunk_acc
-    #
-    #     # Convert the result back to the expected format
-    #     decompressed = Helpers.bls_g1_decompress(acc.compress().hex())
-    #     return decompressed
+    # commitment generation using py_blst
     def in_built_commit(self, scalars: CoeffVector) -> G1Point:
-        # Early exit for empty input
-        if not scalars:
-            return Helpers.bls_g1_decompress(BlstP1Element().compress().hex())
-            
-        # Use list comprehension for faster base extraction
+        # bases_py_ecc = self._srs.g1[:len(scalars)]
         bases = self._blst_g1_cache[:len(scalars)]
+        # bases = [self.py_ecc_point_to_blst(p) for p in bases_py_ecc]
         acc = BlstP1Element()
-        
-        # Use a larger chunk size for better cache utilization
-        chunk_size = 4096
-        
-        # Pre-allocate memory for chunks
-        chunks = [(bases[i:i + chunk_size], scalars[i:i + chunk_size]) 
-                 for i in range(0, len(scalars), chunk_size)]
-        
-        # Process chunks with optimized loop
-        for bases_chunk, scalars_chunk in chunks:
-            chunk_acc = BlstP1Element()
-            # Use zip for cleaner iteration and better performance
-            for base, scalar in zip(bases_chunk, scalars_chunk):
-                if scalar:  # Skip zero scalars
-                    chunk_acc += base.scalar_mul(scalar)
-            acc += chunk_acc
-        
-        # Only decompress if needed (if the point is not at infinity)
-        if acc == BlstP1Element():
-            return acc
-            
-        compressed = acc.compress()
-        return Helpers.bls_g1_decompress(compressed.hex())
+        for base, scalar in zip(bases, scalars):
+            acc += base.scalar_mul(scalar)
+        res = acc
+        decompressed = Helpers.bls_g1_decompress(
+            res.compress().hex())  # compress the blst to byte_string and then to bls g1 point type
+        return decompressed
 
     # w.o using multi scalar multiplication
     # def commit(self, coeffs: CoeffVector) -> G1Point:
@@ -188,28 +145,6 @@ class KZG:
     #
     #     print("Inside Commit func:", end_time - start_time)
     #     return acc
-    @staticmethod
-    def fq_to_bytes(fq_element, byte_length=48):
-        """Convert optimized_bls12_381_FQ to 48-byte big-endian format"""
-        try:
-            # Try different methods to extract the integer value
-            if hasattr(fq_element, 'n'):
-                # Some libraries store the value in .n attribute
-                value = fq_element.n
-            elif hasattr(fq_element, 'value'):
-                # Some libraries store the value in .value attribute
-                value = fq_element.value
-            elif hasattr(fq_element, '__int__'):
-                # If it supports direct int conversion
-                value = int(fq_element)
-            else:
-                # Try to convert to string then int (last resort)
-                value = int(str(fq_element))
-
-            # Convert to 48-byte big-endian format as required by blst
-            return value.to_bytes(byte_length, 'big')
-        except Exception as e:
-            raise ValueError(f"Cannot convert FQ element to bytes: {e}")
 
     @staticmethod
     def jacobian_to_affine_coords(x, y, z):
@@ -263,24 +198,7 @@ class KZG:
             affine_point = blst.P1_Affine(point_bytes)
             return blst.P1(affine_point)
         except:
-            try:
-                # Method 2: Try deserialize
-                point = blst.P1()
-                if point.deserialize(point_bytes) == blst.BLST_SUCCESS:
-                    return point
-                else:
-                    raise ValueError("Deserialization failed")
-            except:
-                # Method 3: Try uncompress (if we have compressed format)
-                try:
-                    point = blst.P1()
-                    # Try with compressed format (48 bytes x-coordinate only)
-                    if point.uncompress(x_bytes) == blst.BLST_SUCCESS:
-                        return point
-                    else:
-                        raise ValueError("Uncompression failed")
-                except:
-                    raise ValueError("All conversion methods failed")
+            raise ValueError("All conversion methods failed")
 
     def third_party_commit(self, coeffs: CoeffVector) -> G1Point:
 
@@ -351,59 +269,7 @@ class KZG:
             return (x_fq, y_fq, z_fq)
 
         except Exception as e:
-            print(f"Method 1 failed: {e}")
-
-            try:
-                # Method 2: Use compress/serialize if available
-                compressed_bytes = blst_point.compress()  # 48 bytes compressed format
-
-                # You'll need to decompress this back to full coordinates
-                # This might require using your optimized_bls12_381 library's decompression
-                # For now, let's try a different approach
-
-                # Get the jacobian coordinates directly if possible
-                # Note: This is pseudocode - blst might not expose jacobian coords directly
-                if hasattr(blst_point, 'x') and hasattr(blst_point, 'y') and hasattr(blst_point, 'z'):
-                    x_fq = FQ(int(blst_point.x))
-                    y_fq = FQ(int(blst_point.y))
-                    z_fq = FQ(int(blst_point.z))
-                    return (x_fq, y_fq, z_fq)
-                else:
-                    raise ValueError("Cannot access jacobian coordinates")
-
-            except Exception as e2:
-                print(f"Method 2 failed: {e2}")
-
-                # Method 3: Manual decompression from compressed format
-                try:
-                    compressed = blst_point.compress()
-                    x_bytes = compressed[:48]
-                    x_int = int.from_bytes(x_bytes, 'big')
-
-                    # Decompress using curve equation y² = x³ + 4 (for BLS12-381)
-                    # This is complex and might be better done by your library
-                    p = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
-
-                    # y² = x³ + 4 (mod p)
-                    y_squared = (pow(x_int, 3, p) + 4) % p
-
-                    # Find square root (this is simplified - actual implementation is more complex)
-                    y_int = pow(y_squared, (p + 1) // 4, p)  # Works for p ≡ 3 (mod 4)
-
-                    # Check sign bit from compressed format to determine correct y
-                    if compressed[0] & 0x20:  # Sign bit
-                        y_int = p - y_int
-
-                    x_fq = FQ(x_int)
-                    y_fq = FQ(y_int)
-                    z_fq = FQ(1)
-
-                    return (x_fq, y_fq, z_fq)
-
-                except Exception as e3:
-                    raise ValueError(f"All conversion methods failed: {e}, {e2}, {e3}")
-
-
+            raise ValueError(f"Conversion method failed: {e}")
 
     def open(self, coeffs: CoeffVector, x: Scalar) -> Opening:
 
@@ -412,13 +278,12 @@ class KZG:
         proof = self.commit(q)
         return Opening(proof, y)
 
-
     def verify(self,
-            commitment: Point_G1,
-            proof: Point_G1,
-            point: Scalar,
-            value: Scalar,
-    ) -> bool:
+               commitment: Point_G1,
+               proof: Point_G1,
+               point: Scalar,
+               value: Scalar,
+               ) -> bool:
         """
         Verify a KZG proof.
 
@@ -441,12 +306,12 @@ class KZG:
         g1_value = multiply(G1, value)  # G1->G
         commitment_minus_value = add(commitment, neg(g1_value))
         # Right pairing: e(commitment - [value]G1, G2)
-        right_pairing = miller_loop(srs_g2[0],commitment_minus_value)
+        right_pairing = miller_loop(srs_g2[0], commitment_minus_value)
         # Left pairing: e(proof, [tau]G2 - [point]G2)
         # Compute left side: e(proof, [tau]G2 - [point]G2)
         g2_point = multiply(srs_g2[0], point)  # G2->H.i
         shifted_g2 = add(srs_g2[1], neg(g2_point))  # srs_g2[1]->H.t
-        left_pairing =miller_loop(shifted_g2,proof)
+        left_pairing = miller_loop(shifted_g2, proof)
         return left_pairing == right_pairing
 
     @classmethod

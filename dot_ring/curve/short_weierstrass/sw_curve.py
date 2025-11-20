@@ -1,8 +1,7 @@
 from __future__ import annotations
-
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Final, Tuple
+from typing import Final
 from dot_ring.curve.curve import Curve
 
 @dataclass(frozen=True)
@@ -67,19 +66,3 @@ class SWCurve(Curve):
         b_squared = pow(B, 2, p)
         discriminant = (4 * a_cubed + 27 * b_squared) % p
         return discriminant != 0
-
-
-    def j_invariant(self) -> int:
-        """
-        Calculate the j-invariant of the curve.
-
-        Returns:
-            int: j-invariant
-        """
-        A = self.WeierstrassA
-        B = self.WeierstrassB
-        p = self.PRIME_FIELD
-
-        discriminant = (4 * pow(A, 3, p) + 27 * pow(B, 2, p)) % p
-        numerator = (1728 * 4 * pow(A, 3, p)) % p
-        return (numerator * self.mod_inverse(discriminant)) % p

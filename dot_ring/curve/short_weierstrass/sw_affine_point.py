@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import  Self, Union, Optional, Any, TypeVar
+from typing import Self, Union, Optional, Any, TypeVar
 
 from dot_ring.curve.point import Point
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
@@ -220,7 +220,7 @@ class SWAffinePoint(Point[SWCurve]):
             y_squared = (pow(x, 3, p) + A * x + B) % p
 
             # Compute square root using Tonelli-Shanks
-            y = cls.tonelli_shanks(y_squared, p)
+            y = cls.curve.mod_sqrt(y_squared)
             if y is None:
                 # raise ValueError(
                 #     f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
@@ -265,36 +265,6 @@ class SWAffinePoint(Point[SWCurve]):
             point = cls(x, y)
 
             # Verify point is on curve
-            if not point.is_on_curve():
-                raise ValueError(f"Point ({x}, {y}) is not on curve")
-
-            return point
-
-        # Handle hybrid format (0x06 or 0x07) - optional, not commonly used
-        elif prefix in (0x06, 0x07):
-            # Hybrid format: prefix + x + y, where prefix encodes y parity redundantly
-            expected_len = 1 + 2 * field_byte_len
-            if len(octet_string) != expected_len:
-                raise ValueError(
-                    f"Invalid hybrid point length: expected {expected_len}, got {len(octet_string)}"
-                )
-
-            x_bytes = octet_string[1:1 + field_byte_len]
-            y_bytes = octet_string[1 + field_byte_len:]
-
-            x = int.from_bytes(x_bytes, "big")
-            y = int.from_bytes(y_bytes, "big")
-
-            # Validate coordinates are in field
-            if x >= p or y >= p:
-                raise ValueError("Coordinates not in field")
-
-            # Verify y parity matches prefix
-            if (y % 2 == 0 and prefix == 0x07) or (y % 2 == 1 and prefix == 0x06):
-                raise ValueError("Hybrid format: y parity doesn't match prefix")
-
-            point = cls(x, y)
-
             if not point.is_on_curve():
                 raise ValueError(f"Point ({x}, {y}) is not on curve")
 
@@ -415,68 +385,6 @@ class SWAffinePoint(Point[SWCurve]):
         # Return a point at infinity (None, None)
         # The curve will be set by the child class's __init__
         return cls(None, None)
-
-    @staticmethod
-    def tonelli_shanks(n: int, p: int) -> Optional[int]:
-        if pow(n, (p - 1) // 2, p) != 1:
-            return None  # No square root exists
-
-            # Special case for p ≡ 3 (mod 4)
-        if p % 4 == 3:
-            return pow(n, (p + 1) // 4, p)
-
-            # General case: Tonelli-Shanks algorithm
-            # Factor p - 1 = q * 2^s where q is odd
-        q, s = p - 1, 0
-        while q % 2 == 0:
-            q //= 2
-            s += 1
-
-        # Find a quadratic non-residue z
-        z = 2
-        while pow(z, (p - 1) // 2, p) != p - 1:
-            z += 1
-
-        # Initialize variables
-        m = s
-        c = pow(z, q, p)
-        t = pow(n, q, p)
-        r = pow(n, (q + 1) // 2, p)
-
-        # Iteratively compute the square root
-        while t != 1:
-            # Find the least i such that t^(2^i) = 1
-            t2i = t
-            for i in range(1, m):
-                t2i = pow(t2i, 2, p)
-                if t2i == 1:
-                    break
-
-            # Update variables
-            b = pow(c, 1 << (m - i - 1), p)
-            m = i
-            c = pow(b, 2, p)
-            t = (t * c) % p
-            r = (r * b) % p
-
-        return r
-
-    @classmethod
-    def _x_recover(cls, y: int) -> int:
-        p = cls.curve.PRIME_FIELD
-        A = cls.curve.WeierstrassA
-        B = cls.curve.WeierstrassB
-
-        # Compute right-hand side of the curve equation
-        rhs = (pow(y, 2, p) - B) % p
-
-        # Solve for x: x³ + A x = rhs mod p
-        # This requires solving cubic — but we do it by Tonelli–Shanks
-        x = cls.tonelli_shanks(rhs, p)
-        if x is None:
-            raise ValueError("No x found for given y")
-
-        return x
 
 
     @classmethod

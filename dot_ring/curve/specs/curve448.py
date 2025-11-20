@@ -1,4 +1,3 @@
-# /home/siva/PycharmProjects/dot_ring/dot_ring/curve/specs/curve448.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,7 +6,6 @@ from dot_ring.curve.e2c import E2C_Variant  # Unused import
 from ..glv import DisabledGLV  # Unused import
 from ..montgomery.mg_curve import MGCurve
 from ..montgomery.mg_affine_point import MGAffinePoint
-
 
 @dataclass(frozen=True)
 class Curve448Params:
@@ -31,7 +29,8 @@ class Curve448Params:
 
     # v-coordinate is derived from the curve equation v^2 = u^3 + A*u^2 + u mod p
     # Using the positive square root that has even least significant bit (LSB)
-    GENERATOR_V: Final[int] = 355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
+    GENERATOR_V: Final[
+        int] = 355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
 
     # Montgomery curve parameters: v² = u³ + Au² + u
     A: Final[int] = 156326
@@ -120,12 +119,12 @@ Curve448_MG_Curve: Final[Curve448Curve] = Curve448Curve()
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     """
     Factory function to create a Curve448Point class with a specific E2C variant.
-    
+
     This is the recommended way for library users to work with different hash-to-curve variants.
 
     Args:
         e2c_variant: The E2C variant to use (ELL2, ELL2_NU)
-        
+
     Returns:
         A Curve448Point class configured with the specified variant
     """
@@ -164,7 +163,6 @@ class Curve448Point(MGAffinePoint):
         # Call parent constructor
         super().__init__(u, v, curve)
 
-
     @classmethod
     def generator_point(cls) -> 'Curve448Point':
         """
@@ -178,35 +176,6 @@ class Curve448Point(MGAffinePoint):
             Curve448Params.GENERATOR_V
         )
 
-    @classmethod
-    def identity(cls) -> 'Curve448Point':
-        """
-        Get the identity element (point at infinity) in a robust way.
-        For Montgomery curves, identity is represented as (None, None).
-        """
-        # Create object directly to avoid constructor validation issues
-        return cls(0,1)
-
-    def validate_coordinates(self) -> bool:
-        """
-        Validate that this point's coordinates are correct for Curve448.
-        """
-        if self.is_identity():
-            return True
-
-        if self.x is None or self.y is None:
-            return self.x is None and self.y is None  # Both must be None for identity
-
-        # Check coordinate bounds
-        p = Curve448Params.PRIME_FIELD
-        if not (0 <= self.x < p and 0 <= self.y < p):
-            return False
-
-        # Check curve equation: v² = u³ + 156326u² + u
-        u, v = self.x, self.y
-        left = (v * v) % p
-        right = (u * u * u + 156326 * u * u + u) % p
-        return left == right
 
     def __str__(self) -> str:
         """String representation."""

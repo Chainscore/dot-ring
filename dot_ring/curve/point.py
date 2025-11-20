@@ -62,6 +62,8 @@ class Point(Generic[C]):
         Returns:
             bool: True if coordinates are valid
         """
+        if self.is_identity():
+            return True
         return (
                 0 <= self.x < self.curve.PRIME_FIELD and
                 0 <= self.y < self.curve.PRIME_FIELD

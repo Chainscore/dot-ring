@@ -1,4 +1,4 @@
-# dot_ring/curve/specs/curve25519.py
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,10 +42,10 @@ class Curve25519Params:
     K:[Final]=128
     S_in_bytes:[Final]=128 #48 64 136 172\
     Requires_Isogeny: Final[bool] = False
-    Isogeny_Coeffs=None
+    Isogeny_Coeffs = None
 
-    # Challenge length in bytes for VRF (aligned with 128-bit security level)
-    CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
+    # Challenge length in bytes for VRF
+    CHALLENGE_LENGTH: Final[int] = 16
 
     # Blinding base for Pedersen VRF (project-specific: keep if you need them)
     BBu: Final[int] = GENERATOR_U#0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
@@ -86,7 +86,7 @@ class Curve25519Curve(MGCurve):
             B=Curve25519Params.B,
             SUITE_STRING=SUITE_STRING,
             DST=DST,
-            E2C=e2c_variant,  
+            E2C=e2c_variant,
             BBx=Curve25519Params.BBu,
             BBy=Curve25519Params.BBv,
             L=Curve25519Params.L,
@@ -128,6 +128,7 @@ class Curve25519CurveSimple(MGCurve):
         """Skip validation for known good parameters."""
         pass
 
+
 # Try the main implementation first, fall back to simple if needed
 Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
 
@@ -136,7 +137,7 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     """
     Factory function to create a Curve25519Point class with a specific E2C variant.
     This is the recommended way for library users to work with different hash-to-curve variants.
-    
+
     Args:
         e2c_variant: The E2C variant to use (ELL2, ELL2_NU)
     Returns:
@@ -145,15 +146,15 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     """
     # Create curve with the specified variant
     curve = Curve25519Curve(e2c_variant)
-    
+
     # Create and return a point class with this curve
     class Curve25519PointVariant(MGAffinePoint):
         """Point on Curve25519 with custom E2C variant"""
         pass
-    
+
     # Set the curve as a class attribute
     Curve25519PointVariant.curve = curve
-    
+
     return Curve25519PointVariant
 
 
@@ -191,34 +192,6 @@ class Curve25519Point(MGAffinePoint):
             Curve25519Params.GENERATOR_V
         )
 
-    @classmethod
-    def identity(cls) -> Self:
-        """
-        Get the identity element (point at infinity) in a robust way.
-        This constructs an object with x=None, y=None and a proper curve reference.
-        """
-        return cls(0,1)
-
-    def validate_coordinates(self) -> bool:
-        """
-        Validate that this point's coordinates are correct for Curve25519.
-        """
-        if self.is_identity():
-            return True
-
-        if self.x is None or self.y is None:
-            return self.x is None and self.y is None  # Both must be None for identity
-
-        # Check coordinate bounds
-        p = Curve25519Params.PRIME_FIELD
-        if not (0 <= self.x < p and 0 <= self.y < p):
-            return False
-
-        # Check curve equation: v² = u³ + 486662u² + u
-        u, v = self.x, self.y
-        left = (v * v) % p
-        right = (u * u * u + 486662 * u * u + u) % p
-        return left == right
 
     def __str__(self) -> str:
         """String representation."""
@@ -229,54 +202,3 @@ class Curve25519Point(MGAffinePoint):
     def __repr__(self) -> str:
         """Detailed string representation."""
         return self.__str__()
-
-    def to_x25519_bytes(self) -> bytes:
-        """
-        Convert to X25519 wire format (32 bytes, little-endian u-coordinate).
-        """
-        if self.is_identity():
-            return b'\x00' * 32
-        return self.x.to_bytes(32, 'little')
-
-    @classmethod
-    def from_x25519_bytes(cls, data: bytes) -> 'Curve25519Point':
-        """
-        Create point from X25519 wire format (32 bytes, little-endian u-coordinate).
-        This only recovers the u-coordinate; v-coordinate is computed when needed.
-        """
-        if len(data) != 32:
-            raise ValueError("X25519 data must be exactly 32 bytes")
-
-        if data == b'\x00' * 32:
-            return cls.identity()
-
-        u = int.from_bytes(data, 'little')
-
-        # For X25519, we typically don't need the v-coordinate immediately
-        # We can compute it later if needed using the curve equation
-
-        # Compute v using curve equation: v² = u³ + 486662u² + u
-        p = Curve25519Params.PRIME_FIELD
-        u = u % p
-
-        # Calculate right side of equation
-        u_squared = (u * u) % p
-        u_cubed = (u_squared * u) % p
-        rhs = (u_cubed + (486662 * u_squared) % p + u) % p
-
-        # Find square root if it exists
-        if pow(rhs, (p - 1) // 2, p) != 1:
-            raise ValueError("Invalid u-coordinate: no corresponding v-coordinate exists")
-
-        # Use the square root method from MGAffinePoint
-        temp_point = cls.identity()
-        v = temp_point._sqrt_mod_p(rhs)
-
-        if v is None:
-            raise ValueError("Could not compute square root for v-coordinate")
-
-        # Choose canonical v (even LSB for determinism)
-        if v & 1:
-            v = (-v) % p
-
-        return cls(u, v)

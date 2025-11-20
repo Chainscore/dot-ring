@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+<<<<<<< HEAD
 from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any, Union
 from ..point import Point, PointProtocol
+=======
+from typing import TypeVar, Optional, Any, Union
+from ..point import Point
+>>>>>>> m1_delivery
 from .mg_curve import MGCurve
 from dot_ring.curve.e2c import E2C_Variant
 
@@ -35,23 +40,8 @@ class MGAffinePoint(Point[C]):
         """
         cls = self.__class__
         curve = self.curve
-        try:
-            # try (x, y, curve)
-            return cls(x, y, curve)
-        except TypeError:
-            pass
-        try:
-            # try (x, y)
-            return cls(x, y)
-        except TypeError:
-            pass
+        return cls(x, y, curve)
 
-        # fallback: create without calling __init__ and set attributes directly
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", x)
-        object.__setattr__(inst, "y", y)
-        object.__setattr__(inst, "curve", curve)
-        return inst
 
     def is_on_curve(self) -> bool:
         """Check if point is on the curve."""
@@ -133,72 +123,6 @@ class MGAffinePoint(Point[C]):
         """Subtract points by adding the negation."""
         return self + (-other)
 
-    def _sqrt_mod_p(self, n: int) -> Optional[int]:
-        """
-        Compute sqrt(n) mod p. Use p % 8 == 5 optimization if applicable, else
-        Tonelli-Shanks.
-        Returns one square root or None if none exists.
-        """
-        p = self.curve.PRIME_FIELD
-        n = n % p  # Ensure n is in range [0, p)
-
-        if n == 0:
-            return 0
-
-        # Legendre symbol check
-        if pow(n, (p - 1) // 2, p) != 1:
-            return None
-
-        # Special case for p ≡ 3 (mod 4) - simpler than p ≡ 5 (mod 8)
-        if p % 4 == 3:
-            return pow(n, (p + 1) // 4, p)
-
-        if p % 8 == 5:
-            # sqrt = n^{(p+3)/8} or times sqrt(-1)
-            r = pow(n, (p + 3) // 8, p)
-            if (r * r) % p == n % p:
-                return r
-            # Try r * sqrt(-1) where sqrt(-1) = 2^((p-1)/4)
-            sqrt_minus_one = pow(2, (p - 1) // 4, p)
-            r = (r * sqrt_minus_one) % p
-            if (r * r) % p == n % p:
-                return r
-            return None
-
-        # Tonelli-Shanks general method
-        # Factor p-1 = Q * 2^S with Q odd
-        Q = p - 1
-        S = 0
-        while Q % 2 == 0:
-            Q //= 2
-            S += 1
-
-        # find a quadratic non-residue z
-        z = 2
-        while pow(z, (p - 1) // 2, p) != p - 1:
-            z += 1
-
-        M = S
-        c = pow(z, Q, p)
-        t = pow(n, Q, p)
-        R = pow(n, (Q + 1) // 2, p)
-
-        while t != 1:
-            # find least i (0 < i < M) such that t^{2^i} == 1
-            i = 1
-            t2i = (t * t) % p
-            while i < M and t2i != 1:
-                t2i = (t2i * t2i) % p
-                i += 1
-            if i == M:
-                return None
-            b = pow(c, 1 << (M - i - 1), p)
-            M = i
-            c = (b * b) % p
-            R = (R * b) % p
-            t = (t * c) % p
-
-        return R
 
     def __mul__(self, scalar: int) -> "MGAffinePoint[C]":
         """
@@ -263,6 +187,7 @@ class MGAffinePoint(Point[C]):
     def identity(cls) -> "MGAffinePoint":
         """Get the identity element (point at infinity)."""
         # build without calling curve-specific __init__
+<<<<<<< HEAD
         inst = object.__new__(cls)
         object.__setattr__(inst, "x", None)
         object.__setattr__(inst, "y", None)
@@ -271,6 +196,9 @@ class MGAffinePoint(Point[C]):
         curve = getattr(cls, "curve", None)
         object.__setattr__(inst, "curve", curve)
         return inst
+=======
+        return cls(None, None)
+>>>>>>> m1_delivery
 
     @classmethod
     def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
@@ -343,7 +271,6 @@ class MGAffinePoint(Point[C]):
         return R.clear_cofactor()
 
 
-
     def clear_cofactor(self) -> "MGAffinePoint[C]":
         """
         Clear the cofactor to ensure point is in prime-order subgroup.
@@ -413,6 +340,7 @@ class MGAffinePoint(Point[C]):
         return cls(s, t, cls.curve)
 
     def point_to_string(self) -> bytes:
+<<<<<<< HEAD
 
         if self.is_identity():
             raise ValueError("Cannot serialize point at infinity")
@@ -447,9 +375,44 @@ class MGAffinePoint(Point[C]):
 
         else:
             ...
+=======
+
+        if self.is_identity():
+            raise ValueError("Cannot serialize point at infinity")
+        p = self.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+
+        # Encode u and v coordinates as little-endian bytes
+        u_bytes = self.x.to_bytes(byte_length, 'little')
+        v_bytes = self.y.to_bytes(byte_length, 'little')
+        return u_bytes + v_bytes
+
+    @classmethod
+    def string_to_point(cls, data: Union[str, bytes]) -> 'MGAffinePoint':
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
+
+        p = cls.curve.PRIME_FIELD
+        byte_length = (p.bit_length() + 7) // 8
+
+        # Split into u and v coordinates
+        u_bytes = data[:byte_length]
+        v_bytes = data[byte_length:]
+
+        u = int.from_bytes(u_bytes, 'little')
+        v = int.from_bytes(v_bytes, 'little')
+
+        # Create the point
+        point = cls(u, v, cls.curve)
+>>>>>>> m1_delivery
 
         # Verify the point is on the curve
         if not point.is_on_curve():
             raise ValueError("Point is not on the curve")
+<<<<<<< HEAD
             
         return point
+=======
+
+        return point
+>>>>>>> m1_delivery

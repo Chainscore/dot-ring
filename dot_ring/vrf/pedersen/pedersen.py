@@ -88,8 +88,20 @@ class PedersenVRF(VRF):
 
         b_base = self.point_type(self.curve.BBx, self.curve.BBy)
         input_point = self.point_type.encode_to_curve(alpha, salt)
+<<<<<<< HEAD
         blinding = Helpers.int_to_str(self.blinding(secret_key.to_bytes(scalar_len,self.curve.ENDIAN), input_point.point_to_string(),additional_data),self.curve.ENDIAN, scalar_len)
         blinding_factor = Helpers.str_to_int(blinding, self.curve.ENDIAN)
+=======
+        blinding = Helpers.to_l_endian(
+            self.blinding(
+                secret_key.to_bytes(self.point_len,'little'), 
+                input_point.point_to_string(),
+                additional_data
+            ), 
+            self.point_len
+        )
+        blinding_factor = Helpers.l_endian_2_int(blinding)
+>>>>>>> m1_delivery
         output_point = input_point * secret_key
 
         if self.point_type.__name__=="P256PointVariant":

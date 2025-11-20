@@ -73,7 +73,9 @@ class IETF_VRF(VRF):
         output_point = input_point * secret_key
         public_key = generator * secret_key
 
-        if self.point_type.__name__ == "P256PointVariant":
+        # if self.point_type.__name__ == "P256PointVariant":
+
+        if self.point_type.__name__ == "P256Point":
             input_point_octet = input_point.point_to_string()
             nonce = self.ecvrf_nonce_rfc6979(secret_key, input_point_octet)
         else:
