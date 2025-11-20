@@ -88,7 +88,14 @@ class PedersenVRF(VRF):
 
         b_base = self.point_type(self.curve.BBx, self.curve.BBy)
         input_point = self.point_type.encode_to_curve(alpha, salt)
-        blinding = Helpers.to_l_endian(self.blinding(secret_key.to_bytes(self.point_len,'little'), input_point.point_to_string(),additional_data), self.point_len)
+        blinding = Helpers.to_l_endian(
+            self.blinding(
+                secret_key.to_bytes(self.point_len,'little'), 
+                input_point.point_to_string(),
+                additional_data
+            ), 
+            self.point_len
+        )
         blinding_factor = Helpers.l_endian_2_int(blinding)
         output_point = input_point * secret_key
         k = self.generate_nonce(secret_key, input_point)

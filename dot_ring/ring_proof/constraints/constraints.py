@@ -32,16 +32,19 @@ def _to_radix4(vec: Sequence[int]) -> List[int]:
 
 _NOT_LAST = vect_sub(D_2048, pow(OMEGA, 508, S_PRIME), S_PRIME)
 
-_L0_RAD4: List[int]
-_LN4_RAD4: List[int]
+_L0_RAD4: List[int] | None = None
+_LN4_RAD4: List[int] | None = None
 
 _l0_coeffs = lagrange_basis_polynomial(D, 0)
-# _L0_RAD4 = [poly_evaluate(_l0_coeffs, x, S_PRIME) for x in D_2048]
-_L0_RAD4 = poly_evaluate(_l0_coeffs, D_2048, S_PRIME)
-
 _ln4_coeffs = lagrange_basis_polynomial(D, SIZE - 4)
-# _LN4_RAD4 = [poly_evaluate(_ln4_coeffs, x, S_PRIME) for x in D_2048]
-_LN4_RAD4 = poly_evaluate(_ln4_coeffs, D_2048, S_PRIME)
+
+def get_radix4_constants():
+    global _L0_RAD4, _LN4_RAD4
+    if _L0_RAD4 is None:
+        _L0_RAD4 = poly_evaluate(_l0_coeffs, D_2048, S_PRIME)
+    if _LN4_RAD4 is None:
+        _LN4_RAD4 = poly_evaluate(_ln4_coeffs, D_2048, S_PRIME)
+    return _L0_RAD4, _LN4_RAD4
 
 
 def _shift(vec: Sequence[int]) -> List[int]:
@@ -227,15 +230,17 @@ class RingConstraintBuilder:
 
         # print("result here:", rx_psx, ry_psy)
 
+        l0_rad4, ln4_rad4 = get_radix4_constants()
+
         c5x = vect_add(
-            vect_mul(vect_sub(self._accx4, seed_x, S_PRIME), _L0_RAD4, S_PRIME),
-            vect_mul(vect_sub(self._accx4, rx_psx, S_PRIME), _LN4_RAD4, S_PRIME),
+            vect_mul(vect_sub(self._accx4, seed_x, S_PRIME), l0_rad4, S_PRIME),
+            vect_mul(vect_sub(self._accx4, rx_psx, S_PRIME), ln4_rad4, S_PRIME),
             S_PRIME,
         )
 
         c6x = vect_add(
-            vect_mul(vect_sub(self._accy4, seed_y, S_PRIME), _L0_RAD4, S_PRIME),
-            vect_mul(vect_sub(self._accy4, ry_psy, S_PRIME), _LN4_RAD4, S_PRIME),
+            vect_mul(vect_sub(self._accy4, seed_y, S_PRIME), l0_rad4, S_PRIME),
+            vect_mul(vect_sub(self._accy4, ry_psy, S_PRIME), ln4_rad4, S_PRIME),
             S_PRIME,
         )
 
@@ -246,9 +251,12 @@ class RingConstraintBuilder:
     def _c7(self) -> List[int]:
         if "c7x" in self._cache:
             return self._cache["c7x"]
+        
+        l0_rad4, ln4_rad4 = get_radix4_constants()
+        
         c7x = vect_add(
-            vect_mul(self._accip4, _L0_RAD4, S_PRIME),
-            vect_mul(vect_sub(self._accip4, 1, S_PRIME), _LN4_RAD4, S_PRIME),
+            vect_mul(self._accip4, l0_rad4, S_PRIME),
+            vect_mul(vect_sub(self._accip4, 1, S_PRIME), ln4_rad4, S_PRIME),
             S_PRIME,
         )
         self._cache["c7x"] = c7x
