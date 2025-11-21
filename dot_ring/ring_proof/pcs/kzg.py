@@ -5,17 +5,17 @@ from typing import Any
 import blst
 
 import py_ecc.optimized_bls12_381 as bls
-from pyblst import BlstP1Element, BlstP2Element
+from pyblst import BlstP1Element
 
 from dot_ring.ring_proof.helpers import Helpers
 
 from ..polynomial.ops import poly_evaluate_single
-from .srs import SRS, srs, G1Point, G2Point
+from .srs import srs, G1Point
 from .pairing import blst_miller_loop, blst_final_verify
 
 Point_G1 = Any
 
-from .utils import blst_p1_to_fq_tuple, convert_g1_point_to_blst, synthetic_div, Scalar, CoeffVector, py_ecc_point_to_blst, py_ecc_g2_point_to_blst
+from .utils import blst_p1_to_fq_tuple, synthetic_div, Scalar, CoeffVector, py_ecc_point_to_blst
 
 @dataclass(slots=True, frozen=True)
 class Opening:
@@ -81,18 +81,13 @@ class KZG:
         blst_points = []
         active_scalars = []
 
-        for coeff, g1_tuple in zip(coeffs, srs.g1):
+        for coeff, blst_point in zip(coeffs, srs.blst_sw_g1):
             if coeff != 0:
-                try:
-                    blst_point = convert_g1_point_to_blst(g1_tuple)
-                    blst_points.append(blst_point)
-                    active_scalars.append(coeff)
-                except Exception as e:
-                    print(f"Warning: Failed to convert point, skipping: {e}")
-                    continue
+                blst_points.append(blst_point)
+                active_scalars.append(coeff)
 
         if not blst_points:
-            result = bls.Z1  # point at infinity
+            result = blst.P1()  # point at infinity
         else:
             # Use Pippenger multi-scalar multiplication
             result = blst.P1_Affines.mult_pippenger(

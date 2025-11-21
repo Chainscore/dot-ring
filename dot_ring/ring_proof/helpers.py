@@ -1,3 +1,4 @@
+from typing import Tuple
 from py_ecc.bls import point_compression
 from py_ecc.optimized_bls12_381 import FQ, FQ2, is_on_curve
 from hashlib import sha256, sha512, shake_256, sha384
@@ -36,16 +37,37 @@ class Helpers:
         return hex_rep
 
     @staticmethod
-    # bls string to point
-    def bls_g1_decompress(byte_array: bytes | str):
-        if isinstance(byte_array, bytes):
-            byte_array = byte_array.hex()
-            dcp_scalar = int(byte_array, 16)
-        else:
-            dcp_scalar = int(byte_array, 16)
-        decompressed = point_compression.decompress_G1(dcp_scalar)
-        assert is_on_curve(decompressed, 4), "INVALID POINT"
-        return decompressed
+    def bls_g1_decompress(byte_array: bytes | str) -> Tuple[FQ, FQ, FQ]:
+        """
+        Decompress a BLS G1 point from its byte representation.
+
+        Args:
+            byte_array (bytes | str): Byte array or hex string representing the compressed point.
+
+        Returns:
+            Tuple[FQ, FQ, FQ]: Decompressed point in Jacobian coordinates.
+        """
+        # Fast path: use BLST directly if available
+        try:
+            import blst
+            if isinstance(byte_array, str):
+                byte_array = bytes.fromhex(byte_array)
+            p1_affine = blst.P1_Affine(byte_array)
+            affine_bytes = p1_affine.serialize()
+            # TODO: Alt we could recover x,y from compressed bytes directly
+            x = int.from_bytes(affine_bytes[:48], "big")
+            y = int.from_bytes(affine_bytes[48:], "big")
+            return (FQ(x), FQ(y), FQ(1))
+        except (ImportError, Exception):
+            # Fallback to py_ecc
+            if isinstance(byte_array, bytes):
+                byte_array = byte_array.hex()
+                dcp_scalar = int(byte_array, 16)
+            else:
+                dcp_scalar = int(byte_array, 16)
+            decompressed = point_compression.decompress_G1(dcp_scalar)
+            assert is_on_curve(decompressed, 4), "INVALID POINT"
+            return decompressed
 
     @staticmethod
     def bls_g2_compress(g2_point):

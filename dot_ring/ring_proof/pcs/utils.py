@@ -1,5 +1,6 @@
 
-from typing import List
+import time
+from typing import List, Tuple
 import py_ecc.optimized_bls12_381 as bls
 from pyblst import BlstP1Element, BlstP2Element
 from py_ecc.bls import point_compression
@@ -89,33 +90,21 @@ def jacobian_to_affine_coords(x, y, z):
         return x_affine, y_affine
         
 
-def blst_p1_to_fq_tuple(blst_point):
+def blst_p1_to_fq_tuple(blst_point: blst.P1) -> Tuple[FQ, FQ, FQ]:
     """Convert blst.P1 point back to (FQ, FQ, FQ) tuple in Jacobian coordinates"""
-    
-    if isinstance(blst_point, tuple):
-        return blst_point
+    # Serialize the point to bytes (96 bytes: 48 for x, 48 for y)
+    point_bytes = blst_point.serialize()
+    # Split into x and y coordinates (48 bytes each)
+    x_bytes = point_bytes[:48]
+    y_bytes = point_bytes[48:96]
 
-    try:
-        # Method 1: Convert to affine coordinates first
-        affine_point = blst_point.to_affine()
+    # Convert bytes back to integers
+    x_int = int.from_bytes(x_bytes, "big")
+    y_int = int.from_bytes(y_bytes, "big")
 
-        # Serialize the affine point to bytes (96 bytes: 48 for x, 48 for y)
-        point_bytes = affine_point.serialize()
+    # Create FQ elements from integers
+    x_fq = FQ(x_int)
+    y_fq = FQ(y_int)
+    z_fq = FQ(1)  # Affine coordinates have z=1
+    return (x_fq, y_fq, z_fq)
 
-        # Split into x and y coordinates (48 bytes each)
-        x_bytes = point_bytes[:48]
-        y_bytes = point_bytes[48:96]
-
-        # Convert bytes back to integers
-        x_int = int.from_bytes(x_bytes, "big")
-        y_int = int.from_bytes(y_bytes, "big")
-
-        # Create FQ elements from integers
-        x_fq = FQ(x_int)
-        y_fq = FQ(y_int)
-        z_fq = FQ(1)  # Affine coordinates have z=1
-
-        return (x_fq, y_fq, z_fq)
-
-    except Exception as e:
-        raise ValueError(f"Conversion method failed: {e}")

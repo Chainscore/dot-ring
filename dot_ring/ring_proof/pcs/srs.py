@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Sequence, Tuple
 from py_ecc.optimized_bls12_381 import FQ, FQ2
-from .utils import py_ecc_point_to_blst, py_ecc_g2_point_to_blst
+from .utils import (
+    py_ecc_point_to_blst,
+    py_ecc_g2_point_to_blst,
+    convert_g1_point_to_blst,
+)
 from pathlib import Path
 import blst
 
@@ -73,6 +77,7 @@ class SRS:
     g1_points: Sequence[Tuple[int, int]] 
     g2_points: Sequence[Tuple[Tuple[int, int], Tuple[int, int]]] 
     blst_g1: Sequence[blst.P1]
+    blst_sw_g1: Sequence[blst.P1]
     blst_g2: Sequence[blst.P2]
 
     def __init__(self, g1_raw, g2_raw, g1_points, g2_points):
@@ -81,6 +86,7 @@ class SRS:
         self.g1_points = g1_points
         self.g2_points = g2_points
         self.blst_g1 = [py_ecc_point_to_blst(p) for p in self.g1]
+        self.blst_sw_g1 = [convert_g1_point_to_blst(p) for p in self.g1]
         # Cache G2 points for verification
         self.blst_g2 = [py_ecc_g2_point_to_blst(p) for p in self.g2]
 
