@@ -37,15 +37,9 @@ class FieldElement:
             if self.p != other.p:
                 raise ValueError("Cannot add elements from different fields")
             return FieldElement(
-                (self.re + other.re) % self.p,
-                (self.im + other.im) % self.p,
-                self.p
+                (self.re + other.re) % self.p, (self.im + other.im) % self.p, self.p
             )
-        return FieldElement(
-            (self.re + other) % self.p,
-            self.im,
-            self.p
-        )
+        return FieldElement((self.re + other) % self.p, self.im, self.p)
 
     # def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
     #     """Subtract two field elements or a field element and an integer."""
@@ -73,9 +67,7 @@ class FieldElement:
             im = (self.re * other.im + self.im * other.re) % self.p
             return FieldElement(re, im, self.p)
         return FieldElement(
-            (self.re * other) % self.p,
-            (self.im * other) % self.p,
-            self.p
+            (self.re * other) % self.p, (self.im * other) % self.p, self.p
         )
 
     def __truediv__(self, other: Union[FieldElement, int]) -> FieldElement:
@@ -91,9 +83,7 @@ class FieldElement:
         denom = (self.re * self.re + self.im * self.im) % self.p
         inv_denom = pow(denom, -1, self.p)
         return FieldElement(
-            (self.re * inv_denom) % self.p,
-            (-self.im * inv_denom) % self.p,
-            self.p
+            (self.re * inv_denom) % self.p, (-self.im * inv_denom) % self.p, self.p
         )
 
     def __neg__(self) -> FieldElement:
@@ -119,7 +109,6 @@ class FieldElement:
         # For Fp2, check if norm is a square in Fp
         norm = (self.re * self.re + self.im * self.im) % self.p
         return pow(norm, (self.p - 1) // 2, self.p) == 1
-
 
     # def __repr__(self) -> str:
     #     """Canonical string representation of the field element."""
@@ -217,6 +206,3 @@ class FieldElement:
         inv_2y = pow(2 * y.re, -1, p)
         x = (a1 * inv_2y) % p
         return FieldElement(y.re, x, p)
-
-
-

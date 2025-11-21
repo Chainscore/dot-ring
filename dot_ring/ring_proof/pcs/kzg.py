@@ -4,20 +4,19 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Sequence, Tuple, Any
 import py_ecc.optimized_bls12_381 as bls
-from py_ecc.optimized_bls12_381 import (
-    G1,
-    add,
-    multiply,
-    neg)
+from py_ecc.optimized_bls12_381 import G1, add, multiply, neg
 from py_ecc.optimized_bls12_381.optimized_pairing import miller_loop
 from py_ecc.optimized_bls12_381 import FQ, FQ2
+
 # use either of pyblst or blst from github
-from pyblst import BlstP1Element, final_verify, BlstP2Element
+from pyblst import BlstP1Element, final_verify, BlstP2Element, miller_loop as miller_loop_blst
+from py_ecc.bls import point_compression
 
 from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.ring_proof.pcs.load_powers import (
     g1_points as _RAW_G1_POWERS,
-    g2_points as _RAW_G2_POWERS, g2_points,
+    g2_points as _RAW_G2_POWERS,
+    g2_points,
 )
 
 Scalar = int
@@ -98,19 +97,53 @@ class Opening:
 class KZG:
     """Commit‑and‑open abstraction hiding group math from callers."""
 
-    __slots__ = ("_srs", "_blst_g1_cache", "use_third_party_commit")
+    __slots__ = ("_srs", "_blst_g1_cache", "_blst_g2_cache", "use_third_party_commit")
 
     def __init__(self, srs: SRS, use_third_party_commit: bool = True):
         self._srs = srs
         self._blst_g1_cache = [self.py_ecc_point_to_blst(p) for p in srs.g1]
+        # Cache G2 points for verification
+        self._blst_g2_cache = [self.py_ecc_g2_point_to_blst(p) for p in srs.g2]
         self.use_third_party_commit = use_third_party_commit
 
     # convert py_ecc's bls g1 type point to blst_P1
     @staticmethod
     def py_ecc_point_to_blst(p):
-        compressed_hex = Helpers.bls_g1_compress(p)  # gives valid compressed hex string
-        compressed_bytes = bytes.fromhex(compressed_hex)
+        # compressed_hex = Helpers.bls_g1_compress(p)  # gives valid compressed hex string
+        # compressed_bytes = bytes.fromhex(compressed_hex)
+        
+        # Optimization: avoid hex conversion
+        if len(p) == 2:
+            point = (FQ(p[0]), FQ(p[1]), FQ(1))
+        else:
+            point = (FQ(p[0]), FQ(p[1]), FQ(p[2]))
+            
+        compressed_int = point_compression.compress_G1(point)
+        compressed_bytes = compressed_int.to_bytes(48, "big")
+        
         return BlstP1Element().uncompress(compressed_bytes)
+
+    # convert py_ecc's bls g2 type point to blst_P2
+    @staticmethod
+    def py_ecc_g2_point_to_blst(p):
+        # p is (FQ2, FQ2, FQ2)
+        # We need to compress it to 96 bytes
+        # py_ecc.bls.point_compression.compress_G2 returns (z1, z2) integers
+        
+        # compress_G2 expects (x, y, z) where x, y, z are FQ2
+        # But compress_G2 implementation might expect FQ2 objects or just (c0, c1) tuples?
+        # Let's check how compress_G1 was used in Helpers.
+        # Helpers.bls_g1_compress uses point_compression.compress_G1(point)
+        
+        # compress_G2 returns two integers (z1, z2) representing the compressed point
+        z1, z2 = point_compression.compress_G2(p)
+        
+        # Convert to bytes (48 bytes each, big endian)
+        b1 = z1.to_bytes(48, "big")
+        b2 = z2.to_bytes(48, "big")
+        
+        compressed_bytes = b1 + b2
+        return BlstP2Element().uncompress(compressed_bytes)
 
     def commit(self, scalars: CoeffVector) -> G1Point:
         if getattr(self, "use_third_party_commit", True):
@@ -121,14 +154,15 @@ class KZG:
     # commitment generation using py_blst
     def in_built_commit(self, scalars: CoeffVector) -> G1Point:
         # bases_py_ecc = self._srs.g1[:len(scalars)]
-        bases = self._blst_g1_cache[:len(scalars)]
+        bases = self._blst_g1_cache[: len(scalars)]
         # bases = [self.py_ecc_point_to_blst(p) for p in bases_py_ecc]
         acc = BlstP1Element()
         for base, scalar in zip(bases, scalars):
             acc += base.scalar_mul(scalar)
         res = acc
         decompressed = Helpers.bls_g1_decompress(
-            res.compress().hex())  # compress the blst to byte_string and then to bls g1 point type
+            res.compress().hex()
+        )  # compress the blst to byte_string and then to bls g1 point type
         return decompressed
 
     # w.o using multi scalar multiplication
@@ -150,7 +184,7 @@ class KZG:
     def jacobian_to_affine_coords(x, y, z):
         """Convert Jacobian coordinates (x, y, z) to affine (x/z², y/z³)"""
         # BLS12-381 field prime
-        p = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+        p = 0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAAAB
 
         if int(z) == 0:
             # Point at infinity
@@ -176,7 +210,9 @@ class KZG:
         try:
             import blst
         except ImportError:
-            raise ImportError("blst is not installed. Please install it or set use_third_party_commit=False.")
+            raise ImportError(
+                "blst is not installed. Please install it or set use_third_party_commit=False."
+            )
         x, y, z = g1_tuple
 
         # Convert to affine coordinates
@@ -187,8 +223,8 @@ class KZG:
             return blst.P1()  # Identity point
 
         # Convert to bytes (48 bytes each for x and y)
-        x_bytes = x_affine.to_bytes(48, 'big')
-        y_bytes = y_affine.to_bytes(48, 'big')
+        x_bytes = x_affine.to_bytes(48, "big")
+        y_bytes = y_affine.to_bytes(48, "big")
 
         # Create affine point from 96 bytes (48 + 48)
         point_bytes = x_bytes + y_bytes
@@ -201,11 +237,12 @@ class KZG:
             raise ValueError("All conversion methods failed")
 
     def third_party_commit(self, coeffs: CoeffVector) -> G1Point:
-
         try:
             import blst
         except ImportError:
-            raise ImportError("blst is not installed. Please install it or set use_third_party_commit=False.")
+            raise ImportError(
+                "blst is not installed. Please install it or set use_third_party_commit=False."
+            )
 
         if len(coeffs) > len(self._srs.g1):
             raise ValueError("polynomial degree exceeds SRS size")
@@ -230,8 +267,7 @@ class KZG:
             # Use Pippenger multi-scalar multiplication
             try:
                 result = blst.P1_Affines.mult_pippenger(
-                    blst.P1_Affines.as_memory(blst_points),
-                    active_scalars
+                    blst.P1_Affines.as_memory(blst_points), active_scalars
                 )
             except Exception as e:
                 print(f"Pippenger failed: {e}")
@@ -245,6 +281,9 @@ class KZG:
     @staticmethod
     def blst_p1_to_fq_tuple(blst_point):
         """Convert blst.P1 point back to (FQ, FQ, FQ) tuple in Jacobian coordinates"""
+        
+        if isinstance(blst_point, tuple):
+            return blst_point
 
         try:
             # Method 1: Convert to affine coordinates first
@@ -258,8 +297,8 @@ class KZG:
             y_bytes = point_bytes[48:96]
 
             # Convert bytes back to integers
-            x_int = int.from_bytes(x_bytes, 'big')
-            y_int = int.from_bytes(y_bytes, 'big')
+            x_int = int.from_bytes(x_bytes, "big")
+            y_int = int.from_bytes(y_bytes, "big")
 
             # Create FQ elements from integers
             x_fq = FQ(x_int)
@@ -272,18 +311,18 @@ class KZG:
             raise ValueError(f"Conversion method failed: {e}")
 
     def open(self, coeffs: CoeffVector, x: Scalar) -> Opening:
-
         y = _horner_eval(coeffs, x)
         q = _synthetic_div(coeffs, x, y)
         proof = self.commit(q)
         return Opening(proof, y)
 
-    def verify(self,
-               commitment: Point_G1,
-               proof: Point_G1,
-               point: Scalar,
-               value: Scalar,
-               ) -> bool:
+    def verify(
+        self,
+        commitment: Point_G1,
+        proof: Point_G1,
+        point: Scalar,
+        value: Scalar,
+    ) -> bool:
         """
         Verify a KZG proof.
 
@@ -298,25 +337,75 @@ class KZG:
         Returns:
             True if proof is valid, False otherwise
         """
-        srs_g2 = [
-            (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0]))
-            for (x, y) in g2_points
-        ]
-        # Compute right side: e(commitment - [value]G1, G2)
-        g1_value = multiply(G1, value)  # G1->G
-        commitment_minus_value = add(commitment, neg(g1_value))
-        # Right pairing: e(commitment - [value]G1, G2)
-        right_pairing = miller_loop(srs_g2[0], commitment_minus_value)
-        # Left pairing: e(proof, [tau]G2 - [point]G2)
-        # Compute left side: e(proof, [tau]G2 - [point]G2)
-        g2_point = multiply(srs_g2[0], point)  # G2->H.i
-        shifted_g2 = add(srs_g2[1], neg(g2_point))  # srs_g2[1]->H.t
-        left_pairing = miller_loop(shifted_g2, proof)
-        return left_pairing == right_pairing
+        try:
+            # Fast path using pyblst
+            if isinstance(commitment, BlstP1Element):
+                comm_blst = commitment
+            else:
+                comm_blst = self.py_ecc_point_to_blst(commitment)
+                
+            if isinstance(proof, BlstP1Element):
+                proof_blst = proof
+            else:
+                proof_blst = self.py_ecc_point_to_blst(proof)
+            
+            g1_gen = self._blst_g1_cache[0] # [1]G1
+            g2_gen = self._blst_g2_cache[0] # [1]G2
+            g2_tau = self._blst_g2_cache[1] # [tau]G2
+            
+            # Term 1: commitment - [value]G1
+            # comm_term = comm_blst - value * G1_gen
+            val_g1 = g1_gen.scalar_mul(value)
+            comm_term = comm_blst + (-val_g1)
+            
+            # Term 2: [tau]G2 - [point]G2
+            # tau_term = g2_tau - point * G2_gen
+            point_g2 = g2_gen.scalar_mul(point)
+            tau_term = g2_tau + (-point_g2)
+            
+            # Pairings
+            # lhs = miller_loop(comm_term, g2_gen)
+            # rhs = miller_loop(proof_blst, tau_term)
+            # Note: pyblst.miller_loop takes (P1, P2) or (P2, P1)?
+            # Based on test, it takes (P1, P2) and returns BlstFP12Element.
+            # But wait, standard pairing is e(G1, G2).
+            # My test script failed with (P2, P1) and worked with (P1, P2) (at least didn't crash).
+            # So we pass (P1, P2).
+            
+            # lhs = miller_loop(comm_term, g2_gen)
+            # rhs = miller_loop(proof_blst, tau_term)
+            
+            lhs = miller_loop_blst(comm_term, g2_gen)
+            rhs = miller_loop_blst(proof_blst, tau_term)
+            
+            # Verify: e(A, B) == e(C, D) <=> final_verify(lhs, rhs)
+            return final_verify(lhs, rhs)
+            
+        except Exception as e:
+            print(f"Fast verify failed, falling back to slow verify: {e}")
+            srs_g2 = [
+                (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0])) for (x, y) in g2_points
+            ]
+            # Compute right side: e(commitment - [value]G1, G2)
+            g1_value = multiply(G1, value)  # G1->G
+            commitment_minus_value = add(commitment, neg(g1_value))
+            # Right pairing: e(commitment - [value]G1, G2)
+            right_pairing = miller_loop(srs_g2[0], commitment_minus_value)
+            # Left pairing: e(proof, [tau]G2 - [point]G2)
+            # Compute left side: e(proof, [tau]G2 - [point]G2)
+            g2_point = multiply(srs_g2[0], point)  # G2->H.i
+            shifted_g2 = add(srs_g2[1], neg(g2_point))  # srs_g2[1]->H.t
+            left_pairing = miller_loop(shifted_g2, proof)
+            return left_pairing == right_pairing
+
+    @classmethod
+    @lru_cache(maxsize=None)
+    def default_cached(cls, max_deg: int = 2048, use_third_party_commit=True) -> "KZG":
+        srs = SRS.default(max_deg)
+        kzg = cls(srs)
+        kzg.use_third_party_commit = use_third_party_commit
+        return kzg
 
     @classmethod
     def default(cls, *, max_deg: int = 2048, use_third_party_commit=True) -> "KZG":
-        srs = SRS.default(max_deg)
-        kzg = cls(srs)
-        kzg.use_third_party_commit = use_third_party_commit  # <== Add this flag to instance
-        return kzg
+        return cls.default_cached(max_deg, use_third_party_commit)

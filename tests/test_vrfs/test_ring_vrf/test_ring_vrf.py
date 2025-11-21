@@ -22,10 +22,15 @@ def test_ring_proof():
         B_keys=item['ring_pks']
         ring_root = RVRF.construct_ring_root(B_keys)
         p_k = RVRF.get_public_key(s_k)
+        start_time = time.time()
         ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad,s_k,p_k,B_keys)
+        end_time = time.time()
+        print(f"Time taken for Ring VRF Proof Generation: {end_time - start_time} seconds")
         assert p_k.hex()==item['pk'], "Invalid Public Key"
         assert ring_root.hex()==item['ring_pks_com'], "Invalid Ring Root"
         assert ring_vrf_proof.hex()==item['gamma']+item['proof_pk_com']+item['proof_r']+ item['proof_ok']+item['proof_s']+ item['proof_sb']+item['ring_proof'], "Unexpected Proof"
+        
         assert RVRF.ring_vrf_proof_verify(ad,ring_root,ring_vrf_proof, alpha), "Verification Failed"
+        print("Time taken for Ring VRF Proof Verification: ", time.time() - end_time, " seconds")
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
 

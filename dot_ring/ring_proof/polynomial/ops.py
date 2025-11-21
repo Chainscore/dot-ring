@@ -1,5 +1,7 @@
+from dot_ring.ring_proof.constants import S_PRIME, D_512, D_2048, OMEGA, OMEGA_2048
+from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
 
-from dot_ring.ring_proof.constants import S_PRIME
+
 def mod_inverse(val, prime):
     """Find the modular multiplicative inverse of a under modulo m."""
     if pow(val, prime - 1, prime) != 1:
@@ -34,15 +36,48 @@ def poly_subtract(poly1, poly2, prime):
     return result
 
 
+GENERATOR = 5
+
+def get_root_of_unity(n, prime):
+    """Get n-th primitive root of unity."""
+    # We need n to be a power of 2 and divide prime-1
+    # prime-1 is divisible by 2^32, so any power of 2 <= 2^32 works
+    exponent = (prime - 1) // n
+    return pow(GENERATOR, exponent, prime)
+
+
 #(On^2)
 def poly_multiply(poly1, poly2, prime):
     """Multiply two polynomials in a prime field."""
     result_len = len(poly1) + len(poly2) - 1
+    
+    # Use FFT if polynomials are large enough
+    # Threshold chosen empirically - FFT overhead is not worth it for very small polys
+    if result_len > 64:
+        # Find next power of 2
+        domain_size = 1
+        while domain_size < result_len:
+            domain_size *= 2
+            
+        # We can support up to 2^32
+        omega = get_root_of_unity(domain_size, prime)
+        
+        evals1 = evaluate_poly_fft(poly1, domain_size, omega, prime)
+        evals2 = evaluate_poly_fft(poly2, domain_size, omega, prime)
+        
+        evals_prod = [(e1 * e2) % prime for e1, e2 in zip(evals1, evals2)]
+        
+        coeffs = inverse_fft(evals_prod, omega, prime)
+        
+        # Truncate to expected length (higher terms should be 0)
+        return coeffs[:result_len]
+
     result = [0] * result_len
     for i in range(len(poly1)):
         for j in range(len(poly2)):
             result[i + j] = (result[i + j] + poly1[i] * poly2[j]) % prime
     return result
+
 
 def poly_division_general(coeffs, domain_size):
     """
@@ -85,50 +120,93 @@ def poly_scalar(poly, scalar, prime):
     result = [(coef * scalar) % prime for coef in poly]
     return result
 
-#initial
-# def poly_evaluate(poly, x, prime):
-#     """Evaluate a polynomial at point x using Horner's method."""
-#     result = 0
-#     for coef in  reversed(poly):
-#         result = (result * x + coef) % prime
-#     return result
 
-#
-# import gmpy2
-# def poly_evaluate(poly, x, prime):
-#     x = gmpy2.mpz(x)
-#     result = gmpy2.mpz(0)
-#     for coef in reversed(poly):
-#         result = (result * x + coef) % prime
-#     return int(result)
-
-
-from multiprocessing import Pool, cpu_count
-def poly_evaluate_single(args):
-    poly, x, prime = args
+def poly_evaluate_single(poly: list, x: int, prime: int):
     result=0
     for coef in reversed(poly):
         result = (result * x + coef) % prime
-    return result  # Ensure plain Python int
-#
-def poly_evaluate(poly, xs, prime):
-    prime = int(prime)
-    # Single-point evaluation
-    if isinstance(xs, int):
-        return poly_evaluate_single((poly, xs, prime))
+    return result
 
-    # Multi-point evaluation
-    with Pool(processes=cpu_count()) as pool:
-        args = [(poly, x, prime) for x in xs]
-        results = pool.map(poly_evaluate_single, args)
+
+def poly_evaluate(poly: list, xs: list | int, prime: int):
+    """Evaluate polynomial at points xs.
+    
+    Uses FFT when xs is one of the predefined evaluation domains (D_512, D_2048).
+    Falls back to Horner evaluation for arbitrary points.
+    
+    Args:
+        poly: Polynomial coefficients (lowest degree first)
+        xs: Either a list of evaluation points or a single point
+        prime: Field modulus
+        
+    Returns:
+        List of evaluations (or single value if xs is a single point)
+    """
+    # Handle single point evaluation
+    if isinstance(xs, int):
+        return poly_evaluate_single(poly, xs, prime)
+    
+    # Check if xs is one of the FFT-friendly domains
+    # Compare by identity first (fast path), then by equality
+    if xs is D_2048 or (len(xs) == 2048 and xs == D_2048):
+        # Use FFT for D_2048
+        return evaluate_poly_fft(poly, 2048, OMEGA_2048, prime, coset_offset=1)
+    elif xs is D_512 or (len(xs) == 512 and xs == D_512):
+        # Use FFT for D_512
+        return evaluate_poly_fft(poly, 512, OMEGA, prime, coset_offset=1)
+    else:
+        # Fall back to Horner evaluation for arbitrary points
+        results = [poly_evaluate_single(poly, x, prime) for x in xs]
         return results
 
-def lagrange_basis_polynomial(x_coords, i, prime=S_PRIME):
+
+def poly_mul_linear(poly, a, b, prime):
+    """Multiply poly by (ax + b) in O(n) time."""
+    # result = poly * (ax + b) = a * (poly * x) + b * poly
+    # poly * x is [0] + poly
+    # result[i] = a * poly[i-1] + b * poly[i]
+    
+    n = len(poly)
+    result = [0] * (n + 1)
+    
+    # Handle first element (i=0): result[0] = b * poly[0]
+    result[0] = (b * poly[0]) % prime
+    
+    for i in range(1, n):
+        result[i] = (a * poly[i-1] + b * poly[i]) % prime
+        
+    # Handle last element (i=n): result[n] = a * poly[n-1]
+    result[n] = (a * poly[n-1]) % prime
+    
+    return result
+
+
+def lagrange_basis_polynomial(x_coords, i, prime: int):
     """
     Compute the i-th Lagrange basis polynomial.
 
     L_i(x) = (x - x_j) / (x_i - x_j)
     """
+    # Optimization for roots of unity domains
+    if x_coords is D_512 or (len(x_coords) == 512 and x_coords == D_512) or \
+       x_coords is D_2048 or (len(x_coords) == 2048 and x_coords == D_2048):
+        n = len(x_coords)
+        x_i = x_coords[i]
+        
+        # L_i(x) = 1/n * sum_{j=0}^{n-1} (x_i^{-j}) x^j
+        # coeff[j] = 1/n * (x_i^{-1})^j
+        
+        inv_n = pow(n, -1, prime)
+        inv_xi = pow(x_i, -1, prime)
+        
+        coeffs = [0] * n
+        current = inv_n
+        for j in range(n):
+            coeffs[j] = current
+            current = (current * inv_xi) % prime
+            
+        return coeffs
+
     n = len(x_coords)
     numerator = [1]  # Start with polynomial 1
     denominator = 1
@@ -136,8 +214,11 @@ def lagrange_basis_polynomial(x_coords, i, prime=S_PRIME):
     for j in range(n):
         if j != i:
             # Multiply numerator by (x - x_j)
-            term = [(-x_coords[j]) % prime, 1]
-            numerator = poly_multiply(numerator, term, prime)
+            # term = [(-x_coords[j]) % prime, 1]
+            # numerator = poly_multiply(numerator, term, prime)
+            
+            # Use optimized linear multiplication: multiply by (1*x - x_j)
+            numerator = poly_mul_linear(numerator, 1, (-x_coords[j]) % prime, prime)
 
             # Multiply denominator by (x_i - x_j)
             diff = (x_coords[i] - x_coords[j]) % prime
@@ -184,6 +265,7 @@ def vect_add(a, b, prime):
         result=[(i+j)%prime for i, j in zip(a,b)]
         return result
 
+
 #vector multiplication
 def vect_mul(a, b, prime):
     if isinstance(a, int) and isinstance(b, list):
@@ -199,6 +281,7 @@ def vect_mul(a, b, prime):
     else:
         result=[(i*j)%prime for i, j in zip(a,b)]
         return result
+
 
 def vect_scalar_mul(vec, scalar, mod=None):
     """Multiply each element in the vector by the scalar"""

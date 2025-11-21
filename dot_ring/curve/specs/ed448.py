@@ -16,13 +16,16 @@ class Ed448Params:
     The Ed448 curve is a high-security Twisted Edwards curve providing ~224-bit security.
     Defined in RFC 8032 and hash-to-curve parameters from RFC 9380.
     """
+
     # RFC 9380 compliant suite string and DST for edwards448_XOF:SHAKE256_ELL2_RO_
     SUITE_STRING = b"edwards448_XOF:SHAKE256_ELL2_RO_"
     DST = b"QUUX-V01-CS02-with-edwards448_XOF:SHAKE256_ELL2_RO_"
 
     # Curve parameters from RFC 8032
-    PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
-    ORDER: Final[int] = 2 ** 446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d
+    PRIME_FIELD: Final[int] = 2**448 - 2**224 - 1
+    ORDER: Final[int] = (
+        2**446 - 0x8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D
+    )
     COFACTOR: Final[int] = 4
 
     # Generator point (x, y) - Valid Ed448 base point that satisfies the curve equation
@@ -33,23 +36,23 @@ class Ed448Params:
     # GENERATOR_Y: Final[int] = (
     #     608248142315725548579089613027470755631970544493249636720114649005312536082174920317165848102547021453544566006733948867319461398184873
     # )
-    GENERATOR_X: Final[int] = (
-        224580040295924300187604334099896036246789641632564134246125461686950415467406032909029192869357953282578032075146446173674602635247710
-    )
-    GENERATOR_Y: Final[int] = (
-        298819210078481492676017930443930673437544040154080242095928241372331506189835876003536878655418784733982303233503462500531545062832660
-    )
+    GENERATOR_X: Final[
+        int
+    ] = 224580040295924300187604334099896036246789641632564134246125461686950415467406032909029192869357953282578032075146446173674602635247710
+    GENERATOR_Y: Final[
+        int
+    ] = 298819210078481492676017930443930673437544040154080242095928241372331506189835876003536878655418784733982303233503462500531545062832660
 
     # Twisted Edwards parameters: ax² + y² = 1 + dx²y² (mod p)
     # From RFC 8032: Ed448 uses a = 1 and d = -39081
     EDWARDS_A: Final[int] = 1  # a = 1 for Ed448 (untwisted Edwards form)
-    EDWARDS_D: Final[int] =  -39081  # d = -39081
+    EDWARDS_D: Final[int] = -39081  # d = -39081
 
     # Z parameter for Elligator 2 mapping (RFC 9380)
     Z: Final[int] = -1
     L: Final[int] = 84
     H_A: [Final] = "Shake-256"
-    ENDIAN = 'little'
+    ENDIAN = "little"
     M: [Final] = 1
     K: [Final] = 224
     S_in_bytes: [Final] = None
@@ -62,13 +65,14 @@ class Ed448Params:
     # Independent blinding base for Pedersen VRF
     # Generated using a deterministic method from a different seed point
     # These should be cryptographically independent from the generator
-    BBx: Final[int] = (
-        GENERATOR_X#0x5f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05f
-    )
-    BBy: Final[int] = (
-        GENERATOR_Y#0x793f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa16
-    )
-    UNCOMPRESSED=True
+    BBx: Final[
+        int
+    ] = GENERATOR_X  # 0x5f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05f
+    BBy: Final[
+        int
+    ] = GENERATOR_Y  # 0x793f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa16
+    UNCOMPRESSED = True
+
 
 class Ed448Curve(TECurve):
     """
@@ -88,9 +92,9 @@ class Ed448Curve(TECurve):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
 
-        if e2c_variant.value=="TryAndIncrement":
-            SUITE_STRING= b"Ed25519_SHA-512_TAI" #as per davxy
-            DST = b""+SUITE_STRING
+        if e2c_variant.value == "TryAndIncrement":
+            SUITE_STRING = b"Ed25519_SHA-512_TAI"  # as per davxy
+            DST = b"" + SUITE_STRING
 
         super().__init__(
             PRIME_FIELD=Ed448Params.PRIME_FIELD,
@@ -115,10 +119,8 @@ class Ed448Curve(TECurve):
             Requires_Isogeny=Ed448Params.Requires_Isogeny,
             Isogeny_Coeffs=Ed448Params.Isogeny_Coeffs,
             UNCOMPRESSED=Ed448Params.UNCOMPRESSED,
-            ENDIAN=Ed448Params.ENDIAN
+            ENDIAN=Ed448Params.ENDIAN,
         )
-
-
 
     @property
     def CHALLENGE_LENGTH(self) -> int:
@@ -158,11 +160,12 @@ class Ed448Curve(TECurve):
         Returns:
             Tuple[int, int]: J and K parameters
         """
-        return (156326,1)  # As Curve448 is its equivalent MGC
+        return (156326, 1)  # As Curve448 is its equivalent MGC
 
 
 # Singleton instance
 Ed448_TE_Curve: Final[Ed448Curve] = Ed448Curve()
+
 
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
     # Create curve with the specified variant
@@ -171,6 +174,7 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
     # Create and return a point class with this curve
     class Ed448PointVariant(Ed448Point):
         """Point on Ed448 with custom E2C variant"""
+
         def __init__(self, x: int, y: int) -> None:
             """Initialize a point with the variant curve."""
             # Call TEAffinePoint.__init__ directly to avoid Ed448Point's __init__
@@ -181,6 +185,7 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
 
     return Ed448PointVariant
 
+
 @dataclass(frozen=True)
 class Ed448Point(TEAffinePoint):
     """
@@ -189,6 +194,7 @@ class Ed448Point(TEAffinePoint):
     Implements point operations specific to the Ed448 curve
     with RFC 8032 and RFC 9380 compliance.
     """
+
     curve: Final[Ed448Curve] = Ed448_TE_Curve
 
     def __init__(self, x: int, y: int) -> None:
@@ -214,10 +220,7 @@ class Ed448Point(TEAffinePoint):
         Returns:
             Ed448Point: Standard Ed448 generator point
         """
-        return cls(
-            Ed448Params.GENERATOR_X,
-            Ed448Params.GENERATOR_Y
-        )
+        return cls(Ed448Params.GENERATOR_X, Ed448Params.GENERATOR_Y)
 
     @classmethod
     def identity(cls) -> Self:
@@ -242,10 +245,7 @@ class Ed448Point(TEAffinePoint):
         Returns:
             Ed448Point: Blinding base point
         """
-        return cls(
-            Ed448Params.BBx,
-            Ed448Params.BBy
-        )
+        return cls(Ed448Params.BBx, Ed448Params.BBy)
 
     @classmethod
     def map_to_curve(cls, u: int):
@@ -253,9 +253,8 @@ class Ed448Point(TEAffinePoint):
         s, t = cls.curve.map_to_curve_ell2(u)
         return cls.mont_to_ed448(s, t)
 
-
     @classmethod
-    def mont_to_ed448(cls, u:int, v:int)->Self:
+    def mont_to_ed448(cls, u: int, v: int) -> Self:
         """
         Convert a point (u, v) from Curve448 (Montgomery form)
         to Ed448 (Twisted Edwards form).
@@ -267,7 +266,7 @@ class Ed448Point(TEAffinePoint):
         Returns:
             (x, y): Edwards coordinates as integers mod p
         """
-        p=cls.curve.PRIME_FIELD
+        p = cls.curve.PRIME_FIELD
 
         # x numerator: 4 * v * (u^2 - 1)
         x_num = (4 * v * ((u * u - 1) % p)) % p
@@ -281,7 +280,13 @@ class Ed448Point(TEAffinePoint):
         y_num = -(pow(u, 5, p) - 2 * pow(u, 3, p) - 4 * u * pow(v, 2, p) + u) % p
 
         # y denominator: u^5 - 2u^2v^2 - 2u^3 - 2v^2 + u
-        y_den = (pow(u, 5, p) - 2 * pow(u, 2, p) * pow(v, 2, p) - 2 * pow(u, 3, p) - 2 * pow(v, 2, p) + u) % p
+        y_den = (
+            pow(u, 5, p)
+            - 2 * pow(u, 2, p) * pow(v, 2, p)
+            - 2 * pow(u, 3, p)
+            - 2 * pow(v, 2, p)
+            + u
+        ) % p
 
         y = (y_num * cls.curve.inv(y_den)) % p
         return cls(x, y)

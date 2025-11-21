@@ -48,7 +48,7 @@ class Transcript:
             to_take = min(remaining_allowed, total_len - idx)
 
             # Absorb that slice
-            chunk = data[idx: idx + to_take]
+            chunk = data[idx : idx + to_take]
             self.write(chunk)
 
             # Advance

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Protocol, Tuple, Type, TypeVar
-import hmac,hashlib
+import hmac, hashlib
 
 from ..curve.curve import Curve
 from ..curve.point import Point
@@ -13,24 +13,25 @@ P = TypeVar("P", bound=Point)
 
 class VRFProtocol(Protocol[C, P]):
     """Protocol defining the interface for VRF implementations."""
+
     curve: C
     point_type: Type[P]
 
     @abstractmethod
     def proof(
-            self, alpha: bytes, secret_key: int, additional_data: bytes
+        self, alpha: bytes, secret_key: int, additional_data: bytes
     ) -> Tuple[P, Tuple[int, int]]:
         """Generate VRF proof."""
         ...
 
     @abstractmethod
     def verify(
-            self,
-            public_key: P,
-            input_point: P,
-            additional_data: bytes,
-            output_point: P,
-            proof: Tuple[int, int],
+        self,
+        public_key: P,
+        input_point: P,
+        additional_data: bytes,
+        output_point: P,
+        proof: Tuple[int, int],
     ) -> bool:
         """Verify VRF proof."""
         ...
@@ -43,6 +44,7 @@ class VRF(ABC):
     This class provides the core functionality for VRF operations,
     following the IETF specification.
     """
+
     curve: C
     point_type: Type[P]
 
@@ -55,13 +57,19 @@ class VRF(ABC):
         """
         self.curve = curve
         self.point_type = point_type
-        if self.point_type.__name__ in ["P256Point","P256PointVariant", "P384Point", "P521Point", "Secp256k1Point", "Bandersnatch_SW_Point"]:
-            self.point_len = Helpers.pt_len(curve.PRIME_FIELD)+1
+        if self.point_type.__name__ in [
+            "P256Point",
+            "P256PointVariant",
+            "P384Point",
+            "P521Point",
+            "Secp256k1Point",
+            "Bandersnatch_SW_Point",
+        ]:
+            self.point_len = Helpers.pt_len(curve.PRIME_FIELD) + 1
         else:
             self.point_len = Helpers.pt_len(curve.PRIME_FIELD)
 
-        self.hash=Helpers.decide_hash(curve.H_A)
-
+        self.hash = Helpers.decide_hash(curve.H_A)
 
     def generate_nonce(self, secret_key: int, input_point: Point) -> int:
         """
@@ -75,10 +83,12 @@ class VRF(ABC):
             int: Generated nonce
         """
         # Hash secret key (little-endian)
-        scalr_len=(self.curve.ORDER.bit_length()+7)//8
-        sk_encoded = Helpers.int_to_str(secret_key%self.curve.ORDER, self.curve.ENDIAN,scalr_len)
+        scalr_len = (self.curve.ORDER.bit_length() + 7) // 8
+        sk_encoded = Helpers.int_to_str(
+            secret_key % self.curve.ORDER, self.curve.ENDIAN, scalr_len
+        )
         # hashed_sk = bytes(Hash.sha512(sk_encoded))
-        hashed_sk=self.hash(sk_encoded)
+        hashed_sk = self.hash(sk_encoded)
         sk_hash = hashed_sk[32:64]  # Use second half of SHA-512 output
         # Concatenate with input point encoding
         point_octet = input_point.point_to_string()
@@ -116,13 +126,16 @@ class VRF(ABC):
         hash_output = self.hash(hash_input)
 
         # Truncate to the curve's specified challenge length
-        challenge_hash = bytes(hash_output)[:self.curve.CHALLENGE_LENGTH]
+        challenge_hash = bytes(hash_output)[: self.curve.CHALLENGE_LENGTH]
 
         # Convert to integer and reduce modulo curve order
         return Helpers.b_endian_2_int(challenge_hash) % self.curve.ORDER
 
         # other way of nonce generation
-    def ecvrf_nonce_rfc6979(self, secret_scalar: int, h_string: bytes, hash_func="sha256"):
+
+    def ecvrf_nonce_rfc6979(
+        self, secret_scalar: int, h_string: bytes, hash_func="sha256"
+    ):
         """
         nonce generation as per rfc_6979
         Deterministically derives a nonce from secret scalar and input bytes.
@@ -148,14 +161,12 @@ class VRF(ABC):
         # Step 5: one more HMAC_K(V)
         V = hmac.new(K, V, hasher).digest()
         # Interpret V as integer and mod q
-        k = int.from_bytes(V, 'big') % q
+        k = int.from_bytes(V, "big") % q
         if k == 0:
             k = 1  # (optional) avoid zero, as per RFC6979 loop idea
         return k
 
-
-
-    def ecvrf_decode_proof(self, pi_string: bytes|str) -> Tuple[Point, int, int]:
+    def ecvrf_decode_proof(self, pi_string: bytes | str) -> Tuple[Point, int, int]:
         """Decode VRF proof.
 
         Args:
@@ -169,15 +180,21 @@ class VRF(ABC):
             pi_string = bytes.fromhex(pi_string)
 
         # Get lengths from curve parameters
-        point_len = self.point_len #32  #Compressed point length is fixed at 32 bytes for Bandersnatch
-        challenge_len = self.curve.CHALLENGE_LENGTH  # Dynamic challenge length from curve
-        scalar_len = (self.curve.ORDER.bit_length() + 7) // 8  # Scalar length based on curve order
+        point_len = (
+            self.point_len
+        )  # 32  #Compressed point length is fixed at 32 bytes for Bandersnatch
+        challenge_len = (
+            self.curve.CHALLENGE_LENGTH
+        )  # Dynamic challenge length from curve
+        scalar_len = (
+            self.curve.ORDER.bit_length() + 7
+        ) // 8  # Scalar length based on curve order
 
         # Calculate positions in the proof
         gamma_end = point_len
 
         if self.curve.UNCOMPRESSED:
-            gamma_end *=2
+            gamma_end *= 2
 
         c_end = gamma_end + challenge_len
         s_end = c_end + scalar_len
@@ -197,7 +214,7 @@ class VRF(ABC):
 
         return gamma, C, S
 
-    def ecvrf_proof_to_hash(self, pi_string: bytes|str) -> bytes:
+    def ecvrf_proof_to_hash(self, pi_string: bytes | str) -> bytes:
         """Convert VRF proof to hash.
 
         Args:
@@ -207,7 +224,7 @@ class VRF(ABC):
             bytes: Hash of VRF proof
         """
         if not isinstance(pi_string, bytes):
-            pi_string=bytes.fromhex(pi_string)
+            pi_string = bytes.fromhex(pi_string)
         gamma, C, S = self.ecvrf_decode_proof(pi_string)
         return self.proof_to_hash(gamma)
 
@@ -223,16 +240,16 @@ class VRF(ABC):
         proof_to_hash_domain_separator_front = b"\x03"
         proof_to_hash_domain_separator_back = b"\x00"
         beta_string = self.hash(
-            self.curve.SUITE_STRING +
-            proof_to_hash_domain_separator_front +
-            (
+            self.curve.SUITE_STRING
+            + proof_to_hash_domain_separator_front
+            + (
                 gamma
                 # In some cases, we don't want to multiply by the cofactor.
                 # https://github.com/davxy/ark-ec-vrfs/issues/52
                 if not mul_cofactor
                 else gamma * self.curve.COFACTOR
-            ).point_to_string() +
-            proof_to_hash_domain_separator_back
+            ).point_to_string()
+            + proof_to_hash_domain_separator_back
         )
         return bytes(beta_string)
 

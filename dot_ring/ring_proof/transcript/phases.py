@@ -23,13 +23,13 @@ def phase1_alphas(
     t.add_serialized(b"vk", serialize(vk))
     t.add_serialized(b"instance", serialize(result_point))
     t.add_serialized(b"committed_cols", serialize(witness_commitments))
-    return t,t.get_constraints_aggregation_coeffs(7)
+    return t, t.get_constraints_aggregation_coeffs(7)
 
 
 def phase2_eval_point(t: Transcript, C_q_commitment: Any) -> Any:
     """Append quotient commitment and derive evaluation point ζ."""
     t.add_serialized(b"quotient", serialize(C_q_commitment))
-    return t,t.get_evaluation_point(1)[0]
+    return t, t.get_evaluation_point(1)[0]
 
 
 def phase3_nu_vector(

@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Final,Tuple
+from typing import Final, Tuple
 from ..curve import Curve
-
 
 
 @dataclass(frozen=True)
@@ -14,6 +13,7 @@ class MGCurve(Curve):
     - A: coefficient of u² term
     - B: coefficient of v² term (typically 1 for most curves)
     """
+
     A: Final[int]
     B: Final[int]
 

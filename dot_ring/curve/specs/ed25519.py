@@ -21,13 +21,8 @@ class Ed25519Params:
     DST = b"QUUX-V01-CS02-with-edwards25519_XMD:SHA-512_ELL2_RO_"
 
     # Curve parameters
-<<<<<<< HEAD
-    PRIME_FIELD: Final[int] = 2**255 - 19
-    ORDER: Final[int] = 2 **252 + 0x14def9dea2f79cd65812631a5cf5d3ed
-=======
     PRIME_FIELD: Final[int] = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed
     ORDER: Final[int] = 2**252 + 0x14def9dea2f79cd65812631a5cf5d3ed
->>>>>>> m1_delivery
     COFACTOR: Final[int] = 8
     # Generator point
     GENERATOR_X: Final[int] = 0x216936D3CD6E53FEC0A4E231FDD6DC5C692CC7609525A7B2C9562D608F25D51A

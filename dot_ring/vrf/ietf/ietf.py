@@ -16,6 +16,7 @@ class IETFVRFProof:
         challenge: The challenge value c
         response: The response value s
     """
+
     challenge: int
     response: int
 
@@ -38,12 +39,13 @@ class IETF_VRF(VRF):
         super().__init__(curve, point_type)
         if not isinstance(curve, Curve):
             raise TypeError("Curve must be a valid elliptic curve")
+
     def proof(
-            self,
-            alpha: bytes|str,
-            secret_key: bytes|str,
-            additional_data: bytes|str,
-            salt: bytes = b''
+        self,
+        alpha: bytes | str,
+        secret_key: bytes | str,
+        additional_data: bytes | str,
+        salt: bytes = b"",
     ) -> bytes:
         """
         Generate IETF VRF proof.
@@ -58,11 +60,13 @@ class IETF_VRF(VRF):
             Tuple[BandersnatchPoint, Tuple[int, int]]: (output_point, (c, s))
         """
         if not isinstance(additional_data, bytes):
-            additional_data= bytes.fromhex(additional_data)
+            additional_data = bytes.fromhex(additional_data)
         if not isinstance(alpha, bytes):
-            alpha= bytes.fromhex(alpha)
+            alpha = bytes.fromhex(alpha)
 
-        secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN)%self.curve.ORDER
+        secret_key = (
+            Helpers.str_to_int(secret_key, self.curve.ENDIAN) % self.curve.ORDER
+        )
 
         # Create generator point
         generator = self.point_type.generator_point()
@@ -87,21 +91,24 @@ class IETF_VRF(VRF):
 
         # Generate challenge
         c = self.challenge(
-            [public_key, input_point, output_point, U, V],
-            additional_data
+            [public_key, input_point, output_point, U, V], additional_data
         )
         s = (nonce + (c * secret_key)) % self.curve.ORDER
-        scalar_len=(self.curve.PRIME_FIELD.bit_length() + 7) // 8
-        proof= output_point.point_to_string()+ Helpers.int_to_str(c,self.curve.ENDIAN,self.curve.CHALLENGE_LENGTH)+ Helpers.int_to_str(s,self.curve.ENDIAN, scalar_len)
+        scalar_len = (self.curve.PRIME_FIELD.bit_length() + 7) // 8
+        proof = (
+            output_point.point_to_string()
+            + Helpers.int_to_str(c, self.curve.ENDIAN, self.curve.CHALLENGE_LENGTH)
+            + Helpers.int_to_str(s, self.curve.ENDIAN, scalar_len)
+        )
         return proof
 
-    #to make the point type dynamic
+    # to make the point type dynamic
     def verify(
-            self,
-            public_key: Point,
-            input_point: Point,
-            additional_data: bytes|str,
-            proof:bytes|str
+        self,
+        public_key: Point,
+        input_point: Point,
+        additional_data: bytes | str,
+        proof: bytes | str,
     ) -> bool:
         """
         Verify IETF VRF proof.
@@ -116,23 +123,28 @@ class IETF_VRF(VRF):
             bool: True if proof is valid
         """
         if not isinstance(additional_data, bytes):
-            additional_data= bytes.fromhex(additional_data)
+            additional_data = bytes.fromhex(additional_data)
 
-        if  not isinstance(proof, bytes):
+        if not isinstance(proof, bytes):
             proof = bytes.fromhex(proof)
 
-        point_len = self.point_len # Compressed point length is fixed at 32 bytes for Bandersnatch\
+        point_len = (
+            self.point_len
+        )  # Compressed point length is fixed at 32 bytes for Bandersnatch\
         challenge_len = self.curve.CHALLENGE_LENGTH
-        output_point_end=point_len
+        output_point_end = point_len
         # Calculate positions in the proof
         if self.curve.UNCOMPRESSED:
-            output_point_end *=2
+            output_point_end *= 2
 
         c_end = output_point_end + challenge_len
         # Extract components
         output_point = self.point_type.string_to_point(proof[:output_point_end])
-        c = Helpers.str_to_int(proof[output_point_end:c_end], self.curve.ENDIAN)%self.curve.ORDER
-        s = Helpers.str_to_int(proof[c_end:], self.curve.ENDIAN)%self.curve.ORDER
+        c = (
+            Helpers.str_to_int(proof[output_point_end:c_end], self.curve.ENDIAN)
+            % self.curve.ORDER
+        )
+        s = Helpers.str_to_int(proof[c_end:], self.curve.ENDIAN) % self.curve.ORDER
         # Create generator point
         generator = self.point_type.generator_point()
         # Compute proof points
@@ -140,17 +152,18 @@ class IETF_VRF(VRF):
         V = (input_point * s) - (output_point * c)
         # Verify challenge
         expected_c = self.challenge(
-            [public_key, input_point, output_point, U, V],
-            additional_data
+            [public_key, input_point, output_point, U, V], additional_data
         )
 
         return c == expected_c
 
-    def get_public_key(self, secret_key:bytes|str)->bytes:
+    def get_public_key(self, secret_key: bytes | str) -> bytes:
         """Take the Secret_Key and return Public Key"""
-        secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN) % self.curve.ORDER
+        secret_key = (
+            Helpers.str_to_int(secret_key, self.curve.ENDIAN) % self.curve.ORDER
+        )
         # Create generator point
         generator = self.point_type.generator_point()
         public_key = generator * secret_key
-        p_k=public_key.point_to_string()
+        p_k = public_key.point_to_string()
         return p_k

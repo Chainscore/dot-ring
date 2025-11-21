@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Final
 from dot_ring.curve.curve import Curve
 
+
 @dataclass(frozen=True)
 class SWCurve(Curve):
     """
@@ -18,6 +19,7 @@ class SWCurve(Curve):
         WeierstrassA: The 'a' parameter in the curve equation
         WeierstrassB: The 'b' parameter in the curve equation
     """
+
     WeierstrassA: Final[int]
     WeierstrassB: Final[int]
 
@@ -39,19 +41,20 @@ class SWCurve(Curve):
     def _validate_weierstrass_params(self) -> bool:
         """
         Validate Short Weierstrass specific parameters.
-        
+
         Handles both Fp and Fp2 curve parameters.
 
         Returns:
             bool: True if parameters are valid
         """
+
         def is_fp2(value) -> bool:
             return isinstance(value, (tuple, list)) and len(value) == 2
-            
+
         A = self.WeierstrassA
         B = self.WeierstrassB
         p = self.PRIME_FIELD
-        
+
         # Handle Fp2 points
         if is_fp2(A) or is_fp2(B):
             # For Fp2, we'll just check that the parameters are not both zero
@@ -59,7 +62,7 @@ class SWCurve(Curve):
             a_is_zero = all(x == 0 for x in A) if is_fp2(A) else A == 0
             b_is_zero = all(x == 0 for x in B) if is_fp2(B) else B == 0
             return not (a_is_zero and b_is_zero)
-            
+
         # Original Fp validation
         # Check discriminant: 4a³ + 27b² ≠ 0 (mod p)
         a_cubed = pow(A, 3, p)

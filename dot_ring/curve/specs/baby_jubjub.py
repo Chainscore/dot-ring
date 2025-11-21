@@ -14,33 +14,52 @@ class BabyJubJubParams:
 
     Specification of the Baby JubJub curve in Twisted Edwards form.
     """
-    SUITE_STRING = b"Baby-JubJub_SHA-512_TAI"#"Babyjubjub_XMD:SHA-512_ELL2_RO_"
+
+    SUITE_STRING = b"Baby-JubJub_SHA-512_TAI"  # "Babyjubjub_XMD:SHA-512_ELL2_RO_"
     DST = b""
 
     # Curve parameters
-    PRIME_FIELD: Final[int] = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-    ORDER: Final[int] = 2736030358979909402780800718157159386076813972158567259200215660948447373041
+    PRIME_FIELD: Final[
+        int
+    ] = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+    ORDER: Final[
+        int
+    ] = 2736030358979909402780800718157159386076813972158567259200215660948447373041
     COFACTOR: Final[int] = 8
 
     # Generator point
-    GENERATOR_X: Final[int] = 19698561148652590122159747500897617769866003486955115824547446575314762165298
-    GENERATOR_Y: Final[int] = 19298250018296453272277890825869354524455968081175474282777126169995084727839
+    GENERATOR_X: Final[
+        int
+    ] = 19698561148652590122159747500897617769866003486955115824547446575314762165298
+    GENERATOR_Y: Final[
+        int
+    ] = 19298250018296453272277890825869354524455968081175474282777126169995084727839
     # Edwards curve parameters
     EDWARDS_A: Final[int] = 1
-    EDWARDS_D: Final[int] = 9706598848417545097372247223557719406784115219466060233080913168975159366771
+    EDWARDS_D: Final[
+        int
+    ] = 9706598848417545097372247223557719406784115219466060233080913168975159366771
 
-    GLV_LAMBDA: Final[int] = 0x13b4f3dc4a39a493edf849562b38c72bcfc49db970a5056ed13d21408783df05
-    GLV_B: Final[int] = 0x52c9f28b828426a561f00d3a63511a882ea712770d9af4d6ee0f014d172510b4
-    GLV_C: Final[int] = 0x6cc624cf865457c3a97c6efd6c17d1078456abcfff36f4e9515c806cdf650b3d
+    GLV_LAMBDA: Final[
+        int
+    ] = 0x13B4F3DC4A39A493EDF849562B38C72BCFC49DB970A5056ED13D21408783DF05
+    GLV_B: Final[
+        int
+    ] = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
+    GLV_C: Final[
+        int
+    ] = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
 
     # Z
     Z: Final[int] = 5
     M: Final[int] = 1
     K: Final[int] = 128
     L: Final[int] = 32  # can define func as well
-    S_in_bytes: Final[int] = 128  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
+    S_in_bytes: Final[
+        int
+    ] = 128  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
     H_A: Final[str] = "SHA-512"
-    ENDIAN = 'little'
+    ENDIAN = "little"
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     # Challenge length in bytes for VRF (aligned with 128-bit security level)
@@ -53,13 +72,14 @@ class BabyJubJubParams:
     BBy: Final[
         int
     ] = 16313972569917201570489077828713531620741538540099917729994937953803219324220
-    UNCOMPRESSED=False
+    UNCOMPRESSED = False
+
 
 JubJubGLVSpecs = GLVSpecs(
     is_enabled=True,
     lambda_param=BabyJubJubParams.GLV_LAMBDA,
     constant_b=BabyJubJubParams.GLV_B,
-    constant_c=BabyJubJubParams.GLV_C
+    constant_c=BabyJubJubParams.GLV_C,
 )
 
 
@@ -70,6 +90,7 @@ class BabyJubJubCurve(TECurve):
     A high-performance curve designed for zero-knowledge proofs and VRFs,
     offering both efficiency and security.
     """
+
     @property
     def CHALLENGE_LENGTH(self) -> int:
         """Return the challenge length in bytes for BabyJubJub VRF."""
@@ -100,7 +121,7 @@ class BabyJubJubCurve(TECurve):
             Requires_Isogeny=BabyJubJubParams.Requires_Isogeny,
             Isogeny_Coeffs=BabyJubJubParams.Isogeny_Coeffs,
             UNCOMPRESSED=BabyJubJubParams.UNCOMPRESSED,
-            ENDIAN=BabyJubJubParams.ENDIAN
+            ENDIAN=BabyJubJubParams.ENDIAN,
         )
 
 
@@ -116,6 +137,7 @@ class BabyJubJubPoint(TEAffinePoint):
     Implements optimized point operations specific to the Bandersnatch curve,
     including GLV scalar multiplication.
     """
+
     curve: Final[BabyJubJubCurve] = BabyJubJub_TE_Curve
 
     def __init__(self, x: int, y: int) -> None:
@@ -139,10 +161,7 @@ class BabyJubJubPoint(TEAffinePoint):
         Returns:
             BandersnatchPoint: Generator point
         """
-        return cls(
-            BabyJubJubParams.GENERATOR_X,
-            BabyJubJubParams.GENERATOR_Y
-        )
+        return cls(BabyJubJubParams.GENERATOR_X, BabyJubJubParams.GENERATOR_Y)
 
     @classmethod
     def identity_point(cls) -> Self:

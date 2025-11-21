@@ -8,7 +8,8 @@ from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
 from ..field_element import FieldElement
 
-T = TypeVar('T', bound='SWAffinePoint')
+T = TypeVar("T", bound="SWAffinePoint")
+
 
 @dataclass(frozen=True)
 class SWAffinePoint(Point[SWCurve]):
@@ -178,9 +179,8 @@ class SWAffinePoint(Point[SWCurve]):
             y_bytes = int(self.y).to_bytes(field_byte_len, "big")
             return b"\x04" + x_bytes + y_bytes
 
-
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> 'Point[C]'|str:
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> "Point[C]" | str:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
@@ -220,11 +220,9 @@ class SWAffinePoint(Point[SWCurve]):
             y_squared = (pow(x, 3, p) + A * x + B) % p
 
             # Compute square root using Tonelli-Shanks
-            y = cls.curve.mod_sqrt(y_squared)
-            if y is None:
-                # raise ValueError(
-                #     f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
-                # )
+            try:
+                y = cls.curve.mod_sqrt(y_squared)
+            except ValueError:
                 return "INVALID"
 
             # Choose correct square root based on parity indicated by prefix
@@ -250,8 +248,8 @@ class SWAffinePoint(Point[SWCurve]):
                 )
 
             # Extract x and y coordinates
-            x_bytes = octet_string[1:1 + field_byte_len]
-            y_bytes = octet_string[1 + field_byte_len:]
+            x_bytes = octet_string[1 : 1 + field_byte_len]
+            y_bytes = octet_string[1 + field_byte_len :]
 
             x = int.from_bytes(x_bytes, "big")
             y = int.from_bytes(y_bytes, "big")
@@ -276,7 +274,6 @@ class SWAffinePoint(Point[SWCurve]):
                 f"Expected 0x00 (infinity), 0x02/0x03 (compressed), 0x04 (uncompressed), or 0x06/0x07 (hybrid)"
             )
 
-
     def _validate_coordinates(self) -> bool:
         """
         Validate point coordinates are within field bounds.
@@ -289,26 +286,32 @@ class SWAffinePoint(Point[SWCurve]):
             return True
 
         # Handle FieldElement points (for Fp2)
-        if hasattr(self.x, 're') and hasattr(self.y, 're'):
+        if hasattr(self.x, "re") and hasattr(self.y, "re"):
             # For FieldElement, check that the prime field matches
-            return (self.x.p == self.curve.PRIME_FIELD and
-                    self.y.p == self.curve.PRIME_FIELD and
-                    0 <= self.x.re < self.curve.PRIME_FIELD and
-                    0 <= self.x.im < self.curve.PRIME_FIELD and
-                    0 <= self.y.re < self.curve.PRIME_FIELD and
-                    0 <= self.y.im < self.curve.PRIME_FIELD)
+            return (
+                self.x.p == self.curve.PRIME_FIELD
+                and self.y.p == self.curve.PRIME_FIELD
+                and 0 <= self.x.re < self.curve.PRIME_FIELD
+                and 0 <= self.x.im < self.curve.PRIME_FIELD
+                and 0 <= self.y.re < self.curve.PRIME_FIELD
+                and 0 <= self.y.im < self.curve.PRIME_FIELD
+            )
 
         # Handle Fp2 points (tuples of two integers)
         if isinstance(self.x, (tuple, list)) and isinstance(self.y, (tuple, list)):
             if len(self.x) != 2 or len(self.y) != 2:
                 return False
-            return all(isinstance(coord, int) and 0 <= coord < self.curve.PRIME_FIELD
-                       for coord in (*self.x, *self.y))
+            return all(
+                isinstance(coord, int) and 0 <= coord < self.curve.PRIME_FIELD
+                for coord in (*self.x, *self.y)
+            )
 
         # Handle Fp points (integers)
         if isinstance(self.x, int) and isinstance(self.y, int):
-            return (0 <= self.x < self.curve.PRIME_FIELD and
-                    0 <= self.y < self.curve.PRIME_FIELD)
+            return (
+                0 <= self.x < self.curve.PRIME_FIELD
+                and 0 <= self.y < self.curve.PRIME_FIELD
+            )
 
         return False
 
@@ -325,7 +328,7 @@ class SWAffinePoint(Point[SWCurve]):
         if self.x is None and self.y is None:
             return True
         # For FieldElement points (Fp2)
-        if hasattr(self.x, 're') and hasattr(self.y, 're'):
+        if hasattr(self.x, "re") and hasattr(self.y, "re"):
             # y²
             y2 = self.y * self.y
 
@@ -334,12 +337,12 @@ class SWAffinePoint(Point[SWCurve]):
             a = FieldElement(
                 self.curve.WeierstrassA[0],
                 self.curve.WeierstrassA[1],
-                self.curve.PRIME_FIELD
+                self.curve.PRIME_FIELD,
             )
             b = FieldElement(
                 self.curve.WeierstrassB[0],
                 self.curve.WeierstrassB[1],
-                self.curve.PRIME_FIELD
+                self.curve.PRIME_FIELD,
             )
             rhs = x3 + (a * self.x) + b
 
@@ -354,9 +357,11 @@ class SWAffinePoint(Point[SWCurve]):
         # For Fp points, use standard arithmetic
         try:
             left = pow(self.y, 2, self.curve.PRIME_FIELD)
-            right = (pow(self.x, 3, self.curve.PRIME_FIELD) +
-                     self.curve.WeierstrassA * self.x +
-                     self.curve.WeierstrassB) % self.curve.PRIME_FIELD
+            right = (
+                pow(self.x, 3, self.curve.PRIME_FIELD)
+                + self.curve.WeierstrassA * self.x
+                + self.curve.WeierstrassB
+            ) % self.curve.PRIME_FIELD
             return left == right
         except (TypeError, AttributeError):
             return False
@@ -386,7 +391,6 @@ class SWAffinePoint(Point[SWCurve]):
         # The curve will be set by the child class's __init__
         return cls(None, None)
 
-
     @classmethod
     def map_to_curve_simple_swu(cls, u: int) -> SWAffinePoint | Any:
         """Implements simplified SWU mapping"""
@@ -407,7 +411,7 @@ class SWAffinePoint(Point[SWCurve]):
         p = cls.curve.PRIME_FIELD
 
         if cls.curve.Requires_Isogeny:  # E' vals, used only for secp256k1 as its A=0
-            A = 0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
+            A = 0x3F8731ABDD661ADCA08A5558F0F5D272E953D363CB6F0E5D405447C01A444533
             B = 1771
 
         # 1. tv1 = inv0(Z^2 * u^4 + Z * u^2)
@@ -446,28 +450,30 @@ class SWAffinePoint(Point[SWCurve]):
             y = (-y) % p
 
         if cls.curve.Requires_Isogeny:
-
-            A_prime = 0x3f8731abdd661adca08a5558f0f5d272e953d363cb6f0e5d405447c01a444533
+            A_prime = 0x3F8731ABDD661ADCA08A5558F0F5D272E953D363CB6F0E5D405447C01A444533
             B_prime = 1771
 
             # Check if point lies on E'
-            if (y * y - (x ** 3 + A_prime * x + B_prime)) % p != 0:
+            if (y * y - (x**3 + A_prime * x + B_prime)) % p != 0:
                 raise ValueError("Point is not on E'")
             return cls.apply_isogeny(x, y)
 
         return cls(x=x, y=y)
 
     @classmethod
-    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"",
-                        General_Check: bool = False) -> Self | Any:
-
+    def encode_to_curve(
+        cls,
+        alpha_string: bytes | str,
+        salt: bytes | str = b"",
+        General_Check: bool = False,
+    ) -> Self | Any:
         if not isinstance(alpha_string, bytes):
             alpha_string = bytes.fromhex(alpha_string)
 
         if not isinstance(salt, bytes):
             salt = bytes.fromhex(salt)
 
-        if cls.curve.E2C in [E2C_Variant.SSWU,E2C_Variant.SSWU_NU]:
+        if cls.curve.E2C in [E2C_Variant.SSWU, E2C_Variant.SSWU_NU]:
             if cls.curve.E2C.value.endswith("_NU_"):
                 return cls.sswu_hash2_curve_nu(alpha_string, salt, General_Check)
             return cls.sswu_hash2_curve_ro(alpha_string, salt, General_Check)
@@ -476,10 +482,10 @@ class SWAffinePoint(Point[SWCurve]):
         else:
             raise ValueError(f"Unexpected E2C Variant: {cls.curve.E2C}")
 
-
     @classmethod
-    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"",
-                            General_Check: bool = False) -> SWAffinePoint | Any:
+    def sswu_hash2_curve_ro(
+        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
+    ) -> SWAffinePoint | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -499,17 +505,13 @@ class SWAffinePoint(Point[SWCurve]):
 
         if General_Check:
             P = R.clear_cofactor()
-            return {
-                "u": u,
-                "Q0": [q0.x, q0.y],
-                "Q1": [q1.x, q1.y],
-                "P": [P.x, P.y]
-            }
+            return {"u": u, "Q0": [q0.x, q0.y], "Q1": [q1.x, q1.y], "P": [P.x, P.y]}
         return R.clear_cofactor()
 
     @classmethod
-    def sswu_hash2_curve_nu(cls, alpha_string: bytes, salt: bytes = b"",
-                            General_Check: bool = False) -> SWAffinePoint | Any:
+    def sswu_hash2_curve_nu(
+        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
+    ) -> SWAffinePoint | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -526,11 +528,7 @@ class SWAffinePoint(Point[SWCurve]):
         R = cls.map_to_curve_simple_swu(u[0])  # sswu
         if General_Check:
             P = R.clear_cofactor()
-            return {
-                "u": u,
-                "Q0": [R.x, R.y],
-                "P": [P.x, P.y]
-            }
+            return {"u": u, "Q0": [R.x, R.y], "P": [P.x, P.y]}
         return R.clear_cofactor()
 
     @classmethod
@@ -542,30 +540,26 @@ class SWAffinePoint(Point[SWCurve]):
         p = cls.curve.PRIME_FIELD
         coeffs = cls.curve.Isogeny_Coeffs
         x_num = (
-                        coeffs["x_num"][0] * pow(x_p, 3, p) +
-                        coeffs["x_num"][1] * pow(x_p, 2, p) +
-                        coeffs["x_num"][2] * x_p +
-                        coeffs["x_num"][3]
-                ) % p
+            coeffs["x_num"][0] * pow(x_p, 3, p)
+            + coeffs["x_num"][1] * pow(x_p, 2, p)
+            + coeffs["x_num"][2] * x_p
+            + coeffs["x_num"][3]
+        ) % p
 
-        x_den = (
-                        pow(x_p, 2, p) +
-                        coeffs["x_den"][1] * x_p +
-                        coeffs["x_den"][2]
-                ) % p
+        x_den = (pow(x_p, 2, p) + coeffs["x_den"][1] * x_p + coeffs["x_den"][2]) % p
         y_num = (
-                        coeffs["y_num"][0] * pow(x_p, 3, p) +
-                        coeffs["y_num"][1] * pow(x_p, 2, p) +
-                        coeffs["y_num"][2] * x_p +
-                        coeffs["y_num"][3]
-                ) % p
+            coeffs["y_num"][0] * pow(x_p, 3, p)
+            + coeffs["y_num"][1] * pow(x_p, 2, p)
+            + coeffs["y_num"][2] * x_p
+            + coeffs["y_num"][3]
+        ) % p
 
         y_den = (
-                        pow(x_p, 3, p) +
-                        coeffs["y_den"][1] * pow(x_p, 2, p) +
-                        coeffs["y_den"][2] * x_p +
-                        coeffs["y_den"][3]
-                ) % p
+            pow(x_p, 3, p)
+            + coeffs["y_den"][1] * pow(x_p, 2, p)
+            + coeffs["y_den"][2] * x_p
+            + coeffs["y_den"][3]
+        ) % p
 
         x_den_inv = pow(x_den, -1, p)
         y_den_inv = pow(y_den, -1, p)

@@ -21,28 +21,33 @@ class BLS12_381_G2Params:
     The BLS12-381 curve is a pairing-friendly curve that is part of the BLS family.
     This implementation follows RFC 9380 Section 8.8.2 for hash-to-curve operations.
     """
+
     # From RFC 9380 Section 8.8.2: BLS12-381 G2
     SUITE_STRING = b"BLS12381G2_XMD:SHA-256_SSWU_RO_"
     DST = b"QUUX-V01-CS02-with-BLS12381G2_XMD:SHA-256_SSWU_RO_"  # Use the suite string as DST by default per RFC 9380
     # Base field characteristic (modulus)
     PRIME_FIELD: Final[
-        int] = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+        int
+    ] = 0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAAAB
 
     # Subgroup order (r)
-    ORDER: Final[int] = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
+    ORDER: Final[
+        int
+    ] = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
 
     # Cofactor (h)
     COFACTOR: Final[
-        int] = 0xbc69f08f2ee75b3584c6a0ea91b352888e2a8e9145ad7689986ff031508ffe1329c2f178731db956d82bf015d1212b02ec0ec69d7477c1ae954cbc06689f6a359894c0adebbf6b4e8020005aaa95551  # 0x5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5
+        int
+    ] = 0xBC69F08F2EE75B3584C6A0EA91B352888E2A8E9145AD7689986FF031508FFE1329C2F178731DB956D82BF015D1212B02EC0EC69D7477C1AE954CBC06689F6A359894C0ADEBBF6B4E8020005AAA95551  # 0x5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5
 
     # Generator point (G2)
     GENERATOR_X: Final[Fp2] = (
-        0x024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8,
-        0x13e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e
+        0x024AA2B2F08F0A91260805272DC51051C6E47AD4FA403B02B4510B647AE3D1770BAC0326A805BBEFD48056C8C121BDB8,
+        0x13E02B6052719F607DACD3A088274F65596BD0D09920B61AB5DA61BBDC7F5049334CF11213945D57E5AC7D055D042B7E,
     )
     GENERATOR_Y: Final[Fp2] = (
-        0x0ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801,
-        0x0606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be
+        0x0CE5D527727D6E118CC9CDC6DA2E351AADFD9BAA8CBDD3A76D429A695160D12C923AC9CC3BACA289E193548608B82801,
+        0x0606C4A02EA734CC32ACD2B02BC28B99CB3E287E85A763AF267492AB572E99AB3F370D275CEC1DA1AAA9075FF05F79BE,
     )
 
     # Curve equation: y² = x³ + 4(1 + i)
@@ -58,7 +63,7 @@ class BLS12_381_G2Params:
     L: Final[int] = 64  # Number of bytes for XMD
     S_in_bytes: Final[int] = 64  # Length of domain separation tag
     H_A: Final[str] = "SHA-256"  # Hash function
-    ENDIAN = 'little'
+    ENDIAN = "little"
     # VRF parameters
     CHALLENGE_LENGTH: Final[int] = 32  # 256-bit challenge
 
@@ -84,7 +89,6 @@ class BLS12_381_G2Curve(SWCurve):
     def CHALLENGE_LENGTH(self) -> int:
         """Return the challenge length in bytes for VRF."""
         return BLS12_381_G2Params.CHALLENGE_LENGTH
-
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         SUITE_STRING = BLS12_381_G2Params.SUITE_STRING
@@ -117,12 +121,13 @@ class BLS12_381_G2Curve(SWCurve):
             Requires_Isogeny=BLS12_381_G2Params.Requires_Isogeny,
             Isogeny_Coeffs=BLS12_381_G2Params.Isogeny_Coeffs,
             UNCOMPRESSED=BLS12_381_G2Params.UNCOMPRESSED,
-            ENDIAN=BLS12_381_G2Params.ENDIAN
+            ENDIAN=BLS12_381_G2Params.ENDIAN,
         )
 
 
 # Singleton instance for convenience
 BLS12_381_G2_SW_Curve: Final[BLS12_381_G2Curve] = BLS12_381_G2Curve()
+
 
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
     # Create curve with the specified variant
@@ -150,6 +155,7 @@ class BLS12_381_G2Point(SWAffinePoint):
 
     Implements point operations specific to the BLS12-381 G2 curve.
     """
+
     curve: Final[BLS12_381_G2Curve] = BLS12_381_G2_SW_Curve
 
     def __init__(self, x: Fp2, y: Fp2) -> None:
@@ -190,12 +196,12 @@ class BLS12_381_G2Point(SWAffinePoint):
             if isinstance(x, tuple) and isinstance(y, tuple):
                 return (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]))
             # If x is a FieldElement, use its re and im attributes
-            elif hasattr(x, 're') and hasattr(x, 'im'):
+            elif hasattr(x, "re") and hasattr(x, "im"):
                 return (FQ2([x.re, x.im]), FQ2([y.re, y.im]))
             # Fallback for other cases (shouldn't happen)
             else:
                 return (FQ2([x, 0]), FQ2([y, 0]))
-        
+
         # Convert points to FQ2 format for py_ecc
         p1 = to_fq2(self.x, self.y)
         p2 = to_fq2(other.x, other.y)
@@ -211,7 +217,7 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         return self.__class__(x, y)
 
-    def __neg__(self) -> 'BLS12_381_G2Point':
+    def __neg__(self) -> "BLS12_381_G2Point":
         """
         Negate a point on the BLS12-381 G2 curve.
         For a point (x, y), the negation is (x, -y).
@@ -221,13 +227,14 @@ class BLS12_381_G2Point(SWAffinePoint):
         """
         if self.is_identity():
             return self
-            
+
         # Use FieldElement's negation if y is a FieldElement
-        if hasattr(self.y, '__neg__'):
+        if hasattr(self.y, "__neg__"):
             neg_y = -self.y
         # Handle tuple case (Fp2 elements)
         elif isinstance(self.y, tuple):
             from ..field_element import FieldElement
+
             p = self.curve.PRIME_FIELD
             # Convert tuple to FieldElement, negate, then convert back
             y_fe = FieldElement(self.y[0], self.y[1], p)
@@ -236,10 +243,10 @@ class BLS12_381_G2Point(SWAffinePoint):
         else:
             # Fallback for regular integers
             neg_y = (-self.y) % self.curve.PRIME_FIELD
-            
+
         return self.__class__(self.x, neg_y)
 
-    def __sub__(self, other: 'BLS12_381_G2Point') -> 'BLS12_381_G2Point':
+    def __sub__(self, other: "BLS12_381_G2Point") -> "BLS12_381_G2Point":
         """
         Subtract one point from another on the BLS12-381 G2 curve.
         This is equivalent to adding the negation of the other point.
@@ -252,7 +259,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         """
         if not isinstance(other, BLS12_381_G2Point):
             raise TypeError("Can only subtract BLS12_381_G2Point instances")
-            
+
         return self + (-other)
 
     def __mul__(self, scalar: int) -> BLS12_381_G2Point:
@@ -270,7 +277,6 @@ class BLS12_381_G2Point(SWAffinePoint):
         if scalar < 0:
             return (-self) * (-scalar)
         try:
-
             # Convert point to FQ2 format for py_ecc
             p = (FQ2([self.x[0], self.x[1]]), FQ2([self.y[0], self.y[1]]))
 
@@ -297,13 +303,12 @@ class BLS12_381_G2Point(SWAffinePoint):
         Returns:
             BLS12_381_G2Point: Generator point
         """
-        return cls(
-            BLS12_381_G2Params.GENERATOR_X,
-            BLS12_381_G2Params.GENERATOR_Y
-        )
+        return cls(BLS12_381_G2Params.GENERATOR_X, BLS12_381_G2Params.GENERATOR_Y)
 
     @classmethod
-    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> dict | Self:
+    def sswu_hash2_curve_ro(
+        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
+    ) -> dict | Self:
         """
         Encode a string to a curve point using SSWU map with 3-isogeny (Random Oracle variant).
 
@@ -333,8 +338,9 @@ class BLS12_381_G2Point(SWAffinePoint):
         return R
 
     @classmethod
-    def sswu_hash2_curve_nu(cls, alpha_string: bytes, salt: bytes = b"",
-                            General_Check: bool = False) -> SWAffinePoint | Any:
+    def sswu_hash2_curve_nu(
+        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
+    ) -> SWAffinePoint | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -358,7 +364,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return R
 
     @classmethod
-    def map_to_curve_simple_swu(cls, u: FieldElement) -> 'BLS12_381_G2Point':
+    def map_to_curve_simple_swu(cls, u: FieldElement) -> "BLS12_381_G2Point":
         """
         Simplified SWU map with 3-isogeny for BLS12-381 G2
         Combines SSWU map and 3-isogeny map in one function
@@ -376,7 +382,7 @@ class BLS12_381_G2Point(SWAffinePoint):
             # Print curve equation and point for debugging
             left = y * y
             right = x * x * x + FieldElement(4, 4, x.p)  # 4 * (1 + i)
-            assert left == right, 'point is not on the curve'
+            assert left == right, "point is not on the curve"
             raise ValueError("Mapped point is not on the curve")
         return point
 
@@ -405,7 +411,6 @@ class BLS12_381_G2Point(SWAffinePoint):
 
     @classmethod
     def _sswu_map_to_e_prime(cls, u):
-
         p = u.p
         Z = FieldElement(-2, -1, p)  # -(2 + I)
         A_prime = FieldElement(0, 240, p)  # 240*I
@@ -421,7 +426,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         else:
             x1 = (-B_prime * (A_prime.inv())) * (1 + tv1)
 
-        gx1 = x1 ** 3 + A_prime * x1 + B_prime
+        gx1 = x1**3 + A_prime * x1 + B_prime
 
         if gx1.is_square():
             y1 = gx1.sqrt()
@@ -431,7 +436,7 @@ class BLS12_381_G2Point(SWAffinePoint):
             x, y = x1, y1
         else:
             x2 = Z * u_sq * x1
-            gx2 = x2 ** 3 + A_prime * x2 + B_prime
+            gx2 = x2**3 + A_prime * x2 + B_prime
             y2 = gx2.sqrt()
             left = y2 * y2
             right = x2 * x2 * x2 + A_prime * x2 + B_prime
@@ -450,81 +455,85 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         # Constants from RFC 9380
         k_1_0 = FieldElement(
-            0x5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6,
-            0x5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6,
-            p
+            0x5C759507E8E333EBB5B7A9A47D7ED8532C52D39FD3A042A88B58423C50AE15D5C2638E343D9C71C6238AAAAAAAA97D6,
+            0x5C759507E8E333EBB5B7A9A47D7ED8532C52D39FD3A042A88B58423C50AE15D5C2638E343D9C71C6238AAAAAAAA97D6,
+            p,
         )
         k_1_1 = FieldElement(
             0,
-            0x11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a,
-            p
+            0x11560BF17BAA99BC32126FCED787C88F984F87ADF7AE0C7F9A208C6B4F20A4181472AAA9CB8D555526A9FFFFFFFFC71A,
+            p,
         )
         k_1_2 = FieldElement(
-            0x11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71e,
-            0x8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38d,
-            p
+            0x11560BF17BAA99BC32126FCED787C88F984F87ADF7AE0C7F9A208C6B4F20A4181472AAA9CB8D555526A9FFFFFFFFC71E,
+            0x8AB05F8BDD54CDE190937E76BC3E447CC27C3D6FBD7063FCD104635A790520C0A395554E5C6AAAA9354FFFFFFFFE38D,
+            p,
         )
         k_1_3 = FieldElement(
-            0x171d6541fa38ccfaed6dea691f5fb614cb14b4e7f4e810aa22d6108f142b85757098e38d0f671c7188e2aaaaaaaa5ed1,
+            0x171D6541FA38CCFAED6DEA691F5FB614CB14B4E7F4E810AA22D6108F142B85757098E38D0F671C7188E2AAAAAAAA5ED1,
             0,
-            p
+            p,
         )
 
         k_2_0 = FieldElement(
             0,
-            0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa63,
-            p
+            0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAA63,
+            p,
         )
         k_2_1 = FieldElement(
-            0xc,
-            0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa9f,
-            p
+            0xC,
+            0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAA9F,
+            p,
         )
 
         k_3_0 = FieldElement(
-            0x1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706,
-            0x1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706,
-            p
+            0x1530477C7AB4113B59A4C18B076D11930F7DA5D4A07F649BF54439D87D27E500FC8C25EBF8C92F6812CFC71C71C6D706,
+            0x1530477C7AB4113B59A4C18B076D11930F7DA5D4A07F649BF54439D87D27E500FC8C25EBF8C92F6812CFC71C71C6D706,
+            p,
         )
         k_3_1 = FieldElement(
             0,
-            0x5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97be,
-            p
+            0x5C759507E8E333EBB5B7A9A47D7ED8532C52D39FD3A042A88B58423C50AE15D5C2638E343D9C71C6238AAAAAAAA97BE,
+            p,
         )
         k_3_2 = FieldElement(
-            0x11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71c,
-            0x8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38f,
-            p
+            0x11560BF17BAA99BC32126FCED787C88F984F87ADF7AE0C7F9A208C6B4F20A4181472AAA9CB8D555526A9FFFFFFFFC71C,
+            0x8AB05F8BDD54CDE190937E76BC3E447CC27C3D6FBD7063FCD104635A790520C0A395554E5C6AAAA9354FFFFFFFFE38F,
+            p,
         )
         k_3_3 = FieldElement(
-            0x124c9ad43b6cf79bfbf7043de3811ad0761b0f37a1e26286b0e977c69aa274524e79097a56dc4bd9e1b371c71c718b10,
+            0x124C9AD43B6CF79BFBF7043DE3811AD0761B0F37A1E26286B0E977C69AA274524E79097A56DC4BD9E1B371C71C718B10,
             0,
-            p
+            p,
         )
 
         k_4_0 = FieldElement(
-            0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb,
-            0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb,
-            p
+            0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFA8FB,
+            0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFA8FB,
+            p,
         )
         k_4_1 = FieldElement(
             0,
-            0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa9d3,
-            p
+            0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFA9D3,
+            p,
         )
         k_4_2 = FieldElement(
             0x12,
-            0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa99,
-            p
+            0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAA99,
+            p,
         )
 
-        x_num = k_1_3 * (x_prime ** 3) + k_1_2 * (x_prime ** 2) + k_1_1 * x_prime + k_1_0
-        x_den = x_prime ** 2 + k_2_1 * x_prime + k_2_0
+        x_num = (
+            k_1_3 * (x_prime**3) + k_1_2 * (x_prime**2) + k_1_1 * x_prime + k_1_0
+        )
+        x_den = x_prime**2 + k_2_1 * x_prime + k_2_0
         x = x_num / x_den  # can use inv as well
 
         # Calculate y numerator and denominator
-        y_num = k_3_3 * (x_prime ** 3) + k_3_2 * (x_prime ** 2) + k_3_1 * x_prime + k_3_0
-        y_den = x_prime ** 3 + k_4_2 * (x_prime ** 2) + k_4_1 * x_prime + k_4_0
+        y_num = (
+            k_3_3 * (x_prime**3) + k_3_2 * (x_prime**2) + k_3_1 * x_prime + k_3_0
+        )
+        y_den = x_prime**3 + k_4_2 * (x_prime**2) + k_4_1 * x_prime + k_4_0
         y = y_prime * (y_num / y_den)  # can u inv() as well
 
         # Verify the point is on the curve
