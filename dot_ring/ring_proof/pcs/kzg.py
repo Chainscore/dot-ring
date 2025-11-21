@@ -146,7 +146,7 @@ class KZG:
         return BlstP2Element().uncompress(compressed_bytes)
 
     def commit(self, scalars: CoeffVector) -> G1Point:
-        if getattr(self, "use_third_party_commit", True):
+        if self.use_third_party_commit:
             return self.third_party_commit(scalars)
         else:
             return self.in_built_commit(scalars)
@@ -265,17 +265,9 @@ class KZG:
             result = bls.Z1  # point at infinity
         else:
             # Use Pippenger multi-scalar multiplication
-            try:
-                result = blst.P1_Affines.mult_pippenger(
-                    blst.P1_Affines.as_memory(blst_points), active_scalars
-                )
-            except Exception as e:
-                print(f"Pippenger failed: {e}")
-                # Fallback to original method
-                result = bls.Z1
-                for coeff, g1_point in zip(coeffs, self._srs.g1):
-                    if coeff:
-                        result = add(result, multiply(g1_point, coeff))
+            result = blst.P1_Affines.mult_pippenger(
+                blst.P1_Affines.as_memory(blst_points), active_scalars
+            )
         return KZG.blst_p1_to_fq_tuple(result)
 
     @staticmethod

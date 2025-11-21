@@ -1,13 +1,9 @@
-import sys
-import time
-
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.constants import OMEGA as omega, D_512 as D, S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     poly_add,
     poly_scalar,
     vect_mul,
-    poly_multiply,
 )
 from dot_ring.ring_proof.polynomial.ops import poly_evaluate
 from dot_ring.ring_proof.transcript.phases import phase2_eval_point

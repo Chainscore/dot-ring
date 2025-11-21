@@ -3,13 +3,11 @@ from dataclasses import dataclass
 import json
 import os
 from typing import List, Tuple
-import py_ecc.optimized_bls12_381 as bls
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
-from functools import lru_cache
 
 h_vec = json.load(open(os.path.join(os.path.dirname(__file__), "h_vec.json"), "r"))
 
@@ -24,7 +22,7 @@ from dot_ring.ring_proof.constants import (
 )
 
 Scalar = int
-G1Point = Tuple[bls.FQ, bls.FQ, bls.FQ]
+G1Point = Tuple
 
 
 @dataclass(slots=True)

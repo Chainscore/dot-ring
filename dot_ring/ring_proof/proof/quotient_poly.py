@@ -1,13 +1,5 @@
-from dataclasses import dataclass
-
-from py_ecc.optimized_bls12_381 import normalize as nm
-
 from dot_ring.ring_proof.constants import SIZE
-
-# from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.polynomial.ops import poly_division_general
-
-# kzg=KZG.default()
 
 
 class QuotientPoly:

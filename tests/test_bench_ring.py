@@ -45,7 +45,7 @@ def test_bench_ring_prove():
                      print_stats=False,
                      sort_by='cumulative',
                      limit=25):
-            ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad, s_k, p_k, B_keys)
+            ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad, s_k, p_k, B_keys, True)
         
         # Verify correctness
         assert p_k.hex() == item['pk'], "Invalid Public Key"
