@@ -265,55 +265,56 @@ class TEAffinePoint(Point[C]):
         P2_proj = TEProjectivePoint.from_affine(P2)
         identity_proj = TEProjectivePoint.zero(self.curve)
 
-        def split_scalar(scalar: int, width: int, chunks: int) -> list[int]:
-            """Split scalar into 'chunks' groups of 'width' bits."""
-            mask = (1 << width) - 1
-            return [(scalar >> (i * width)) & mask for i in range(chunks)]
-
-        # Step 1: Precompute all i*P1 + j*P2
-        table = {}
+        # Step 1: Precompute lookup table for all i*P1 + j*P2 (0 <= i,j < 2^w)
+        table_size = 1 << w
+        table = [[None] * table_size for _ in range(table_size)]
         
-        # Precompute multiples
+        # Precompute P1 multiples: [0, P1, 2*P1, 3*P1, ...]
         P1_multiples = [identity_proj]
         current = P1_proj
-        for _ in range(1, 1 << w):
+        for _ in range(1, table_size):
             P1_multiples.append(current)
             current = current + P1_proj
             
+        # Precompute P2 multiples: [0, P2, 2*P2, 3*P2, ...]
         P2_multiples = [identity_proj]
         current = P2_proj
-        for _ in range(1, 1 << w):
+        for _ in range(1, table_size):
             P2_multiples.append(current)
             current = current + P2_proj
-            
-        for i in range(1 << w):
-            for j in range(1 << w):
-                if i == 0 and j == 0:
-                    table[(i, j)] = identity_proj
-                elif i == 0:
-                    table[(i, j)] = P2_multiples[j]
+        
+        # Build full table: table[i][j] = i*P1 + j*P2
+        for i in range(table_size):
+            for j in range(table_size):
+                if i == 0:
+                    table[i][j] = P2_multiples[j]
                 elif j == 0:
-                    table[(i, j)] = P1_multiples[i]
+                    table[i][j] = P1_multiples[i]
                 else:
-                    table[(i, j)] = P1_multiples[i] + P2_multiples[j]
+                    table[i][j] = P1_multiples[i] + P2_multiples[j]
 
         # Step 2: Split k1 and k2 into w-bit windows
         max_len = max(k1.bit_length(), k2.bit_length())
         d = math.ceil(max_len / w)
-        k1_windows = split_scalar(k1, w, d)
-        k2_windows = split_scalar(k2, w, d)
-
-        # Step 3: Initialize result
+        
+        # Extract windows directly without intermediate list
+        mask = (1 << w) - 1
+        
+        # Step 3: Double-and-add from MSB to LSB
         R = identity_proj
 
-        # Step 4: Iterate windows from MSB to LSB
         for i in range(d - 1, -1, -1):
+            # Double w times
             for _ in range(w):
                 R = R.double()
 
-            idx = (k1_windows[i], k2_windows[i])
-            if idx != (0, 0):
-                R = R + table[idx]
+            # Extract window indices
+            k1_window = (k1 >> (i * w)) & mask
+            k2_window = (k2 >> (i * w)) & mask
+            
+            # Add precomputed value if non-zero
+            if k1_window != 0 or k2_window != 0:
+                R = R + table[k1_window][k2_window]
 
         return R.to_affine()
 

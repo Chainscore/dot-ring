@@ -91,37 +91,45 @@ class Verify:
         )
 
     def contributions_to_constraints_eval_at_zeta(self):
-        L_0_x = lagrange_basis_polynomial(self.D, 0, S_PRIME)
         zeta = self.zeta_p
-        L_0_zeta = poly_evaluate(L_0_x, zeta, S_PRIME) % curve_order
-        L_N_4_x = lagrange_basis_polynomial(self.D, SIZE - 4, S_PRIME)
-        L_N_4_zeta = poly_evaluate(L_N_4_x, zeta, S_PRIME) % curve_order
         sp = self.sp
         sx, sy = sp
         MOD = curve_order
+        
+        # Precompute common values
+        zeta_minus_d4 = (zeta - D[-4]) % MOD
+        
+        # Compute Lagrange basis evaluations once
+        L_0_x = lagrange_basis_polynomial(self.D, 0, S_PRIME)
+        L_0_zeta = poly_evaluate(L_0_x, zeta, S_PRIME) % MOD
+        L_N_4_x = lagrange_basis_polynomial(self.D, SIZE - 4, S_PRIME)
+        L_N_4_zeta = poly_evaluate(L_N_4_x, zeta, S_PRIME) % MOD
 
         # Constraint 1
         term1 = (self.b_zeta * self.s_zeta) % MOD
         inner_sum = (self.accip_zeta + term1) % MOD
-        negated = (-inner_sum) % MOD  # Ensures result is positive in the field
-        vanishing_term = (zeta - D[-4]) % MOD
-        c1_zeta = (negated * vanishing_term) % MOD
+        negated = (-inner_sum) % MOD
+        c1_zeta = (negated * zeta_minus_d4) % MOD
 
-        # constraint 1 and 2 new
+        # constraint 2 and 3
         x1, y1 = self.accx_zeta, self.accy_zeta
         x2, y2 = self.px_zeta, self.py_zeta
-        x3, y3 = 0, 0
         b = self.b_zeta
+        one_minus_b = (1 - b) % MOD
         coeff_a = BandersnatchParams.EDWARDS_A
-        c2 = (
-            b * (x3 * (y1 * y2 + coeff_a * x1 * x2) - (x1 * y1 + x2 * y2))
-            + (1 - b) * (x3 - x1)
-        ) % MOD
-        c2_zeta = (c2 * (zeta - D[-4]) % MOD) % MOD
-        c3 = (
-            b * (y3 * (x1 * y2 - x2 * y1) - (x1 * y1 - x2 * y2)) + (1 - b) * (y3 - y1)
-        ) % MOD
-        c3_zeta = (c3 * (zeta - D[-4]) % MOD) % MOD
+        
+        # Precompute common subexpressions
+        y1_y2 = (y1 * y2) % MOD
+        x1_x2 = (x1 * x2) % MOD
+        x1_y1 = (x1 * y1) % MOD
+        x2_y2 = (x2 * y2) % MOD
+        
+        c2 = (b * (-(x1_y1 + x2_y2)) + one_minus_b * (-x1)) % MOD
+        c2_zeta = (c2 * zeta_minus_d4) % MOD
+        
+        x1_y2_minus_x2_y1 = ((x1 * y2) - (x2 * y1)) % MOD
+        c3 = (b * (-(x1_y1 - x2_y2)) + one_minus_b * (-y1)) % MOD
+        c3_zeta = (c3 * zeta_minus_d4) % MOD
 
         # Constraint 4
         c4_zeta = (self.b_zeta * (1 - self.b_zeta)) % MOD
@@ -174,21 +182,22 @@ class Verify:
             self.Cq,
         ]  # commitments which are in bls12 field form
 
+        # Precompute vanishing polynomial evaluation
         prod_sum = 1
         for k in range(1, 4):
-            cur = zeta - self.D[-k] % curve_order
-            prod_sum *= cur % curve_order
+            cur = (zeta - self.D[-k]) % curve_order
+            prod_sum = (prod_sum * cur) % curve_order
 
+        # Accumulate constraint contributions
         s_sum = 0
         for i in range(len(alphas_list)):
-            s_sum += (alphas_list[i] * cs[i] % curve_order) % curve_order
+            s_sum = (s_sum + alphas_list[i] * cs[i]) % curve_order
 
-        s_sum += self.l_zeta_omega % curve_order
+        s_sum = (s_sum + self.l_zeta_omega) % curve_order
 
-        q_zeta = self.divide(
-            (s_sum * prod_sum) % curve_order,
-            (pow(zeta, SIZE, curve_order) - 1) % curve_order,
-        )
+        # Compute quotient polynomial evaluation
+        zeta_pow_size_minus_1 = (pow(zeta, SIZE, curve_order) - 1) % curve_order
+        q_zeta = self.divide((s_sum * prod_sum) % curve_order, zeta_pow_size_minus_1)
 
         if self.use_blst:
             C_a_blst = [
@@ -317,7 +326,8 @@ class Verify:
 
     def is_signtaure_valid(self):
         """If both the verifications are true then sign is valid"""
-        return (
-            self.evaluation_of_quotient_poly_at_zeta()
-            and self.evaluation_of_linearization_poly_at_zeta_omega()
-        )
+        # Evaluate both in sequence to avoid short-circuit if first fails
+        # This ensures consistent timing
+        result1 = self.evaluation_of_quotient_poly_at_zeta()
+        result2 = self.evaluation_of_linearization_poly_at_zeta_omega()
+        return result1 and result2

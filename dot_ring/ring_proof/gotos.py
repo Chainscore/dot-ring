@@ -328,11 +328,23 @@ def ring_vrf_proof_verify(
 
     pedersen_proof = proof[:192]
     vrf = PedersenVRF(Bandersnatch_TE_Curve, BandersnatchPoint)
+    
+    # Decompress ring_root once at the start
+    C_px = H.bls_g1_decompress(ring_root[:48])
+    C_py = H.bls_g1_decompress(ring_root[48:-48])
+    C_s = H.bls_g1_decompress(ring_root[-48:])
+    fixed_cols_cmts = [C_px, C_py, C_s]
+    
     # get the input point
     input_point = BandersnatchPoint.encode_to_curve(alpha)
 
     # is pedersen proof valid
     p_proof_valid = vrf.verify(input_point, context, pedersen_proof)
+    
+    # Early exit if pedersen proof is invalid
+    if not p_proof_valid:
+        return False
+    
     rel_to_proove = BandersnatchPoint.string_to_point(pedersen_proof[32:64])
     # Extract and verify the Ring proof
     ring_proof = proof[192:]
@@ -358,12 +370,6 @@ def ring_vrf_proof_verify(
 
     rltn = (rel_to_proove.x, rel_to_proove.y)  # relartion to proove
     res_plus_seed = TwistedEdwardCurve.add(SeedPoint, rltn)
-    C_px, C_py, C_s = (
-        H.bls_g1_decompress(ring_root[:48]),
-        H.bls_g1_decompress(ring_root[48:-48]),
-        H.bls_g1_decompress(ring_root[-48:]),
-    )
-    fixed_cols_cmts = [C_px, C_py, C_s]
     
     verifier_key = {
         "g1": srs.g1_points[0],
@@ -377,7 +383,7 @@ def ring_vrf_proof_verify(
     )
     # is ring_proof valid
     ring_proof_valid = valid.is_signtaure_valid()
-    return p_proof_valid and ring_proof_valid
+    return ring_proof_valid
 
 
 # To geenerate the public_key from secret key

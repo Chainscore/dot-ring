@@ -63,18 +63,23 @@ class TEProjectivePoint(Generic[C]):
         p = self.curve.PRIME_FIELD
         a_coeff = self.curve.EdwardsA
         
+        # Compute squares
         A = (self.x * self.x) % p
         B = (self.y * self.y) % p
-        C = (2 * self.z * self.z) % p
+        z_sq = (self.z * self.z) % p
+        C = (z_sq << 1) % p  # 2 * z^2 using bit shift
         D = (a_coeff * A) % p
         
-        x_plus_y = self.x + self.y
+        # Compute E efficiently
+        x_plus_y = (self.x + self.y) % p
         E = (x_plus_y * x_plus_y - A - B) % p
         
+        # Compute remaining terms
         G = (D + B) % p
         F = (G - C) % p
         H = (D - B) % p
         
+        # Final coordinates
         x3 = (E * F) % p
         y3 = (G * H) % p
         t3 = (E * H) % p
