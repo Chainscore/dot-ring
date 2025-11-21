@@ -12,8 +12,7 @@ from py_ecc.optimized_bls12_381 import normalize as nm
 from dot_ring.ring_proof.pcs.kzg import KZG
 from py_ecc.optimized_bls12_381 import multiply, add, Z1, curve_order
 from dot_ring.ring_proof.helpers import Helpers as H
-
-kzg = KZG.default()
+from dot_ring.ring_proof.pcs.utils import py_ecc_point_to_blst
 
 # Try to import pyblst
 try:
@@ -60,17 +59,17 @@ class Verify:
         self.use_blst = HAS_PYBLST
         if self.use_blst:
             try:
-                self.Cb_blst = KZG.py_ecc_point_to_blst(self.Cb)
-                self.Caccip_blst = KZG.py_ecc_point_to_blst(self.Caccip)
-                self.Caccx_blst = KZG.py_ecc_point_to_blst(self.Caccx)
-                self.Caccy_blst = KZG.py_ecc_point_to_blst(self.Caccy)
-                self.Cq_blst = KZG.py_ecc_point_to_blst(self.Cq)
-                self.Phi_zeta_blst = KZG.py_ecc_point_to_blst(self.Phi_zeta)
-                self.Phi_zeta_omega_blst = KZG.py_ecc_point_to_blst(self.Phi_zeta_omega)
+                self.Cb_blst = py_ecc_point_to_blst(self.Cb)
+                self.Caccip_blst = py_ecc_point_to_blst(self.Caccip)
+                self.Caccx_blst = py_ecc_point_to_blst(self.Caccx)
+                self.Caccy_blst = py_ecc_point_to_blst(self.Caccy)
+                self.Cq_blst = py_ecc_point_to_blst(self.Cq)
+                self.Phi_zeta_blst = py_ecc_point_to_blst(self.Phi_zeta)
+                self.Phi_zeta_omega_blst = py_ecc_point_to_blst(self.Phi_zeta_omega)
                 
-                self.Cpx_blst = KZG.py_ecc_point_to_blst(self.Cpx)
-                self.Cpy_blst = KZG.py_ecc_point_to_blst(self.Cpy)
-                self.Cs_blst = KZG.py_ecc_point_to_blst(self.Cs)
+                self.Cpx_blst = py_ecc_point_to_blst(self.Cpx)
+                self.Cpy_blst = py_ecc_point_to_blst(self.Cpy)
+                self.Cs_blst = py_ecc_point_to_blst(self.Cs)
             except Exception as e:
                 print(f"Failed to convert points to pyblst: {e}")
                 self.use_blst = False
@@ -239,9 +238,9 @@ class Verify:
         Agg_zeta = sum(terms) % MOD
         
         if self.use_blst:
-            verification = kzg.verify(C_agg, self.Phi_zeta_blst, zeta, Agg_zeta)
+            verification = KZG.verify(C_agg, self.Phi_zeta_blst, zeta, Agg_zeta)
         else:
-            verification = kzg.verify(C_agg, self.Phi_zeta, zeta, Agg_zeta)
+            verification = KZG.verify(C_agg, self.Phi_zeta, zeta, Agg_zeta)
             
         return verification  # , cs
 
@@ -302,7 +301,7 @@ class Verify:
             for i in range(3):
                 Cl = Cl + Cl_list[i].scalar_mul(alphas_list[i])
                 
-            verified = kzg.verify(
+            verified = KZG.verify(
                 Cl, self.Phi_zeta_omega_blst, zeta * OMEGA % curve_order, self.l_zeta_omega
             )
         else:
@@ -310,7 +309,7 @@ class Verify:
             for i in range(3):
                 Cl = add(Cl, multiply(Cl_list[i], alphas_list[i]))
 
-            verified = kzg.verify(
+            verified = KZG.verify(
                 Cl, self.Phi_zeta_omega, zeta * OMEGA % curve_order, self.l_zeta_omega
             )
 

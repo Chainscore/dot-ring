@@ -5,22 +5,51 @@ structured domains using the Fast Fourier Transform (NTT), replacing
 the naive O(n * m) Horner evaluation.
 """
 
-from typing import List
+from typing import List, Dict, Tuple
+
+_roots_cache: Dict[Tuple[int, int, int], List[int]] = {}
+_bit_reverse_cache: Dict[int, List[int]] = {}
 
 
-def _bitreverse_copy(a: List[int], n: int) -> List[int]:
-    """Reorder array elements by bit-reversing their indices."""
-    result = [0] * n
+def _get_roots(n: int, omega: int, prime: int) -> List[int]:
+    """Get precomputed roots of unity."""
+    key = (n, omega, prime)
+    if key in _roots_cache:
+        return _roots_cache[key]
+
+    # Precompute all powers of omega: 1, w, w^2, ... w^(n/2-1)
+    powers = [1] * (n // 2)
+    curr = 1
+    for i in range(1, n // 2):
+        curr = (curr * omega) % prime
+        powers[i] = curr
+
+    _roots_cache[key] = powers
+    return powers
+
+
+def _get_bit_reverse(n: int) -> List[int]:
+    """Get precomputed bit-reversal permutation indices."""
+    if n in _bit_reverse_cache:
+        return _bit_reverse_cache[n]
+
     bits = n.bit_length() - 1
+    rev_indices = [0] * n
     for i in range(n):
-        rev = int(bin(i)[2:].zfill(bits)[::-1], 2)
-        result[rev] = a[i] if i < len(a) else 0
-    return result
+        r = 0
+        val = i
+        for _ in range(bits):
+            r = (r << 1) | (val & 1)
+            val >>= 1
+        rev_indices[i] = r
+
+    _bit_reverse_cache[n] = rev_indices
+    return rev_indices
 
 
 def _fft_in_place(coeffs: List[int], omega: int, prime: int) -> None:
     """In-place Cooley-Tukey FFT (radix-2 decimation-in-time).
-    
+
     Args:
         coeffs: Coefficient vector (will be modified in-place)
         omega: Primitive n-th root of unity mod prime
@@ -29,27 +58,28 @@ def _fft_in_place(coeffs: List[int], omega: int, prime: int) -> None:
     n = len(coeffs)
     if n == 1:
         return
-    
+
     # Bit-reverse permutation
-    bits = n.bit_length() - 1
+    rev = _get_bit_reverse(n)
     for i in range(n):
-        rev = int(bin(i)[2:].zfill(bits)[::-1], 2)
-        if i < rev:
-            coeffs[i], coeffs[rev] = coeffs[rev], coeffs[i]
-    
+        if i < rev[i]:
+            coeffs[i], coeffs[rev[i]] = coeffs[rev[i]], coeffs[i]
+
+    # Precompute roots
+    roots = _get_roots(n, omega, prime)
+
     # Cooley-Tukey butterfly
     m = 2
     while m <= n:
-        # omega_m is the m-th root of unity
-        omega_m = pow(omega, n // m, prime)
+        stride = n // m
+        # m // 2 butterflies per group
         for k in range(0, n, m):
-            omega_power = 1
             for j in range(m // 2):
-                t = (omega_power * coeffs[k + j + m // 2]) % prime
+                w = roots[j * stride]
+                t = (w * coeffs[k + j + m // 2]) % prime
                 u = coeffs[k + j]
                 coeffs[k + j] = (u + t) % prime
                 coeffs[k + j + m // 2] = (u - t) % prime
-                omega_power = (omega_power * omega_m) % prime
         m *= 2
 
 

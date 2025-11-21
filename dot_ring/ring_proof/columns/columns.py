@@ -4,7 +4,7 @@ import json
 import os
 from typing import List, Tuple
 from dot_ring.ring_proof.helpers import Helpers as H
-from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
+from dot_ring.ring_proof.pcs.srs import srs
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
@@ -39,20 +39,15 @@ class Column:
             self.evals += [0] * (SIZE - len(self.evals))
             self.coeffs = poly_interpolate_fft(self.evals, domain_omega, prime)
 
-    def commit(self, kzg: KZG | None = None) -> None:
+    def commit(self) -> None:
         if self.coeffs is None:
             raise ValueError("call interpolate() first")
         if self.commitment is None:
-            kzg = kzg or _get_default_kzg()
-            self.commitment = kzg.commit(self.coeffs)
+            self.commitment = KZG.commit(self.coeffs)
 
 
 def _get_default_kzg() -> KZG:
-    # Build an SRS with proper Jacobian conversion via the helper.
-    from dot_ring.ring_proof.pcs.kzg import SRS
-
-    return KZG(SRS(g1_points, g2_points))
-
+    return KZG(srs)
 
 @dataclass(slots=True)
 class PublicColumnBuilder:
@@ -79,7 +74,7 @@ class PublicColumnBuilder:
         return res  # B_Neck
 
     def build(
-        self, ring_pk: List[Tuple[int, int]], kzg: KZG | None = None
+        self, ring_pk: List[Tuple[int, int]]
     ) -> tuple[Column, Column, Column]:
         """Return (Px, Py, s) columns fully committed."""
         if len(ring_pk) < MAX_RING_SIZE:
@@ -101,7 +96,7 @@ class PublicColumnBuilder:
         col_s = Column("s", sel)
         for col in (col_px, col_py, col_s):
             col.interpolate(self.omega, self.prime)
-            col.commit(kzg)
+            col.commit()
         return col_px, col_py, col_s
 
 
@@ -145,7 +140,7 @@ class WitnessColumnBuilder:
             acc.append(acc[i - 1] + b_vector[i - 1] * self.selector_vector[i - 1])
         return acc
 
-    def build(self, kzg: KZG | None = None) -> tuple[Column, Column, Column, Column]:
+    def build(self) -> tuple[Column, Column, Column, Column]:
         b_vec = self._bits_vector()
         acc_x, acc_y = self._conditional_sum_accumulator(b_vec)
         acc_ip = self._inner_product_accumulator(b_vec)
@@ -158,7 +153,7 @@ class WitnessColumnBuilder:
         ]
         for col in columns:
             col.interpolate(self.omega, self.prime)
-            col.commit(kzg)
+            col.commit()
         return tuple(columns)
 
     def result(self, Blinding_point):

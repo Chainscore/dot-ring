@@ -2,7 +2,7 @@ from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ops import poly_add, poly_scalar
 from dot_ring.ring_proof.transcript.phases import phase3_nu_vector
 from dot_ring.ring_proof.helpers import Helpers as H
-
+from dot_ring.ring_proof.pcs.kzg import KZG
 
 class AggPoly:
     def __init__(
@@ -17,10 +17,8 @@ class AggPoly:
         l_Agg,
         zw,
         l_agg_zw,
-        kzg,
     ):
         self.zeta = zta
-        self.kzg = kzg
         (
             self.P_x_zeta,
             self.P_y_zeta,
@@ -66,8 +64,8 @@ class AggPoly:
         output: Phi_zeta, phi_zeta_omega
         """
         agg_p = self.aggregated_poly()
-        phi_z_opening = self.kzg.open(agg_p, self.zeta)  # take only proof
-        phi_zw_opening = self.kzg.open(self.l_agg, self.zeta_omega)  # take only proof
+        phi_z_opening = KZG.open(agg_p, self.zeta)  # take only proof
+        phi_zw_opening = KZG.open(self.l_agg, self.zeta_omega)  # take only proof
         return phi_z_opening, phi_zw_opening, phi_z_opening.proof, phi_zw_opening.proof
 
     def construct_proof(self):

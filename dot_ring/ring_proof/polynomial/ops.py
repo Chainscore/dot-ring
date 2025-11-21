@@ -38,12 +38,20 @@ def poly_subtract(poly1, poly2, prime):
 
 GENERATOR = 5
 
+_root_of_unity_cache = {}
+
 def get_root_of_unity(n, prime):
     """Get n-th primitive root of unity."""
+    key = (n, prime)
+    if key in _root_of_unity_cache:
+        return _root_of_unity_cache[key]
+
     # We need n to be a power of 2 and divide prime-1
     # prime-1 is divisible by 2^32, so any power of 2 <= 2^32 works
     exponent = (prime - 1) // n
-    return pow(GENERATOR, exponent, prime)
+    root = pow(GENERATOR, exponent, prime)
+    _root_of_unity_cache[key] = root
+    return root
 
 
 #(On^2)

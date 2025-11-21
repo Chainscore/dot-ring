@@ -2,7 +2,7 @@ from typing import List, Any
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
 from dot_ring.ring_proof.pcs.kzg import KZG
-from dot_ring.ring_proof.pcs.load_powers import g1_points, g2_points
+from dot_ring.ring_proof.pcs.srs import srs
 from dot_ring.ring_proof.transcript.phases import phase1_alphas
 from dot_ring.ring_proof.transcript.transcript import Transcript
 from dot_ring.ring_proof.constants import (
@@ -53,7 +53,6 @@ def generate_bls_signature(
             B_keys_ring[32 * i : 32 * (i + 1)] for i in range(len(B_keys_ring) // 32)
         ]
 
-    kzg = KZG.default(use_third_party_commit=third_party_msm)
     # signature = func() #make the call or logic u want
     # return signature
     if not isinstance(producer_key, bytes):
@@ -80,16 +79,11 @@ def generate_bls_signature(
         keys_as_bs_points.append((point.x, point.y))
 
     ring_root = PC()  # ring_root builder
-    fixed_cols = ring_root.build(keys_as_bs_points, kzg)
-    ring_root_bs = (
-        bytearray.fromhex(H.bls_g1_compress(fixed_cols[0].commitment)).hex()
-        + bytearray.fromhex(H.bls_g1_compress(fixed_cols[1].commitment)).hex()
-        + bytearray.fromhex(H.bls_g1_compress(fixed_cols[2].commitment)).hex()
-    )
+    fixed_cols = ring_root.build(keys_as_bs_points)
     s_v = fixed_cols[-1].evals
     producer_index = keys_as_bs_points.index(producer_key_pt)
     witness_obj = WitnessColumnBuilder(keys_as_bs_points, s_v, producer_index, secret_t)
-    witness_res = witness_obj.build(kzg)
+    witness_res = witness_obj.build()
     witness_relation_res = witness_obj.result(Blinding_Base)
     Result_plus_Seed = witness_obj.result_p_seed(witness_relation_res)
     constraints = RingConstraintBuilder(
@@ -119,8 +113,8 @@ def generate_bls_signature(
     ]
 
     vk = {
-        "g1": g1_points[0],
-        "g2": H.altered_points(g2_points),
+        "g1": srs.g1_points[0],
+        "g2": H.altered_points(srs.g2_points),
         "commitments": fixed_col_commits,
     }
     t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
@@ -129,7 +123,7 @@ def generate_bls_signature(
     cd = constraint_dict
     c_polys = [cd[val] for val in cd]
     C_agg = aggregate_constraints(c_polys, alpha, OMEGA_2048, S_PRIME)
-    qp = QuotientPoly(kzg)
+    qp = QuotientPoly()
     Q_p, C_q = qp.quotient_poly(C_agg)
     C_q_nm = nm(C_q)
     l_obj = LAggPoly(t, H.to_int(C_q_nm), fixed_cols, ws, alpha)
@@ -145,7 +139,6 @@ def generate_bls_signature(
         l_agg,
         zeta_omega,
         l_zw,
-        kzg,
     )
 
     cf_vs, proof_ptr, proof_bs = obj.construct_proof()
@@ -168,7 +161,6 @@ def construct_ring_root(keys: List[Any] | str | bytes, third_party_msm: bool) ->
             B_keys_ring[32 * i : 32 * (i + 1)] for i in range(len(B_keys_ring) // 32)
         ]
 
-    kzg = KZG.default(use_third_party_commit=third_party_msm)
     # ring_root= func() make the call ore logic u want
     # return ring_root
     keys_as_bs_points = []
@@ -182,7 +174,7 @@ def construct_ring_root(keys: List[Any] | str | bytes, third_party_msm: bool) ->
             keys_as_bs_points.append((point.x, point.y))
 
     ring_root = PC()  # ring_root builder
-    fixed_cols = ring_root.build(keys_as_bs_points, kzg)
+    fixed_cols = ring_root.build(keys_as_bs_points)
 
     fxd_col_cs = (
         bytes.fromhex(H.bls_g1_compress(fixed_cols[0].commitment))
@@ -234,8 +226,8 @@ def verify_signature(
     )
     fixed_cols_cmts = [C_px, C_py, C_s]
     verifier_key = {
-        "g1": g1_points[0],
-        "g2": H.altered_points(g2_points),
+        "g1": srs.g1_points[0],
+        "g2": H.altered_points(srs.g2_points),
         "commitments": [
             H.to_int(each) for each in H.bls_projective_2_affine(fixed_cols_cmts)
         ],
@@ -258,11 +250,8 @@ def ring_vrf_proof(
     ring_vrf_proof (pedersen vrf proof + ring_proof ) \
     which of length 784 bytes"""
 
-    kzg = KZG.default(use_third_party_commit=third_party_msm)
-
     if not isinstance(alpha, bytes):
         alpha = bytes.fromhex(alpha)
-
     if not isinstance(add, bytes):
         add = bytes.fromhex(add)
     if not isinstance(add, bytes):
@@ -322,7 +311,6 @@ def pedersen_proof_to_hash(pedersen_proof: bytes | str) -> bytes:
 
 # pedersen+ring_proof verification
 
-
 def ring_vrf_proof_verify(
     context: bytes | str,
     ring_root: bytes | str,
@@ -376,9 +364,10 @@ def ring_vrf_proof_verify(
         H.bls_g1_decompress(ring_root[-48:]),
     )
     fixed_cols_cmts = [C_px, C_py, C_s]
+    
     verifier_key = {
-        "g1": g1_points[0],
-        "g2": H.altered_points(g2_points),
+        "g1": srs.g1_points[0],
+        "g2": H.altered_points(srs.g2_points),
         "commitments": [
             H.to_int(each) for each in H.bls_projective_2_affine(fixed_cols_cmts)
         ],

@@ -1,10 +1,8 @@
 from dot_ring.ring_proof.constants import SIZE
 from dot_ring.ring_proof.polynomial.ops import poly_division_general
-
+from dot_ring.ring_proof.pcs.kzg import KZG
 
 class QuotientPoly:
-    def __init__(self, kzg):
-        self.kzg = kzg
 
     @staticmethod
     def poly_vector_xn_minus_1(n):
@@ -19,7 +17,7 @@ class QuotientPoly:
         input: quotient polynomial
         output: commitment to quotient polynomial
         """
-        c_q = self.kzg.commit(q_x)
+        c_q = KZG.commit(q_x)
         return c_q
 
     def quotient_poly(self, C_agg):

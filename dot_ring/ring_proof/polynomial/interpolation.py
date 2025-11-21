@@ -1,4 +1,5 @@
 from dot_ring.ring_proof.constants import SIZE
+from dot_ring.ring_proof.polynomial.fft import _fft_in_place
 
 
 def is_power_of_two(n):
@@ -14,24 +15,13 @@ def modinv(a, p):
 # In general fft
 def fft(a, omega, p):  # coeffs to evaluation points
     n = len(a)
-    # target_len = n
-    # N = next_power_of_two(target_len)
-    # omega = 49307615728544765012166121802278658070711169839041683575071795236746050763237
-    # # Scale root of unity if needed
-    # root_order = N
-    # omega= pow(omega, (2048 // root_order), p)
     if n == 1:
         return a
-    a_even = fft(a[::2], pow(omega, 2, p), p)
-    a_odd = fft(a[1::2], pow(omega, 2, p), p)
-    y = [0] * n
-    x = 1
-    for i in range(n // 2):
-        t = (x * a_odd[i]) % p
-        y[i] = (a_even[i] + t) % p
-        y[i + n // 2] = (a_even[i] - t) % p
-        x = (x * omega) % p
-    return y
+    
+    # Use optimized in-place FFT
+    coeffs = list(a)
+    _fft_in_place(coeffs, omega, p)
+    return coeffs
 
 
 def poly_interpolate_fft(
@@ -49,9 +39,6 @@ def poly_interpolate_fft(
     y = fft(a, omega_inv, p)
     n_inv = modinv(n, p)
     return [(val * n_inv) % p for val in y]
-
-
-import math
 
 
 def next_power_of_two(n):
