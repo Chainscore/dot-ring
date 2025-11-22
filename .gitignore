@@ -1,0 +1,10 @@
+__pycache__
+*.egg-info
+
+# blst dep
+blst
+build
+.idea
+.mypy_cache
+.pytest_cache
+perf

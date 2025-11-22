@@ -37,15 +37,9 @@ class FieldElement:
             if self.p != other.p:
                 raise ValueError("Cannot add elements from different fields")
             return FieldElement(
-                (self.re + other.re) % self.p,
-                (self.im + other.im) % self.p,
-                self.p
+                (self.re + other.re) % self.p, (self.im + other.im) % self.p, self.p
             )
-        return FieldElement(
-            (self.re + other) % self.p,
-            self.im,
-            self.p
-        )
+        return FieldElement((self.re + other) % self.p, self.im, self.p)
 
     def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
         """Subtract two field elements or a field element and an integer."""
@@ -73,11 +67,8 @@ class FieldElement:
             im = (self.re * other.im + self.im * other.re) % self.p
             return FieldElement(re, im, self.p)
         return FieldElement(
-            (self.re * other) % self.p,
-            (self.im * other) % self.p,
-            self.p
+            (self.re * other) % self.p, (self.im * other) % self.p, self.p
         )
-
 
     def __truediv__(self, other: Union[FieldElement, int]) -> FieldElement:
         """Divide two field elements or a field element by an integer."""
@@ -92,9 +83,7 @@ class FieldElement:
         denom = (self.re * self.re + self.im * self.im) % self.p
         inv_denom = pow(denom, -1, self.p)
         return FieldElement(
-            (self.re * inv_denom) % self.p,
-            (-self.im * inv_denom) % self.p,
-            self.p
+            (self.re * inv_denom) % self.p, (-self.im * inv_denom) % self.p, self.p
         )
 
     def __neg__(self) -> FieldElement:
@@ -121,42 +110,17 @@ class FieldElement:
         norm = (self.re * self.re + self.im * self.im) % self.p
         return pow(norm, (self.p - 1) // 2, self.p) == 1
 
-    def sgn0(self) -> int:
-        """
-        Return the sign of the element (0 or 1).
-
-        Implements the sgn0 function from RFC 9380.
-        """
-        sign_0 = self.re % 2
-        zero_0 = 1 if self.re == 0 else 0
-        sign_1 = self.im % 2
-        return sign_0 | (zero_0 & sign_1)
-
-    def __str__(self) -> str:
-        """String representation of the field element."""
-        if self.im == 0:
-            return str(self.re)
-        return f"({self.re} + {self.im}i)"
-
-    def __repr__(self) -> str:
-        """Canonical string representation of the field element."""
-        return f"FieldElement({self.re}, {self.im}, {self.p})"
+    # def __repr__(self) -> str:
+    #     """Canonical string representation of the field element."""
+    #     return f"FieldElement({self.re}, {self.im}, {self.p})"
 
     def __radd__(self, other: int) -> FieldElement:
         """Handle integer addition from the left."""
         return self + other
 
-    def __rsub__(self, other: int) -> FieldElement:
-        """Handle integer subtraction from the left."""
-        return (-self) + other
-
-    def __rmul__(self, other: int) -> FieldElement:
-        """Handle integer multiplication from the left."""
-        return self * other
-
-    def __rtruediv__(self, other: int) -> FieldElement:
-        """Handle integer division from the left."""
-        return FieldElement(other, 0, self.p) / self
+    # def __rtruediv__(self, other: int) -> FieldElement:
+    #     """Handle integer division from the left."""
+    #     return FieldElement(other, 0, self.p) / self
 
     def __pow__(self, exponent: int) -> FieldElement:
         """Raise the field element to an integer power."""
@@ -186,27 +150,27 @@ class FieldElement:
             while Q % 2 == 0:
                 Q //= 2
                 S += 1
-            z = 2
-            while pow(z, (self.p - 1) // 2, self.p) != self.p - 1:
-                z += 1
+            # z = 2
+            # while pow(z, (self.p - 1) // 2, self.p) != self.p - 1:
+            #     z += 1
 
-            c = pow(z, Q, self.p)
+            # c = pow(z, Q, self.p)
             x = pow(a, (Q + 1) // 2, self.p)
-            t = pow(a, Q, self.p)
-            m = S
+            # t = pow(a, Q, self.p)
+            # m = S
 
-            while t != 1:
-                i, temp = 0, t
-                while temp != 1 and i < m:
-                    temp = (temp * temp) % self.p
-                    i += 1
-                if i == m:
-                    return None
-                b = pow(c, 1 << (m - i - 1), self.p)
-                x = (x * b) % self.p
-                t = (t * b * b) % self.p
-                c = (b * b) % self.p
-                m = i
+            # while t != 1:
+            #     i, temp = 0, t
+            #     while temp != 1 and i < m:
+            #         temp = (temp * temp) % self.p
+            #         i += 1
+            #     if i == m:
+            #         return None
+            #     b = pow(c, 1 << (m - i - 1), self.p)
+            #     x = (x * b) % self.p
+            #     t = (t * b * b) % self.p
+            #     c = (b * b) % self.p
+            #     m = i
             return FieldElement(x, 0, self.p)
 
         # --- Fp2 case (fixed) ---
@@ -241,12 +205,4 @@ class FieldElement:
         # Step 5: compute imaginary part: x = a1 / (2*y)
         inv_2y = pow(2 * y.re, -1, p)
         x = (a1 * inv_2y) % p
-
         return FieldElement(y.re, x, p)
-
-
-
-
-
-
-

@@ -14,7 +14,7 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
         # Load test vectors
         test_vectors_path = os.path.join(
             os.path.dirname(__file__),
-            'vectors',
+            '../vectors/h2c',
             'bls12_381_G2_nu.json'
         )
         with open(test_vectors_path, 'r') as f:
@@ -81,8 +81,6 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
 
                 assert expected_P_x == computed_P.x, "P.x does not match"
                 assert expected_P_y == computed_P.y, "P.y does not match"
-
-                print(f"✅ Test Vector{i+1}")
 
 
 if __name__ == "__main__":

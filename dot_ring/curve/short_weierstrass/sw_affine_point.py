@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import  Self, Union, Optional, Any, TypeVar
 
-from dot_ring.curve.point import Point
+from dot_ring.curve.point import CurvePoint
 from dot_ring.curve.short_weierstrass.sw_curve import SWCurve
 from dot_ring.curve.e2c import E2C_Variant
 from ..field_element import FieldElement
@@ -11,7 +11,7 @@ from ..field_element import FieldElement
 T = TypeVar('T', bound='SWAffinePoint')
 
 @dataclass(frozen=True)
-class SWAffinePoint(Point[SWCurve]):
+class SWAffinePoint(CurvePoint):
     """
     Affine point implementation for Short Weierstrass curves.
 

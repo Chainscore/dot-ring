@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any, Union
-from ..point import Point, PointProtocol
+from ..point import CurvePoint, PointProtocol
 from .mg_curve import MGCurve
 from dot_ring.curve.e2c import E2C_Variant
 
@@ -10,7 +10,7 @@ C = TypeVar('C', bound=MGCurve)
 
 
 @dataclass(frozen=True)
-class MGAffinePoint(Point[C]):
+class MGAffinePoint(CurvePoint):
     """
     Affine point on a Montgomery curve.
 

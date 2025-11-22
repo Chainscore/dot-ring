@@ -9,6 +9,12 @@ All unit and integration tests are located under the [`tests/`](./tests) directo
 
 The test suite is organized into the following categories:
 
+### 🔹 Curve Operations Tests
+
+Core tests for curve operations and point serialization:
+- **`test_curve_ops.py`** - Tests basic curve operations and properties(Covering All Edwards, Weierstrass and Montgomery Curves)
+- **`test_curves_s2p_p2s.py`** - Tests point serialization and deserialization for various curve types
+
 ### 🔹 VRF Tests (`tests/test_vrfs/`)
 
 #### **IETF VRF Tests** (`test_ietf/`)
@@ -79,6 +85,8 @@ Comprehensive RFC 9380-compliant hash-to-curve test suite covering multiple curv
 ### 🔹 Integration Tests
 
 - **`test_all_vrfs.py`** - High-level integration test that generates and verifies signatures for all implemented VRF schemes of BandersnatchCurve
+- **`test_ring_vrf_with_third_party_msm.py`** - Tests Ring VRF implementation with third-party MSM (Multi-Scalar Multiplication)
+
 
 ### 🔹 Test Data
 
@@ -100,6 +108,10 @@ pytest tests/ -v
 ```
 
 ### Run Specific Test Categories
+**All Curve Ops tests:**
+```bash
+pytest tests/test_curve_ops/ -v
+```
 
 **All VRF tests:**
 ```bash

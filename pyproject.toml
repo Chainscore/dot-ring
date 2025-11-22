@@ -3,8 +3,6 @@ name = "dot-ring"
 version = "0.1.0"
 description = "Serves as a library to generate and verify a signature using IETF, Pedersen and Ring VRF-AD Schemes"
 authors = [
-    {name = "chainscore-labs", email = "hello@chainscore.finance"},
-    {name = "Kona Siva Naga Malleswara Rao", email = "sivakona@chainscore.finance"},
     {name = "prasad-kumkar", email = "prasad@chainscore.finance"}
 ]
 readme = "README.md"
@@ -56,8 +54,10 @@ dev = [
     "pytest-xdist>=3.0.0"
 ]
 
-blst = [
-    "pyblst>=0.3.13"
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*SwigPy.*:DeprecationWarning",
+    "ignore:.*swigvarlink.*:DeprecationWarning"
 ]
 
 [project.urls]

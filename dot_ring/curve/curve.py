@@ -4,9 +4,9 @@ from enum import Enum
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import List, ClassVar, Final,Dict
+from typing import List, Dict
 from dot_ring.curve.e2c import E2C_Variant
-from dot_ring.curve.glv import GLVSpecs
+
 
 
 @dataclass(frozen=True)
@@ -24,39 +24,37 @@ class Curve:
         GENERATOR_X: X-coordinate of the generator point
         GENERATOR_Y: Y-coordinate of the generator point
         COFACTOR: The cofactor of the curve
-        glv: GLV optimization parameters
         Z: The Z parameter for the curve
     """
 
     # Curve Parameters
-    PRIME_FIELD: Final[int]
-    ORDER: Final[int]
-    GENERATOR_X: Final[int]
-    GENERATOR_Y: Final[int]
-    COFACTOR: Final[int]
-    glv: GLVSpecs
-    Z: Final[int]
+    PRIME_FIELD: int
+    ORDER: int
+    GENERATOR_X: int
+    GENERATOR_Y: int
+    COFACTOR: int
+    Z: int
     E2C: E2C_Variant
 
-    M: Final[int]#1
-    K:Final[int]#128
-    L:Final[int]
-    S_in_bytes:Final[int]
-    H_A:Final[str]
-    ENDIAN:Final[str]
+    M: int  # 1
+    K: int  # 128
+    L: int
+    S_in_bytes: int
+    H_A: str
+    ENDIAN: str
 
-    #isogeny
-    Requires_Isogeny:Final[bool]
-    Isogeny_Coeffs:Final[Dict[str, List[int]]]
+    # Isogeny
+    Requires_Isogeny: bool
+    Isogeny_Coeffs: Dict[str, List[int]]
 
     # Suite String Parameters
-    SUITE_STRING: Final[bytes]
-    DST: Final[bytes]
+    SUITE_STRING: bytes
+    DST: bytes
 
     # Blinding Base For Pedersen
-    BBx: Final[int]
-    BBy: Final[int]
-    UNCOMPRESSED:Final[bool]
+    BBx: int
+    BBy: int
+    UNCOMPRESSED: bool
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
@@ -71,39 +69,48 @@ class Curve:
             bool: True if parameters are valid, False otherwise
         """
         # For extension fields (like Fp2), we need to check each component
-        if hasattr(self.GENERATOR_X, '__iter__'):
+        if hasattr(self.GENERATOR_X, "__iter__"):
             # Handle Fp2 points (tuples of two integers)
-            if not (isinstance(self.GENERATOR_X, (tuple, list)) and
-                   len(self.GENERATOR_X) == 2 and
-                   all(isinstance(x, int) for x in self.GENERATOR_X) and
-                   all(0 <= x < self.PRIME_FIELD for x in self.GENERATOR_X)):
+            if not (
+                isinstance(self.GENERATOR_X, (tuple, list))
+                and len(self.GENERATOR_X) == 2
+                and all(isinstance(x, int) for x in self.GENERATOR_X)
+                and all(0 <= x < self.PRIME_FIELD for x in self.GENERATOR_X)
+            ):
                 return False
 
-            if not (isinstance(self.GENERATOR_Y, (tuple, list)) and
-                   len(self.GENERATOR_Y) == 2 and
-                   all(isinstance(y, int) for y in self.GENERATOR_Y) and
-                   all(0 <= y < self.PRIME_FIELD for y in self.GENERATOR_Y)):
+            if not (
+                isinstance(self.GENERATOR_Y, (tuple, list))
+                and len(self.GENERATOR_Y) == 2
+                and all(isinstance(y, int) for y in self.GENERATOR_Y)
+                and all(0 <= y < self.PRIME_FIELD for y in self.GENERATOR_Y)
+            ):
                 return False
 
             # Convert to a point for the on-curve check
             from dot_ring.curve.short_weierstrass.sw_affine_point import SWAffinePoint
+
             point = SWAffinePoint(self.GENERATOR_X, self.GENERATOR_Y, self)
             if not point.is_on_curve():
                 return False
 
         else:
             # Original scalar field validation
-            if not (0 <= self.GENERATOR_X < self.PRIME_FIELD and
-                   0 <= self.GENERATOR_Y < self.PRIME_FIELD):
+            if not (
+                0 <= self.GENERATOR_X < self.PRIME_FIELD
+                and 0 <= self.GENERATOR_Y < self.PRIME_FIELD
+            ):
                 return False
 
             # if not self.is_on_curve(self.GENERATOR_X, self.GENERATOR_Y): #already given in point class
             #     return False
 
-        return (self.PRIME_FIELD > 2 and
-                self.ORDER > 2 and
-                self.COFACTOR > 0 and
-                self.PRIME_FIELD != self.ORDER)
+        return (
+            self.PRIME_FIELD > 2
+            and self.ORDER > 2
+            and self.COFACTOR > 0
+            and self.PRIME_FIELD != self.ORDER
+        )
 
     def hash_to_field(self, msg: bytes, count: int) -> List[int]:
         """
@@ -130,9 +137,9 @@ class Curve:
         for i in range(count):
             for j in range(self.M):
                 elm_offset = self.L * (j + i * self.M)
-                tv = uniform_bytes[elm_offset:elm_offset + self.L]
-                e_j = int.from_bytes(tv, 'big') % self.PRIME_FIELD
-                u_values.append(e_j%self.PRIME_FIELD) #modulo
+                tv = uniform_bytes[elm_offset : elm_offset + self.L]
+                e_j = int.from_bytes(tv, "big") % self.PRIME_FIELD
+                u_values.append(e_j % self.PRIME_FIELD)  # modulo
 
         return u_values
 
@@ -149,16 +156,16 @@ class Curve:
         Raises:
             ValueError: If the input parameters are invalid
         """
-        if self.H_A=="SHA-512":
-            hash_fn=hashlib.sha512
+        if self.H_A == "SHA-512":
+            hash_fn = hashlib.sha512
 
-        elif self.H_A=="SHA-384":
-            hash_fn=hashlib.sha384
+        elif self.H_A == "SHA-384":
+            hash_fn = hashlib.sha384
 
-        elif self.H_A=="SHA-256":
-            hash_fn=hashlib.sha256
+        elif self.H_A == "SHA-256":
+            hash_fn = hashlib.sha256
 
-        elif self.H_A=="Shake-256":
+        elif self.H_A == "Shake-256":
             return self.expand_message_xof(msg, len_in_bytes)
 
         else:
@@ -183,15 +190,16 @@ class Curve:
 
         b_values = [b_1]
         for i in range(2, ell + 1):
-            b_i = hash_fn(self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime).digest()
+            b_i = hash_fn(
+                self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime
+            ).digest()
             b_values.append(b_i)
 
-        uniform_bytes = b''.join(b_values)
+        uniform_bytes = b"".join(b_values)
 
         return uniform_bytes[:len_in_bytes]
 
     def expand_message_xof(self, msg: bytes, len_in_bytes: int) -> bytes:
-
         # 1.ABORT if len_in_bytes > 65535 or len(DST) > 255
         # 2.DST_prime = DST | | I2OSP(len(DST), 1)
         # 3.msg_prime = msg | | I2OSP(len_in_bytes, 2) | | DST_prime
@@ -244,7 +252,7 @@ class Curve:
         return x % 2
 
     def find_z_ell2(self) -> int:
-        return 5 #5 is only for bandersnatch
+        return 5  # 5 is only for bandersnatch
 
     def is_square(self, val: int) -> bool:
         if val == 0:
@@ -307,24 +315,12 @@ class Curve:
 
         return r
 
-
-    def inv(self,x: int) -> int:
+    def inv(self, x: int) -> int:
         # modular inverse in GF(p)
         return pow(x, self.PRIME_FIELD - 2, self.PRIME_FIELD)
 
-
-    def legendre_symbol(self,x: int) -> int:
+    def legendre_symbol(self, x: int) -> int:
         return pow(x, (self.PRIME_FIELD - 1) // 2, self.PRIME_FIELD)
-
-
-    def is_square(self, val: int) -> bool:
-        if val == 0:
-            return True
-        return pow(val, (self.PRIME_FIELD - 1) // 2, self.PRIME_FIELD) == 1
-
-    @staticmethod
-    def sgn0(xv: int) -> int:
-        return xv % 2
 
     @staticmethod
     def sha512(data: bytes) -> bytes:
@@ -333,13 +329,13 @@ class Curve:
 
     @staticmethod
     def I2OSP(value: int, length: int) -> bytes:
-        if value >= 256 ** length:
+        if value >= 256**length:
             raise ValueError("integer too large")
-        return value.to_bytes(length, 'big')
+        return value.to_bytes(length, "big")
 
     @staticmethod
     def OS2IP(octets: bytearray) -> int:
-        return int.from_bytes(octets, 'big')
+        return int.from_bytes(octets, "big")
 
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:

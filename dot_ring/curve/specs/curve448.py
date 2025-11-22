@@ -1,10 +1,8 @@
-# /home/siva/PycharmProjects/dot_ring/dot_ring/curve/specs/curve448.py
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, Optional
 from dot_ring.curve.e2c import E2C_Variant  # Unused import
-from ..glv import DisabledGLV  # Unused import
 from ..montgomery.mg_curve import MGCurve
 from ..montgomery.mg_affine_point import MGAffinePoint
 
@@ -17,12 +15,15 @@ class Curve448Params:
     Curve448 is a Montgomery curve defined by: v² = u³ + 156326u² + u
     over the prime field 2^448 - 2^224 - 1.
     """
+
     SUITE_STRING = b"curve448_XOF:SHAKE256_ELL2_RO_"
     DST = b"QUUX-V01-CS02-with-curve448_XOF:SHAKE256_ELL2_RO_"
 
     # Curve parameters
-    PRIME_FIELD: Final[int] = 2 ** 448 - 2 ** 224 - 1
-    ORDER: Final[int] = 2 ** 446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d
+    PRIME_FIELD: Final[int] = 2**448 - 2**224 - 1
+    ORDER: Final[int] = (
+        2**446 - 0x8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D
+    )
     COFACTOR: Final[int] = 4
 
     # Generator point (u, v) - corresponds to the base point of edwards448
@@ -31,7 +32,9 @@ class Curve448Params:
 
     # v-coordinate is derived from the curve equation v^2 = u^3 + A*u^2 + u mod p
     # Using the positive square root that has even least significant bit (LSB)
-    GENERATOR_V: Final[int] = 355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
+    GENERATOR_V: Final[
+        int
+    ] = 355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
 
     # Montgomery curve parameters: v² = u³ + Au² + u
     A: Final[int] = 156326
@@ -41,7 +44,7 @@ class Curve448Params:
     Z: Final[int] = -1
     L: Final[int] = 84
     H_A: [Final] = "Shake-256"
-    ENDIAN = 'little'
+    ENDIAN = "little"
     M: [Final] = 1
     K: [Final] = 224
     S_in_bytes: [Final] = None
@@ -54,7 +57,7 @@ class Curve448Params:
     # Blinding base for Pedersen VRF
     BBu: Final[int] = GENERATOR_U
     BBv: Final[int] = GENERATOR_V
-    UNCOMPRESSED=True
+    UNCOMPRESSED = True
 
 
 class Curve448Curve(MGCurve):
@@ -82,7 +85,6 @@ class Curve448Curve(MGCurve):
             GENERATOR_X=Curve448Params.GENERATOR_U,
             GENERATOR_Y=Curve448Params.GENERATOR_V,
             COFACTOR=Curve448Params.COFACTOR,
-            glv=DisabledGLV,  # Curve448 doesn't use GLV
             Z=Curve448Params.Z,
             A=Curve448Params.A,
             B=Curve448Params.B,
@@ -99,7 +101,7 @@ class Curve448Curve(MGCurve):
             Requires_Isogeny=Curve448Params.Requires_Isogeny,
             Isogeny_Coeffs=Curve448Params.Isogeny_Coeffs,
             UNCOMPRESSED=Curve448Params.UNCOMPRESSED,
-            ENDIAN=Curve448Params.ENDIAN
+            ENDIAN=Curve448Params.ENDIAN,
         )
 
     @property
@@ -120,12 +122,12 @@ Curve448_MG_Curve: Final[Curve448Curve] = Curve448Curve()
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     """
     Factory function to create a Curve448Point class with a specific E2C variant.
-    
+
     This is the recommended way for library users to work with different hash-to-curve variants.
 
     Args:
         e2c_variant: The E2C variant to use (ELL2, ELL2_NU)
-        
+
     Returns:
         A Curve448Point class configured with the specified variant
     """
@@ -135,6 +137,7 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     # Create and return a point class with this curve
     class Curve448PointVariant(MGAffinePoint):
         """Point on Curve448 with custom E2C variant"""
+
         pass
 
     # Set the curve as a class attribute
@@ -147,6 +150,7 @@ class Curve448Point(MGAffinePoint):
     """
     Point on the Curve448 Montgomery curve.
     """
+
     curve: Final[Curve448Curve] = Curve448_MG_Curve
 
     def __init__(self, u: Optional[int], v: Optional[int], curve=None) -> None:
@@ -164,49 +168,15 @@ class Curve448Point(MGAffinePoint):
         # Call parent constructor
         super().__init__(u, v, curve)
 
-
     @classmethod
-    def generator_point(cls) -> 'Curve448Point':
+    def generator_point(cls) -> "Curve448Point":
         """
         Get the generator point of the curve.
 
         Returns:
             Curve448Point: Generator point
         """
-        return cls(
-            Curve448Params.GENERATOR_U,
-            Curve448Params.GENERATOR_V
-        )
-
-    @classmethod
-    def identity(cls) -> 'Curve448Point':
-        """
-        Get the identity element (point at infinity) in a robust way.
-        For Montgomery curves, identity is represented as (None, None).
-        """
-        # Create object directly to avoid constructor validation issues
-        return cls(0,1)
-
-    def validate_coordinates(self) -> bool:
-        """
-        Validate that this point's coordinates are correct for Curve448.
-        """
-        if self.is_identity():
-            return True
-
-        if self.x is None or self.y is None:
-            return self.x is None and self.y is None  # Both must be None for identity
-
-        # Check coordinate bounds
-        p = Curve448Params.PRIME_FIELD
-        if not (0 <= self.x < p and 0 <= self.y < p):
-            return False
-
-        # Check curve equation: v² = u³ + 156326u² + u
-        u, v = self.x, self.y
-        left = (v * v) % p
-        right = (u * u * u + 156326 * u * u + u) % p
-        return left == right
+        return cls(Curve448Params.GENERATOR_U, Curve448Params.GENERATOR_V)
 
     def __str__(self) -> str:
         """String representation."""

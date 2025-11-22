@@ -5,31 +5,46 @@ from dataclasses import dataclass
 from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
 import hashlib
 
-C = TypeVar('C', bound='CurveProtocol')
+C = TypeVar("C", bound="CurveProtocol")
 
+@dataclass
+class Point:
+    x: int
+    y: int
 
 class CurveProtocol(Protocol):
     """Protocol defining required curve operations for points."""
+
     PRIME_FIELD: int
     ORDER: int
     Z: int
+    UNCOMPRESSED: bool
+    ENDIAN: str
+    COFACTOR: int
+    SUITE_STRING: bytes
 
 
 class PointProtocol(Protocol[C]):
     """Protocol defining the interface for curve points."""
+
     x: int
     y: int
     curve: C
 
-    def __add__(self, other: 'PointProtocol[C]') -> 'PointProtocol[C]': ...
+    def __add__(self, other: "PointProtocol[C]") -> "PointProtocol[C]":
+        ...
 
-    def __mul__(self, scalar: int) -> 'PointProtocol[C]': ...
+    def __mul__(self, scalar: int) -> "PointProtocol[C]":
+        ...
 
-    def is_on_curve(self) -> bool: ...
-
+    def is_on_curve(self) -> bool:
+        ...
+    
+    def is_identity(self) -> bool:
+        ...
 
 @dataclass(frozen=True)
-class Point(Generic[C]):
+class CurvePoint(Generic[C]):
     """
     Base implementation of an elliptic curve point.
 
@@ -41,9 +56,10 @@ class Point(Generic[C]):
         y: y-coordinate
         curve: The curve this point belongs to
     """
-    x: Final[int]
-    y: Final[int]
-    curve: Final[C]
+
+    x: int
+    y: int
+    curve: C
 
     # Class constants
     ENCODING_LENGTH: ClassVar[int] = 32
@@ -62,9 +78,11 @@ class Point(Generic[C]):
         Returns:
             bool: True if coordinates are valid
         """
+        if self.is_identity():
+            return True
         return (
-                0 <= self.x < self.curve.PRIME_FIELD and
-                0 <= self.y < self.curve.PRIME_FIELD
+            0 <= self.x < self.curve.PRIME_FIELD
+            and 0 <= self.y < self.curve.PRIME_FIELD
         )
 
     @abstractmethod
@@ -80,6 +98,15 @@ class Point(Generic[C]):
         """
         raise NotImplementedError("Must be implemented by subclass")
 
+    @abstractmethod
+    def is_identity(self) -> bool:
+        """
+        Check if this is the identity element.
+
+        Returns:
+            bool: True if this is the identity element
+        """
+        raise NotImplementedError("Must be implemented by subclass")
 
     def point_to_string(self) -> bytes:
         """
@@ -99,23 +126,25 @@ class Point(Generic[C]):
 
         p = self.curve.PRIME_FIELD
         n_bytes = (p.bit_length() + 7) // 8
-        y_bytes = bytearray(self.y.to_bytes(n_bytes, self.curve.ENDIAN))
+        endian = self.curve.ENDIAN
+        if endian != 'little' and endian != 'big':
+             raise ValueError("Invalid endianness")
+        y_bytes = bytearray(self.y.to_bytes(n_bytes, endian))
 
         # Compute x sign bit
         x_sign_bit = 1 if self.x > (-self.x % p) else 0
-        y_bytes[-1] |= (x_sign_bit << 7)
+        y_bytes[-1] |= x_sign_bit << 7
         return bytes(y_bytes)
-
 
     @classmethod
     def string_to_point(cls, octet_string: Union[str, bytes]) -> Self | str:
         """
-            Convert compressed octet string back to point.
-            Args:
-                octet_string: Compressed point bytes
+        Convert compressed octet string back to point.
+        Args:
+            octet_string: Compressed point bytes
 
-            Returns:
-                Point: Decoded point or returns "INVALID" If encoding is invalid
+        Returns:
+            Point: Decoded point or returns "INVALID" If encoding is invalid
         """
 
         if cls.curve.UNCOMPRESSED:
@@ -130,7 +159,10 @@ class Point(Generic[C]):
         # Mask out MSB to recover y
         y_bytes = bytearray(octet_string)
         y_bytes[-1] &= 0x7F
-        y = int.from_bytes(y_bytes, cls.curve.ENDIAN)
+        endian = cls.curve.ENDIAN
+        if endian != 'little' and endian != 'big':
+             raise ValueError("Invalid endianness")
+        y = int.from_bytes(y_bytes, endian)
         x_candidates = cls._x_recover(y)
 
         if x_candidates is None:
@@ -143,27 +175,33 @@ class Point(Generic[C]):
         try:
             return cls(chosen_x, y)
         except ValueError:
-            return "INVALID" #Needed for TAI_Case
+            return "INVALID"  # Needed for TAI_Case
 
-    def uncompressed_p2s(self)->bytes:
+    def uncompressed_p2s(self) -> bytes:
         p = self.curve.PRIME_FIELD
         byte_length = (p.bit_length() + 7) // 8
+        endian = self.curve.ENDIAN
+        if endian != 'little' and endian != 'big':
+             raise ValueError("Invalid endianness")
         # Encode u and v coordinates as little-endian bytes
-        x_bytes = self.x.to_bytes(byte_length,  self.curve.ENDIAN)
-        y_bytes = self.y.to_bytes(byte_length,  self.curve.ENDIAN)
+        x_bytes = self.x.to_bytes(byte_length, endian)
+        y_bytes = self.y.to_bytes(byte_length, endian)
         return x_bytes + y_bytes
 
     @classmethod
-    def uncompressed_s2p(cls, octet_string: Union[str, bytes])-> 'Point[C]':
+    def uncompressed_s2p(cls, octet_string: Union[str, bytes]) -> "Point[C]":
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
         p = cls.curve.PRIME_FIELD
         byte_length = (p.bit_length() + 7) // 8
+        endian = cls.curve.ENDIAN
+        if endian != 'little' and endian != 'big':
+             raise ValueError("Invalid endianness")
         # Split into u and v coordinates
         x_bytes = octet_string[:byte_length]
         y_bytes = octet_string[byte_length:]
-        x = int.from_bytes(x_bytes, cls.curve.ENDIAN)
-        y = int.from_bytes(y_bytes,  cls.curve.ENDIAN)
+        x = int.from_bytes(x_bytes, endian)
+        y = int.from_bytes(y_bytes, endian)
         # Create the point
         point = cls(x % cls.curve.PRIME_FIELD, y % cls.curve.PRIME_FIELD)
         # Verify the point is on the curve
@@ -215,23 +253,25 @@ class Point(Generic[C]):
         Returns:
             TEAffinePoint: Resulting curve point
         """
-        ctr =0
+        ctr = 0
         H = "INVALID"
-        front = b'\x01'
-        back = b'\x00'
-        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+        front = b"\x01"
+        back = b"\x00"
+        alpha_string = (
+            alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+        )
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
         while H == "INVALID" or H == cls.identity_point():
             ctr_string = ctr.to_bytes(1, "big")
-            hash_input = (suite_string + front + salt + alpha_string + ctr_string + back)
+            hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             if cls.__name__ == "P256PointVariant":
                 hash_output = hashlib.sha256(hash_input).digest()
                 H = cls.string_to_point(b"\x02" + hash_output[:32])
             else:
                 hash_output = hashlib.sha512(hash_input).digest()
                 H = cls.string_to_point(hash_output[:32])
-            if H !="INVALID" and cls.curve.COFACTOR > 1:
+            if H != "INVALID" and cls.curve.COFACTOR > 1:
                 H = H.clear_cofactor()
             ctr += 1
         return H

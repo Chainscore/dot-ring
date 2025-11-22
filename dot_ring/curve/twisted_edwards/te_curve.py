@@ -21,6 +21,7 @@ class TECurve(Curve):
         EdwardsD: The 'd' parameter in the curve equation
         CHALLENGE_LENGTH: Length of the challenge in bytes (default: 32 for 256-bit security)
     """
+
     EdwardsA: Final[int]
     EdwardsD: Final[int]
 
@@ -47,10 +48,10 @@ class TECurve(Curve):
             bool: True if parameters are valid
         """
         return (
-                self.EdwardsA != 0 and
-                self.EdwardsD != 0 and
-                self.EdwardsA != self.EdwardsD and
-                all(x < self.PRIME_FIELD for x in (self.EdwardsA, self.EdwardsD))
+            self.EdwardsA != 0
+            and self.EdwardsD != 0
+            and self.EdwardsA != self.EdwardsD
+            and all(x < self.PRIME_FIELD for x in (self.EdwardsA, self.EdwardsD))
         )
 
     def calculate_j_k(self) -> Tuple[int, int]:
@@ -68,7 +69,6 @@ class TECurve(Curve):
         K = (4 * denom_inv) % p
 
         return J, K
-
 
     def map_to_curve_ell2(self, u: int) -> Tuple[int, int]:
         """
@@ -137,7 +137,4 @@ class TECurve(Curve):
         Returns:
             bool: True if curve is complete
         """
-        return (
-                self.is_square(self.EdwardsA) and
-                not self.is_square(self.EdwardsD)
-        )
+        return self.is_square(self.EdwardsA) and not self.is_square(self.EdwardsD)
