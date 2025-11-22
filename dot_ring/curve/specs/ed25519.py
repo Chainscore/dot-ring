@@ -1,11 +1,7 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Final, Self, Tuple, Union
-
 from dot_ring.curve.e2c import E2C_Variant
-
-from ..glv import DisabledGLV
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
 
@@ -30,10 +26,6 @@ class Ed25519Params:
     # Edwards curve parameters
     EDWARDS_A: Final[int] = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffec
     EDWARDS_D: Final[int] = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3
-
-    GLV_LAMBDA: Final[int] = 0
-    GLV_B: Final[int] = 0
-    GLV_C: Final[int] = 0
 
     # Z parameter for Elligator 2 mapping (from RFC 9380 Section 4.1)
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
@@ -65,7 +57,6 @@ class Ed25519Curve(TECurve):
     offering both efficiency and security.
     """
 
-
     @property
     def CHALLENGE_LENGTH(self) -> int:
         """Return the challenge length in bytes for Ed25519 VRF."""
@@ -89,7 +80,6 @@ class Ed25519Curve(TECurve):
             GENERATOR_X=Ed25519Params.GENERATOR_X,
             GENERATOR_Y=Ed25519Params.GENERATOR_Y,
             COFACTOR=Ed25519Params.COFACTOR,
-            glv=DisabledGLV,
             Z=Ed25519Params.Z,
             EdwardsA=Ed25519Params.EDWARDS_A,
             EdwardsD=Ed25519Params.EDWARDS_D,

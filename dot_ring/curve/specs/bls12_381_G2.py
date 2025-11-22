@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Final, Self, Tuple, Optional, Any
 
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
 from ..field_element import FieldElement
@@ -104,7 +103,6 @@ class BLS12_381_G2Curve(SWCurve):
             GENERATOR_X=BLS12_381_G2Params.GENERATOR_X,
             GENERATOR_Y=BLS12_381_G2Params.GENERATOR_Y,
             COFACTOR=BLS12_381_G2Params.COFACTOR,
-            glv=DisabledGLV,  # No efficient GLV for this curve
             Z=BLS12_381_G2Params.Z,
             WeierstrassA=BLS12_381_G2Params.WEIERSTRASS_A,
             WeierstrassB=BLS12_381_G2Params.WEIERSTRASS_B,

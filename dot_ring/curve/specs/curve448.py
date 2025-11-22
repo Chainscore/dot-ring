@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Optional
 from dot_ring.curve.e2c import E2C_Variant  # Unused import
-from ..glv import DisabledGLV  # Unused import
 from ..montgomery.mg_curve import MGCurve
 from ..montgomery.mg_affine_point import MGAffinePoint
 
@@ -86,7 +85,6 @@ class Curve448Curve(MGCurve):
             GENERATOR_X=Curve448Params.GENERATOR_U,
             GENERATOR_Y=Curve448Params.GENERATOR_V,
             COFACTOR=Curve448Params.COFACTOR,
-            glv=DisabledGLV,  # Curve448 doesn't use GLV
             Z=Curve448Params.Z,
             A=Curve448Params.A,
             B=Curve448Params.B,

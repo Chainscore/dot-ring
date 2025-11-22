@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV, GLVSpecs
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
 
@@ -40,16 +39,6 @@ class BabyJubJubParams:
         int
     ] = 9706598848417545097372247223557719406784115219466060233080913168975159366771
 
-    GLV_LAMBDA: Final[
-        int
-    ] = 0x13B4F3DC4A39A493EDF849562B38C72BCFC49DB970A5056ED13D21408783DF05
-    GLV_B: Final[
-        int
-    ] = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
-    GLV_C: Final[
-        int
-    ] = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
-
     # Z
     Z: Final[int] = 5
     M: Final[int] = 1
@@ -75,13 +64,6 @@ class BabyJubJubParams:
     UNCOMPRESSED = False
 
 
-JubJubGLVSpecs = GLVSpecs(
-    is_enabled=True,
-    lambda_param=BabyJubJubParams.GLV_LAMBDA,
-    constant_b=BabyJubJubParams.GLV_B,
-    constant_c=BabyJubJubParams.GLV_C,
-)
-
 
 class BabyJubJubCurve(TECurve):
     """
@@ -104,7 +86,6 @@ class BabyJubJubCurve(TECurve):
             GENERATOR_X=BabyJubJubParams.GENERATOR_X,
             GENERATOR_Y=BabyJubJubParams.GENERATOR_Y,
             COFACTOR=BabyJubJubParams.COFACTOR,
-            glv=DisabledGLV,
             Z=BabyJubJubParams.Z,
             EdwardsA=BabyJubJubParams.EDWARDS_A,
             EdwardsD=BabyJubJubParams.EDWARDS_D,

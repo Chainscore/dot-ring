@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self, Tuple, Union
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
 
@@ -102,7 +101,6 @@ class Ed448Curve(TECurve):
             GENERATOR_X=Ed448Params.GENERATOR_X,
             GENERATOR_Y=Ed448Params.GENERATOR_Y,
             COFACTOR=Ed448Params.COFACTOR,
-            glv=DisabledGLV,  # Ed448 doesn't use GLV
             Z=Ed448Params.Z,
             EdwardsA=Ed448Params.EDWARDS_A,
             EdwardsD=Ed448Params.EDWARDS_D,

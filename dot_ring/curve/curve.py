@@ -4,9 +4,9 @@ from enum import Enum
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import List, ClassVar, Final, Dict
+from typing import List, Dict
 from dot_ring.curve.e2c import E2C_Variant
-from dot_ring.curve.glv import GLVSpecs
+
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,6 @@ class Curve:
         GENERATOR_X: X-coordinate of the generator point
         GENERATOR_Y: Y-coordinate of the generator point
         COFACTOR: The cofactor of the curve
-        glv: GLV optimization parameters
         Z: The Z parameter for the curve
     """
 
@@ -34,7 +33,6 @@ class Curve:
     GENERATOR_X: int
     GENERATOR_Y: int
     COFACTOR: int
-    glv: GLVSpecs
     Z: int
     E2C: E2C_Variant
 
@@ -45,7 +43,7 @@ class Curve:
     H_A: str
     ENDIAN: str
 
-    # isogeny
+    # Isogeny
     Requires_Isogeny: bool
     Isogeny_Coeffs: Dict[str, List[int]]
 

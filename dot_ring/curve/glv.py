@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from typing import List, Tuple, Final
 from functools import lru_cache
 import math
+from .point import CurvePoint
 
 
 @dataclass(frozen=True)
-class GLVSpecs:
+class GLV:
     """
     Gallant-Lambert-Vanstone endomorphism parameters.
 
@@ -20,15 +21,13 @@ class GLVSpecs:
         constant_b: First decomposition constant
         constant_c: Second decomposition constant
     """
-
-    is_enabled: bool = False
     lambda_param: int = 0
     constant_b: int = 0
     constant_c: int = 0
 
     def __post_init__(self) -> None:
         """Validate GLV parameters."""
-        if self.is_enabled and not self._validate_parameters():
+        if not self._validate_parameters():
             raise ValueError("Invalid GLV parameters")
 
     def _validate_parameters(self) -> bool:
@@ -124,9 +123,6 @@ class GLVSpecs:
         Raises:
             ValueError: If GLV is not enabled
         """
-        if not self.is_enabled:
-            return k, 0
-
         v1, v2 = self.find_short_vectors(n, self.lambda_param)
         v, b1, b2 = self._find_closest_lattice_point(k, v1, v2, n)
 
@@ -183,7 +179,109 @@ class GLVSpecs:
 
         return v, b1, b2
 
-    # _compute_beta is no longer needed as we integrated it
+    def compute_endomorphism(self, point: CurvePoint) -> CurvePoint:
+        """
+        Compute the GLV endomorphism of this point.
 
+        Returns:
+            CurvePoint: Result of endomorphism
+        """
+        # These constants should ideally be curve attributes
+        B = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
+        C = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
+        x, y, p = point.x, point.y, point.curve.PRIME_FIELD
+        y2 = pow(y, 2, p)
+        xy = (x * y) % p
+        f_y = (C * (1 - y2)) % p
+        g_y = (B * (y2 + B)) % p
+        h_y = (y2 - B) % p
 
-DisabledGLV = GLVSpecs(is_enabled=False, lambda_param=0, constant_b=0, constant_c=0)
+        x_p = (f_y * h_y) % p
+        y_p = (g_y * xy) % p
+        z_p = (h_y * xy) % p
+
+        x_a = (x_p * pow(z_p, -1, p)) % p
+        y_a = (y_p * pow(z_p, -1, p)) % p
+
+        return point.__class__(x_a, y_a)
+    
+    def windowed_simultaneous_mult(
+        self, k1: int, k2: int, P1: CurvePoint, P2: CurvePoint, w: int = 2
+    ) -> CurvePoint:
+        """
+        Compute k1 * P1 + k2 * P2 using windowed simultaneous multi-scalar multiplication.
+
+        Args:
+            k1: First scalar
+            k2: Second scalar
+            P1: First point
+            P2: Second point
+            w: Window size (default=2)
+
+        Returns:
+            TEAffinePoint: Result of k1*P1 + k2*P2
+
+        Raises:
+            TypeError: If P1 or P2 is not compatible with this curve
+        """
+        from .twisted_edwards.te_projective_point import TEProjectivePoint
+        
+        if P1.curve != P2.curve:
+            raise TypeError("Points must be on the same curve")
+        
+        P1_proj = TEProjectivePoint.from_point(P1)
+        P2_proj = TEProjectivePoint.from_point(P2)
+        identity_proj = TEProjectivePoint.zero(P1.curve)
+
+        # Step 1: Precompute lookup table for all i*P1 + j*P2 (0 <= i,j < 2^w)
+        table_size = 1 << w
+        table = [[None] * table_size for _ in range(table_size)]
+        
+        # Precompute P1 multiples: [0, P1, 2*P1, 3*P1, ...]
+        P1_multiples = [identity_proj]
+        current = P1_proj
+        for _ in range(1, table_size):
+            P1_multiples.append(current)
+            current = current + P1_proj
+            
+        # Precompute P2 multiples: [0, P2, 2*P2, 3*P2, ...]
+        P2_multiples = [identity_proj]
+        current = P2_proj
+        for _ in range(1, table_size):
+            P2_multiples.append(current)
+            current = current + P2_proj
+        
+        # Build full table: table[i][j] = i*P1 + j*P2
+        for i in range(table_size):
+            for j in range(table_size):
+                if i == 0:
+                    table[i][j] = P2_multiples[j]
+                elif j == 0:
+                    table[i][j] = P1_multiples[i]
+                else:
+                    table[i][j] = P1_multiples[i] + P2_multiples[j]
+
+        # Step 2: Split k1 and k2 into w-bit windows
+        max_len = max(k1.bit_length(), k2.bit_length())
+        d = math.ceil(max_len / w)
+        
+        # Extract windows directly without intermediate list
+        mask = (1 << w) - 1
+        
+        # Step 3: Double-and-add from MSB to LSB
+        R = identity_proj
+
+        for i in range(d - 1, -1, -1):
+            # Double w times
+            for _ in range(w):
+                R = R.double()
+
+            # Extract window indices
+            k1_window = (k1 >> (i * w)) & mask
+            k2_window = (k2 >> (i * w)) & mask
+            
+            # Add precomputed value if non-zero
+            if k1_window != 0 or k2_window != 0:
+                R = R + table[k1_window][k2_window]
+
+        return R.to_affine()

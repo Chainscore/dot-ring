@@ -172,16 +172,13 @@ class PedersenVRF(VRF):
         )
         
         # Theta0 = (Ok + output_point * c) == input_point * s
-        # LHS = 1*Ok + c*output_point
-        theta0_lhs = Ok.windowed_simultaneous_mult(1, c, Ok, output_point)
-            
+        theta0_lhs = Ok + output_point * c
+        
         Theta0 = theta0_lhs == input_point * s
         
         # Theta1 = R + (public_key_cp * c) == generator * s + b_base * Sb
-        # LHS = 1*R + c*public_key_cp
-        # RHS = s*generator + Sb*b_base
-        theta1_lhs = R.windowed_simultaneous_mult(1, c, R, public_key_cp)
-        theta1_rhs = generator.windowed_simultaneous_mult(s, Sb, generator, b_base)
+        theta1_lhs = R + (public_key_cp * c)
+        theta1_rhs = generator * s + b_base * Sb
             
         Theta1 = theta1_lhs == theta1_rhs
         return Theta0 == Theta1

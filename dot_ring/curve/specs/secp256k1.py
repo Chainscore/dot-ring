@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Final, Self, Dict, List
+from typing import Final, Self
 
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import GLVSpecs
+from ..glv import GLV
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
 
@@ -96,8 +96,7 @@ class Secp256k1Params:
 
 
 """GLV endomorphism parameters for secp256k1 curve."""
-Secp256k1GLVSpecs = GLVSpecs(
-    is_enabled=True,
+Secp256k1GLVSpecs = GLV(
     lambda_param=Secp256k1Params.GLV_LAMBDA,
     constant_b=Secp256k1Params.GLV_B,
     constant_c=Secp256k1Params.GLV_C,
@@ -133,7 +132,6 @@ class Secp256k1Curve(SWCurve):
             GENERATOR_X=Secp256k1Params.GENERATOR_X,
             GENERATOR_Y=Secp256k1Params.GENERATOR_Y,
             COFACTOR=Secp256k1Params.COFACTOR,
-            glv=Secp256k1GLVSpecs,
             Z=Secp256k1Params.Z,
             WeierstrassA=Secp256k1Params.WEIERSTRASS_A,
             WeierstrassB=Secp256k1Params.WEIERSTRASS_B,
@@ -212,21 +210,6 @@ class Secp256k1Point(SWAffinePoint):
 
     def __mul__(self, scalar: int) -> Self:
         """
-        Optimized scalar multiplication using GLV if enabled.
-
-        Args:
-            scalar: Scalar to multiply by
-
-        Returns:
-            Secp256k1Point: Result of scalar multiplication
-        """
-        if self.curve.glv.is_enabled:
-            return self._glv_mul(scalar)
-        else:
-            return super().__mul__(scalar)
-
-    def _glv_mul(self, k: int) -> Self:
-        """
         GLV-optimized scalar multiplication for secp256k1.
 
         Args:
@@ -235,21 +218,20 @@ class Secp256k1Point(SWAffinePoint):
         Returns:
             Secp256k1Point: Result of scalar multiplication
         """
-        if k == 0:
+        if scalar == 0:
             return self.identity()
 
-        if k < 0:
-            return (-self)._glv_mul(-k)
+        if scalar < 0:
+            return (-self).__mul__(-scalar)
 
         # GLV decomposition: k = k1 + k2*λ (mod n)
         # where λ is the GLV parameter
-        glv = self.curve.glv
         n = self.curve.ORDER
 
         # Simple GLV decomposition (can be optimized further)
-        k1 = k % n
+        k1 = scalar % n
         k2 = 0  # Simplified - in practice you'd compute proper decomposition
 
         # For now, fall back to standard multiplication
         # TODO: Implement full GLV decomposition
-        return super().__mul__(k)
+        return super().__mul__(scalar)

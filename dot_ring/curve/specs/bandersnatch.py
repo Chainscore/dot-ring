@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Final, Self
 
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV, GLVSpecs
+from ..glv import GLV
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
 
@@ -81,8 +81,7 @@ class BandersnatchParams:
 
 
 """GLV endomorphism parameters for Bandersnatch curve."""
-BandersnatchGLVSpecs = GLVSpecs(
-    is_enabled=True,
+BandersnatchGLV = GLV(
     lambda_param=BandersnatchParams.GLV_LAMBDA,
     constant_b=BandersnatchParams.GLV_B,
     constant_c=BandersnatchParams.GLV_C,
@@ -110,7 +109,6 @@ class BandersnatchCurve(TECurve):
             GENERATOR_X=BandersnatchParams.GENERATOR_X,
             GENERATOR_Y=BandersnatchParams.GENERATOR_Y,
             COFACTOR=BandersnatchParams.COFACTOR,
-            glv=BandersnatchGLVSpecs,
             Z=BandersnatchParams.Z,
             EdwardsA=BandersnatchParams.EDWARDS_A,
             EdwardsD=BandersnatchParams.EDWARDS_D,
@@ -146,19 +144,6 @@ class BandersnatchPoint(TEAffinePoint):
 
     curve: Final[BandersnatchCurve] = Bandersnatch_TE_Curve
 
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the Bandersnatch curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
     @classmethod
     def generator_point(cls) -> Self:
         """
@@ -168,3 +153,19 @@ class BandersnatchPoint(TEAffinePoint):
             BandersnatchPoint: Generator point
         """
         return cls(BandersnatchParams.GENERATOR_X, BandersnatchParams.GENERATOR_Y)
+
+    def __mul__(self, scalar: int) -> Self:
+        """
+        GLV scalar multiplication using endomorphism.
+
+        Args:
+            scalar: Integer to multiply by
+
+        Returns:
+            TEAffinePoint: Scalar multiplication result
+        """
+        n = self.curve.ORDER
+        k1, k2 = BandersnatchGLV.decompose_scalar(scalar % n, n)
+        phi = BandersnatchGLV.compute_endomorphism(self)
+
+        return BandersnatchGLV.windowed_simultaneous_mult(k1, k2, self, phi, w=2)

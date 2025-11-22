@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Final, Self, Any
 
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
 
@@ -95,7 +94,6 @@ class BLS12_381_G1Curve(SWCurve):
             GENERATOR_X=BLS12_381_G1Params.GENERATOR_X,
             GENERATOR_Y=BLS12_381_G1Params.GENERATOR_Y,
             COFACTOR=BLS12_381_G1Params.COFACTOR,
-            glv=DisabledGLV,
             Z=BLS12_381_G1Params.Z,
             WeierstrassA=BLS12_381_G1Params.WEIERSTRASS_A,
             WeierstrassB=BLS12_381_G1Params.WEIERSTRASS_B,

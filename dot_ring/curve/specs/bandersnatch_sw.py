@@ -3,10 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self, Union
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
-
+from ..point import CurvePoint
 
 @dataclass(frozen=True)
 class BandersnatchSWParams:
@@ -67,7 +66,6 @@ class BandersnatchSWCurve(SWCurve):
             GENERATOR_X=BandersnatchSWParams.GENERATOR_X,
             GENERATOR_Y=BandersnatchSWParams.GENERATOR_Y,
             COFACTOR=BandersnatchSWParams.COFACTOR,
-            glv=DisabledGLV,
             Z=BandersnatchSWParams.Z,
             WeierstrassA=BandersnatchSWParams.WEIERSTRASS_A,
             WeierstrassB=BandersnatchSWParams.WEIERSTRASS_B,
@@ -165,7 +163,7 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         return neg_y, y
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> "Point" | str:
+    def string_to_point(cls, octet_string: Union[str, bytes]) -> "CurvePoint" | str:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 

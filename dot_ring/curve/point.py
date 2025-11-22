@@ -7,6 +7,10 @@ import hashlib
 
 C = TypeVar("C", bound="CurveProtocol")
 
+@dataclass
+class Point:
+    x: int
+    y: int
 
 class CurveProtocol(Protocol):
     """Protocol defining required curve operations for points."""
@@ -39,9 +43,8 @@ class PointProtocol(Protocol[C]):
     def is_identity(self) -> bool:
         ...
 
-
 @dataclass(frozen=True)
-class Point(Generic[C]):
+class CurvePoint(Generic[C]):
     """
     Base implementation of an elliptic curve point.
 

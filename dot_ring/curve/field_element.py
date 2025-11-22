@@ -41,21 +41,21 @@ class FieldElement:
             )
         return FieldElement((self.re + other) % self.p, self.im, self.p)
 
-    # def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
-    #     """Subtract two field elements or a field element and an integer."""
-    #     if isinstance(other, FieldElement):
-    #         if self.p != other.p:
-    #             raise ValueError("Cannot subtract elements from different fields")
-    #         return FieldElement(
-    #             (self.re - other.re) % self.p,
-    #             (self.im - other.im) % self.p,
-    #             self.p
-    #         )
-    #     return FieldElement(
-    #         (self.re - other) % self.p,
-    #         self.im,
-    #         self.p
-    #     )
+    def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
+        """Subtract two field elements or a field element and an integer."""
+        if isinstance(other, FieldElement):
+            if self.p != other.p:
+                raise ValueError("Cannot subtract elements from different fields")
+            return FieldElement(
+                (self.re - other.re) % self.p,
+                (self.im - other.im) % self.p,
+                self.p
+            )
+        return FieldElement(
+            (self.re - other) % self.p,
+            self.im,
+            self.p
+        )
 
     def __mul__(self, other: Union[FieldElement, int]) -> FieldElement:
         """Multiply two field elements or a field element and an integer."""

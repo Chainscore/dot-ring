@@ -5,6 +5,7 @@ from typing import TypeVar, Self, TYPE_CHECKING, Generic
 if TYPE_CHECKING:
     from .te_curve import TECurve
     from .te_affine_point import TEAffinePoint
+    from ..point import CurvePoint
 
 C = TypeVar("C", bound="TECurve")
 
@@ -19,6 +20,12 @@ class TEProjectivePoint(Generic[C]):
     z: int
     t: int
     curve: C
+    
+    @classmethod
+    def from_point(
+        cls, point: CurvePoint
+    ) -> Self:
+        return cls(point.x, point.y, 1, (point.x * point.y) % point.curve.PRIME_FIELD, point.curve)
 
     @classmethod
     def from_affine(cls, point: "TEAffinePoint") -> Self:

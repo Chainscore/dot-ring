@@ -1,11 +1,7 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Final, Self
-
 from dot_ring.curve.e2c import E2C_Variant
-
-from ..glv import DisabledGLV, GLVSpecs
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
 
@@ -43,17 +39,6 @@ class JubJubParams:
     EDWARDS_D: Final[
         int
     ] = 19257038036680949359750312669786877991949435402254120286184196891950884077233
-
-    # GLV parameters
-    GLV_LAMBDA: Final[
-        int
-    ] = 0x13B4F3DC4A39A493EDF849562B38C72BCFC49DB970A5056ED13D21408783DF05
-    GLV_B: Final[
-        int
-    ] = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
-    GLV_C: Final[
-        int
-    ] = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
 
     # Z
     Z: Final[int] = 5
@@ -100,7 +85,6 @@ class JubJubCurve(TECurve):
             GENERATOR_X=JubJubParams.GENERATOR_X,
             GENERATOR_Y=JubJubParams.GENERATOR_Y,
             COFACTOR=JubJubParams.COFACTOR,
-            glv=DisabledGLV,
             Z=JubJubParams.Z,
             EdwardsA=JubJubParams.EDWARDS_A,
             EdwardsD=JubJubParams.EDWARDS_D,

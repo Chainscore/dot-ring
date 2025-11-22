@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from dot_ring.vrf.ring.ring_vrf import RingVrf as RVRF
-from utils.profiler import Profiler
+from .profiler import Profiler
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "results")
@@ -15,7 +15,7 @@ RESULTS_DIR = os.path.join(HERE, "results")
 
 def load_test_data():
     """Load test vectors from JSON file - returns only first test case"""
-    file_path = os.path.join(HERE, "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
+    file_path = os.path.join(HERE, "../vectors", "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
     with open(file_path, 'r') as f:
         data = json.load(f)
     return [data[0]]  # Return only first test case

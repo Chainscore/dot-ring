@@ -4,14 +4,14 @@ import hashlib
 from dataclasses import dataclass
 from typing import TypeVar, Self, Any, Tuple
 from dot_ring.curve.e2c import E2C_Variant
-from ..point import Point, PointProtocol
+from ..point import CurvePoint, PointProtocol
 from .te_curve import TECurve
 
 C = TypeVar("C", bound=TECurve)
 
 
 @dataclass(frozen=True)
-class TEAffinePoint(Point[C]):
+class TEAffinePoint(CurvePoint[C]):
     """
     Twisted Edwards Curve Point in Affine Coordinates.
 
@@ -29,6 +29,26 @@ class TEAffinePoint(Point[C]):
         super().__post_init__()
         if not isinstance(self.curve, TECurve):
             raise TypeError("Curve must be a Twisted Edwards curve")
+
+    def _make_point(self, x: int, y: int) -> Self:
+        """
+        Internal helper to create a point of the same type as self.
+        Works around the issue that subclasses have different __init__ signatures.
+        
+        Args:
+            x: x-coordinate
+            y: y-coordinate
+            
+        Returns:
+            Point of the same type as self
+        """
+        # Create instance without calling __init__
+        point = object.__new__(self.__class__)
+        # Set attributes directly (works with frozen dataclasses)
+        object.__setattr__(point, 'x', x)
+        object.__setattr__(point, 'y', y)
+        object.__setattr__(point, 'curve', self.curve)
+        return point
 
     def is_identity(self) -> bool:
         """
@@ -105,11 +125,11 @@ class TEAffinePoint(Point[C]):
         # Compute result coordinates
         x3 = ((x1y2 + x2y1) * pow(1 + dx1x2y1y2, -1, self.curve.PRIME_FIELD)) % p
         y3 = (
-            (y1y2 - self.curve.EdwardsA * x1x2)
+            (y1y2 - self.curve.EdwardsA * x1x2) 
             * pow(1 - dx1x2y1y2, -1, self.curve.PRIME_FIELD)
         ) % p
 
-        return TEAffinePoint(x3, y3, self.curve)
+        return self._make_point(x3, y3)
 
     def __neg__(self) -> Self:
         """
@@ -118,7 +138,7 @@ class TEAffinePoint(Point[C]):
         Returns:
             TEAffinePoint: Negated point
         """
-        return TEAffinePoint(-self.x % self.curve.PRIME_FIELD, self.y, self.curve)
+        return self._make_point(-self.x % self.curve.PRIME_FIELD, self.y)
 
     def __sub__(self, other: PointProtocol[C]) -> Self:
         """
@@ -160,23 +180,9 @@ class TEAffinePoint(Point[C]):
             * pow(denom_y, -1, self.curve.PRIME_FIELD)
         ) % p
 
-        return TEAffinePoint(x3, y3, self.curve)
+        return self._make_point(x3, y3)
 
     def __mul__(self, scalar: int) -> Self:
-        """
-        Scalar multiplication using either GLV or double-and-add.
-
-        Args:
-            scalar: Integer to multiply by
-
-        Returns:
-            TEAffinePoint: Scalar multiplication result
-        """
-        if self.curve.glv.is_enabled:
-            return self.glv_mul(scalar)
-        return self.scalar_mul(scalar)
-
-    def scalar_mul(self, scalar: int) -> Self:
         """
         Basic double-and-add scalar multiplication.
 
@@ -200,151 +206,7 @@ class TEAffinePoint(Point[C]):
             scalar >>= 1
 
         return result.to_affine()
-
-    # def glv_mul(self, scalar: int) -> Self:
-    #     """
-    #     GLV scalar multiplication using endomorphism.
-    #
-    #     Args:
-    #         scalar: Integer to multiply by
-    #
-    #     Returns:
-    #         TEAffinePoint: Scalar multiplication result
-    #     """
-    #     n = self.curve.ORDER
-    #     k1, k2 = self.curve.glv.decompose_scalar(scalar % n, n)
-    #     phi = self.compute_endomorphism()
-    #
-    #     return self.scalar_mul(k1) + phi.scalar_mul(k2)
-
-    def glv_mul(self, scalar: int) -> Self:
-        """
-        GLV scalar multiplication using endomorphism.
-
-        Args:
-            scalar: Integer to multiply by
-
-        Returns:
-            TEAffinePoint: Scalar multiplication result
-        """
-        n = self.curve.ORDER
-        k1, k2 = self.curve.glv.decompose_scalar(scalar % n, n)
-        phi = self.compute_endomorphism()
-
-        return self.windowed_simultaneous_mult(k1, k2, self, phi, w=2)
-
-    def windowed_simultaneous_mult(
-        self, k1: int, k2: int, P1: PointProtocol[C], P2: PointProtocol[C], w: int = 2
-    ) -> Self:
-        """
-        Compute k1 * P1 + k2 * P2 using windowed simultaneous multi-scalar multiplication.
-
-        Args:
-            k1: First scalar
-            k2: Second scalar
-            P1: First point
-            P2: Second point
-            w: Window size (default=2)
-
-        Returns:
-            TEAffinePoint: Result of k1*P1 + k2*P2
-
-        Raises:
-            TypeError: If P1 or P2 is not compatible with this curve
-        """
-        # Validate input points
-        if not isinstance(P1, TEAffinePoint) or not isinstance(P2, TEAffinePoint):
-            raise TypeError("Points must be TEAffinePoints")
-
-        if P1.curve != self.curve or P2.curve != self.curve:
-            raise ValueError("Points must be on the same curve")
-
-        from .te_projective_point import TEProjectivePoint
-        
-        P1_proj = TEProjectivePoint.from_affine(P1)
-        P2_proj = TEProjectivePoint.from_affine(P2)
-        identity_proj = TEProjectivePoint.zero(self.curve)
-
-        # Step 1: Precompute lookup table for all i*P1 + j*P2 (0 <= i,j < 2^w)
-        table_size = 1 << w
-        table = [[None] * table_size for _ in range(table_size)]
-        
-        # Precompute P1 multiples: [0, P1, 2*P1, 3*P1, ...]
-        P1_multiples = [identity_proj]
-        current = P1_proj
-        for _ in range(1, table_size):
-            P1_multiples.append(current)
-            current = current + P1_proj
-            
-        # Precompute P2 multiples: [0, P2, 2*P2, 3*P2, ...]
-        P2_multiples = [identity_proj]
-        current = P2_proj
-        for _ in range(1, table_size):
-            P2_multiples.append(current)
-            current = current + P2_proj
-        
-        # Build full table: table[i][j] = i*P1 + j*P2
-        for i in range(table_size):
-            for j in range(table_size):
-                if i == 0:
-                    table[i][j] = P2_multiples[j]
-                elif j == 0:
-                    table[i][j] = P1_multiples[i]
-                else:
-                    table[i][j] = P1_multiples[i] + P2_multiples[j]
-
-        # Step 2: Split k1 and k2 into w-bit windows
-        max_len = max(k1.bit_length(), k2.bit_length())
-        d = math.ceil(max_len / w)
-        
-        # Extract windows directly without intermediate list
-        mask = (1 << w) - 1
-        
-        # Step 3: Double-and-add from MSB to LSB
-        R = identity_proj
-
-        for i in range(d - 1, -1, -1):
-            # Double w times
-            for _ in range(w):
-                R = R.double()
-
-            # Extract window indices
-            k1_window = (k1 >> (i * w)) & mask
-            k2_window = (k2 >> (i * w)) & mask
-            
-            # Add precomputed value if non-zero
-            if k1_window != 0 or k2_window != 0:
-                R = R + table[k1_window][k2_window]
-
-        return R.to_affine()
-
-    def compute_endomorphism(self) -> Self:
-        """
-        Compute the GLV endomorphism of this point.
-
-        Returns:
-            TEAffinePoint: Result of endomorphism
-        """
-        p = self.curve.PRIME_FIELD
-        # These constants should ideally be curve attributes
-        B = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
-        C = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
-
-        x, y = self.x, self.y
-        y2 = pow(y, 2, p)
-        xy = (x * y) % p
-        f_y = (C * (1 - y2)) % p
-        g_y = (B * (y2 + B)) % p
-        h_y = (y2 - B) % p
-
-        x_p = (f_y * h_y) % p
-        y_p = (g_y * xy) % p
-        z_p = (h_y * xy) % p
-
-        x_a = (x_p * pow(z_p, -1, p)) % p
-        y_a = (y_p * pow(z_p, -1, p)) % p
-
-        return TEAffinePoint(x_a, y_a, self.curve)
+    
 
     def identity_point(self) -> Self:
         """
@@ -353,7 +215,7 @@ class TEAffinePoint(Point[C]):
         Returns:
             TEAffinePoint: Identity point
         """
-        return TEAffinePoint(0, 1, self.curve)
+        return self._make_point(0, 1)
 
     @classmethod
     def encode_to_curve(

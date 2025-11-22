@@ -1,10 +1,7 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Final, Self
-
 from dot_ring.curve.e2c import E2C_Variant
-from ..glv import DisabledGLV
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
 
@@ -98,7 +95,6 @@ class P521Curve(SWCurve):
             GENERATOR_X=P521Params.GENERATOR_X,
             GENERATOR_Y=P521Params.GENERATOR_Y,
             COFACTOR=P521Params.COFACTOR,
-            glv=DisabledGLV,  # P-521 doesn't have efficient GLV
             Z=P521Params.Z,
             WeierstrassA=P521Params.WEIERSTRASS_A,
             WeierstrassB=P521Params.WEIERSTRASS_B,
