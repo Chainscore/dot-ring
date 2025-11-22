@@ -26,7 +26,7 @@ TEST_CASES = [
 
 @pytest.mark.parametrize("curve_class, point_class, file_prefix", TEST_CASES)
 def test_ietf_base(curve_class, point_class, file_prefix):
-    data_dir = os.path.join(HERE, "./..", 'vectors')
+    data_dir = os.path.join(HERE, "../", 'vectors/base')
     data_dir = os.path.abspath(data_dir)
     limit = 10000
     

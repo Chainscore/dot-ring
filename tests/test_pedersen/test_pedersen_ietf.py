@@ -25,18 +25,18 @@ def get_p256_tai():
 
 TEST_CASES = [
     (get_static(Bandersnatch_TE_Curve, BandersnatchPoint), "bandersnatch_ed_sha512_ell2_pedersen", "ark-vrf", 32, False),
-    (get_static(BabyJubJub_TE_Curve, BabyJubJubPoint), "babyjubjub_sha512_tai_pedersen", "ark-vrf/ietf", 32, False),
-    (get_static(Bandersnatch_SW_SW_Curve, Bandersnatch_SW_Point), "bandersnatch_sw_sha512_tai_pedersen", "ark-vrf/ietf", 33, False),
-    (get_ed25519_tai, "ed25519_sha512_tai_pedersen.json", "ark-vrf/ietf", 32, True),
-    (get_static(JubJub_TE_Curve, JubJubPoint), "jubjub_sha512_tai_pedersen.json", "ark-vrf/ietf", 32, True),
-    (get_p256_tai, "secp256r1_sha256_tai_pedersen", "ark-vrf/ietf", 33, False),
+    (get_static(BabyJubJub_TE_Curve, BabyJubJubPoint), "babyjubjub_sha512_tai_pedersen", "ark-vrf", 32, False),
+    (get_static(Bandersnatch_SW_SW_Curve, Bandersnatch_SW_Point), "bandersnatch_sw_sha512_tai_pedersen", "ark-vrf", 33, False),
+    (get_ed25519_tai, "ed25519_sha512_tai_pedersen.json", "ark-vrf", 32, True),
+    (get_static(JubJub_TE_Curve, JubJubPoint), "jubjub_sha512_tai_pedersen.json", "ark-vrf", 32, True),
+    (get_p256_tai, "secp256r1_sha256_tai_pedersen", "ark-vrf", 33, False),
 ]
 
 @pytest.mark.parametrize("curve_factory, file_prefix, subdir, point_size, check_blinding", TEST_CASES)
 def test_pedersen_ietf(curve_factory, file_prefix, subdir, point_size, check_blinding):
     curve, point_class = curve_factory()
     
-    data_dir = os.path.join(HERE, "../..", subdir)
+    data_dir = os.path.join(HERE, "../vectors", subdir)
     data_dir = os.path.abspath(data_dir)
     limit = 10000
     
@@ -57,10 +57,10 @@ def test_pedersen_ietf(curve_factory, file_prefix, subdir, point_size, check_bli
                 public_key = vrf.get_public_key(secret_scalar)
                 
                 if check_blinding:
-                    proof, blinding = vrf.proof(vector["alpha"], secret_scalar, vector["ad"], True)
+                    proof, blinding = vrf.proof(vector["alpha"], secret_scalar, vector["ad"], True, vector.get("salt", ""))
                     assert blinding.hex() == vector['blinding']
                 else:
-                    proof = vrf.proof(vector["alpha"], secret_scalar, vector["ad"])
+                    proof = vrf.proof(vector["alpha"], secret_scalar, vector["ad"], False, vector.get("salt", ""))
                 
                 # Slicing logic
                 # output_point, public_key_cp, R, Ok are point_size bytes

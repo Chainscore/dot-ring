@@ -86,8 +86,12 @@ class PedersenVRF(VRF):
 
         b_base = self.point_type(self.curve.BBx, self.curve.BBy)
         input_point = self.point_type.encode_to_curve(alpha, salt)
-        blinding = Helpers.to_l_endian(self.blinding(secret_key.to_bytes(self.point_len,'little'), input_point.point_to_string(),additional_data), self.point_len)
-        blinding_factor = Helpers.l_endian_2_int(blinding)
+        # Use curve's endianness for secret key serialization (big-endian for P256, little-endian for others)
+        # Use scalar_len (not self.point_len) for secret key bytes
+        secret_key_bytes = secret_key.to_bytes(scalar_len, self.curve.ENDIAN)
+        blinding_factor = self.blinding(secret_key_bytes, input_point.point_to_string(), additional_data)
+        # Convert blinding factor to bytes for return value if needed (use scalar_len)
+        blinding = blinding_factor.to_bytes(scalar_len, self.curve.ENDIAN)
         output_point = input_point * secret_key
 
         if self.point_type.__name__ == "P256PointVariant":

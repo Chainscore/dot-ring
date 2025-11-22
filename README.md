@@ -1,20 +1,28 @@
-# 🔐 dot-ring
+![alt text](./docs/cover.svg)
 
-`dot-ring` is a Python library for generating and verifying advanced Verifiable Random Functions with Additional Data (VRF-AD), including:
-- ✅ IETF VRF  
-- ✅ Pedersen VRF  
-- ✅ Ring VRF with Signature Support  
+[![Tests](https://github.com/Chainscore/dot-ring/actions/workflows/test.yml/badge.svg)](https://github.com/Chainscore/dot-ring/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/Chainscore/dot-ring/branch/main/graph/badge.svg)](https://codecov.io/gh/Chainscore/dot-ring)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-This follows the specification defined in the [`bandersnatch-vrf-spec`](https://github.com/davxy/bandersnatch-vrf-spec/blob/main/specification.md).
-It also includes **KZG Polynomial Commitment Schemes**, supporting both built-in and high-performance MSM (Multi Scalar Multiplication) using [`blst`](https://github.com/supranational/blst).
+`@dot-ring` is a Python library for generating Verifiable Random Functions with Additional Data (VRF-AD) on 10+ Elliptic Curves, including IETF, Pedersen VRF and Ring Proof.
+
+
+Specifications in compliance: 
+- [Bandersnatch VRF](https://github.com/davxy/bandersnatch-vrf-spec/blob/main/specification.md) 
+- [Ring Proof](https://github.com/davxy/ring-proof-spec)
+- [RFC9381](https://datatracker.ietf.org/doc/rfc9381)
+- [RFC9380](https://datatracker.ietf.org/doc/rfc9380)
+- [BCGSV23](https://eprint.iacr.org/2023/002)
+- [MSZ21](https://eprint.iacr.org/2021/1152)
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup - ⚠️ WIP
 
 ### Prerequisites
 - Python 3.12 or higher
-- pip (Python package manager)
-- Install the Dependencies listed in [pyproject.toml](https://github.com/Chainscore/dot-ring/blob/c7d5c7a78d96b7dfeeaf3d059ee19472e39c4535/pyproject.toml#L41C1-L48C1)
+- Install [`blst`](https://github.com/supranational/blst): High-performance MSM (Multi Scalar Multiplication)
 
 ###  Clone and install the library
 
@@ -92,7 +100,7 @@ cd blst/bindings/python
 ./run.me
 ```
 
-## 🧪 Testing
+## Testing
 
 You can run the test suite with **pytest**:
 
@@ -133,4 +141,6 @@ docker run -it dot_ring bash
 
 ```
 
+## Contact
 
+prasad@chainscore.finance

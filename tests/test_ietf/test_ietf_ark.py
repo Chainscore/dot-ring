@@ -26,18 +26,18 @@ def get_p256_tai():
 # (curve_factory, file_prefix, subdir, gamma_len)
 TEST_CASES = [
     (get_static(Bandersnatch_TE_Curve, BandersnatchPoint), "bandersnatch_ed_sha512_ell2_ietf", "ark-vrf", 32),
-    (get_static(BabyJubJub_TE_Curve, BabyJubJubPoint), "babyjubjub_sha512_tai_ietf", "ark-vrf/ietf", 32),
-    (get_static(Bandersnatch_SW_SW_Curve, Bandersnatch_SW_Point), "bandersnatch_sw_sha512_tai_ietf", "ark-vrf/ietf", 33),
-    (get_ed25519_tai, "ed25519_sha512_tai_ietf.json", "ark-vrf/ietf", 32),
-    (get_static(JubJub_TE_Curve, JubJubPoint), "jubjub_sha_512_tai_ietf", "ark-vrf/ietf", 32),
-    (get_p256_tai, "secp256r1_sha256_tai_ietf.json", "ark-vrf/ietf", 33),
+    (get_static(BabyJubJub_TE_Curve, BabyJubJubPoint), "babyjubjub_sha512_tai_ietf", "ark-vrf", 32),
+    (get_static(Bandersnatch_SW_SW_Curve, Bandersnatch_SW_Point), "bandersnatch_sw_sha512_tai_ietf", "ark-vrf", 33),
+    (get_ed25519_tai, "ed25519_sha512_tai_ietf.json", "ark-vrf", 32),
+    (get_static(JubJub_TE_Curve, JubJubPoint), "jubjub_sha_512_tai_ietf", "ark-vrf", 32),
+    (get_p256_tai, "secp256r1_sha256_tai_ietf.json", "ark-vrf", 33),
 ]
 
 @pytest.mark.parametrize("curve_factory, file_prefix, subdir, gamma_len", TEST_CASES)
 def test_ietf_ark(curve_factory, file_prefix, subdir, gamma_len):
     curve, point_class = curve_factory()
     
-    data_dir = os.path.join(HERE, "../..", subdir)
+    data_dir = os.path.join(HERE, "../vectors", subdir)
     data_dir = os.path.abspath(data_dir)
     limit = 10000
     

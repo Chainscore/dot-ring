@@ -26,7 +26,7 @@ TEST_CASES = [
 
 @pytest.mark.parametrize("curve_class, point_class, file_prefix, slice_end", TEST_CASES)
 def test_pedersen_base(curve_class, point_class, file_prefix, slice_end):
-    data_dir = os.path.join(HERE, "./..", 'vectors')
+    data_dir = os.path.join(HERE, "./..", 'vectors/base')
     data_dir = os.path.abspath(data_dir)
     limit = 10000
     
