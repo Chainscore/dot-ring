@@ -258,7 +258,7 @@ class Verify:
 
         return verified
 
-    def is_signtaure_valid(self):
+    def is_valid(self):
         """If both the verifications are true then sign is valid"""
         # Evaluate both in sequence to avoid short-circuit if first fails
         # This ensures consistent timing

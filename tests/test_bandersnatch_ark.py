@@ -32,6 +32,7 @@ def test_ietf_ark_bandersnatch():
             
             proof = IETF_VRF[Bandersnatch].proof(alpha, secret_scalar, additional_data)
             proof_bytes = proof.to_bytes()
+            proof_rt = IETF_VRF[Bandersnatch].from_bytes(proof_bytes)
             
             # Proof components check
             gamma = proof_bytes[:gamma_len]
@@ -46,6 +47,8 @@ def test_ietf_ark_bandersnatch():
                 assert IETF_VRF[Bandersnatch].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
 
             assert proof.verify(pk_bytes, alpha, additional_data)
+            assert proof_rt.to_bytes() == proof_bytes
+            assert proof_rt.verify(pk_bytes, alpha, additional_data)
             
 def test_pedersen_ark_bandersnatch():
     data_dir = os.path.join(HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_pedersen.json")
@@ -69,6 +72,8 @@ def test_pedersen_ark_bandersnatch():
                 secret_scalar, 
                 additional_data
             )
+            proof_bytes = proof.to_bytes()
+            proof_rt = PedersenVRF[Bandersnatch].from_bytes(proof_bytes)
             
             assert pk_bytes.hex() == vector['pk'], "Invalid Public Key"
             assert proof.output_point.point_to_string().hex() == vector["gamma"]
@@ -83,6 +88,8 @@ def test_pedersen_ark_bandersnatch():
                 assert PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
 
             assert proof.verify(alpha, additional_data)
+            assert proof_rt.to_bytes() == proof_bytes
+            assert proof_rt.verify(alpha, additional_data)
             
 def test_ring_proof():
     file_path = os.path.join(HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
@@ -99,11 +106,15 @@ def test_ring_proof():
         ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
         ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+        proof_bytes = ring_vrf_proof.to_bytes()
+        proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
         
         assert p_k.hex()==item['pk'], "Invalid Public Key"
         assert ring_root.to_bytes().hex()==item['ring_pks_com'], "Invalid Ring Root"
         assert ring_vrf_proof.to_bytes().hex()==item['gamma']+item['proof_pk_com']+item['proof_r']+ item['proof_ok']+item['proof_s']+ item['proof_sb']+item['ring_proof'], "Unexpected Proof"
         
         assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
+        assert proof_rt.to_bytes() == proof_bytes
+        assert proof_rt.verify(alpha, ad, ring_root)
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
 

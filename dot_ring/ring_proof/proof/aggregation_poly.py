@@ -35,4 +35,4 @@ class AggPoly:
         agg_p = cls.aggregated_poly(fixed_cols, witness_cols, Q_p, cf_vectors)
         phi_z_opening = KZG.open(agg_p, zeta)  # take only proof
         phi_zw_opening = KZG.open(l_agg, zeta_omega)  # take only proof
-        return phi_z_opening, phi_zw_opening, phi_z_opening.proof, phi_zw_opening.proof
+        return phi_z_opening, phi_zw_opening, phi_z_opening, phi_zw_opening

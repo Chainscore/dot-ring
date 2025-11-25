@@ -9,7 +9,7 @@ from ...curve.curve import Curve, CurveVariant
 from ..vrf import VRF
 from ...ring_proof.helpers import Helpers
 
-
+@dataclass
 class PedersenVRF(VRF):
     """
     Pedersen VRF implementation.
@@ -33,24 +33,6 @@ class PedersenVRF(VRF):
     
     # Blinding factor used in proof generation
     _blinding_factor: int
-    
-    def __init__(self, 
-        output_point: CurvePoint,
-        blinded_pk: CurvePoint,
-        result_point: CurvePoint,
-        ok: CurvePoint,
-        s: int,
-        sb: int,
-        _blinding_factor: int = 0
-    ):
-        self.output_point = output_point
-        self.blinded_pk = blinded_pk
-        self.result_point = result_point
-        self.ok = ok
-        self.s = s
-        self.sb = sb
-        self._blinding_factor = _blinding_factor
-
 
     @classmethod
     def from_bytes(cls, proof: bytes) -> "PedersenVRF":
@@ -78,7 +60,8 @@ class PedersenVRF(VRF):
             result_point=R,
             ok=Ok,
             s=s,
-            sb=Sb
+            sb=Sb,
+            _blinding_factor=0 # Blinding factor is not needed to verify
         )
     
     def to_bytes(self) -> bytes:
