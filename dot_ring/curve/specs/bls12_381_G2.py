@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self, Tuple, Optional, Any
 
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -61,7 +64,7 @@ class BLS12_381_G2Params:
     K: Final[int] = 128  # Security level in bits
     L: Final[int] = 64  # Number of bytes for XMD
     S_in_bytes: Final[int] = 64  # Length of domain separation tag
-    H_A: Final[str] = "SHA-256"  # Hash function
+    H_A = hashlib.sha256
     ENDIAN = "little"
     # VRF parameters
     CHALLENGE_LENGTH: Final[int] = 32  # 256-bit challenge
@@ -74,6 +77,7 @@ class BLS12_381_G2Params:
     BBx: Final[Fp2] = None
     BBy: Final[Fp2] = None
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 32
 
 
 class BLS12_381_G2Curve(SWCurve):
@@ -83,11 +87,6 @@ class BLS12_381_G2Curve(SWCurve):
     This curve is defined over a quadratic extension field Fp2 and is primarily
     used for cryptographic pairings in the BLS signature scheme.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for VRF."""
-        return BLS12_381_G2Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         SUITE_STRING = BLS12_381_G2Params.SUITE_STRING
@@ -120,12 +119,12 @@ class BLS12_381_G2Curve(SWCurve):
             Isogeny_Coeffs=BLS12_381_G2Params.Isogeny_Coeffs,
             UNCOMPRESSED=BLS12_381_G2Params.UNCOMPRESSED,
             ENDIAN=BLS12_381_G2Params.ENDIAN,
+            POINT_LEN=BLS12_381_G2Params.POINT_LEN,
+            CHALLENGE_LENGTH=BLS12_381_G2Params.CHALLENGE_LENGTH,
         )
-
 
 # Singleton instance for convenience
 BLS12_381_G2_SW_Curve: Final[BLS12_381_G2Curve] = BLS12_381_G2Curve()
-
 
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
     # Create curve with the specified variant
@@ -155,19 +154,6 @@ class BLS12_381_G2Point(SWAffinePoint):
     """
 
     curve: Final[BLS12_381_G2Curve] = BLS12_381_G2_SW_Curve
-
-    def __init__(self, x: Fp2, y: Fp2) -> None:
-        """
-        Initialize a point on the BLS12-381 G2 curve.
-
-        Args:
-            x: x-coordinate as an element of Fp2
-            y: y-coordinate as an element of Fp2
-
-        Raises:
-            ValueError: If point is not on the curve
-        """
-        super().__init__(x, y, self.curve)
 
     def __add__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:
         """
@@ -292,16 +278,6 @@ class BLS12_381_G2Point(SWAffinePoint):
         y = (int(result[1].coeffs[0]), int(result[1].coeffs[1]))
 
         return self.__class__(x, y)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            BLS12_381_G2Point: Generator point
-        """
-        return cls(BLS12_381_G2Params.GENERATOR_X, BLS12_381_G2Params.GENERATOR_Y)
 
     @classmethod
     def sswu_hash2_curve_ro(
@@ -539,3 +515,15 @@ class BLS12_381_G2Point(SWAffinePoint):
         right = x * x * x + FieldElement(4, 4, p)  # 4 * (1 + i)
         assert left == right, "Mapped point is not on the curve"
         return x, y
+
+BLS12_381_G2_NU = CurveVariant(
+    name="BLS12_381_G2_NU",
+    curve=BLS12_381_G2Curve(e2c_variant=E2C_Variant.SSWU_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU),
+)
+
+BLS12_381_G2_RO = CurveVariant(
+    name="BLS12_381_G2_RO",
+    curve=BLS12_381_G2Curve(e2c_variant=E2C_Variant.SSWU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU),
+)

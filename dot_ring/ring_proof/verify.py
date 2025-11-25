@@ -13,17 +13,11 @@ from dot_ring.ring_proof.pcs.kzg import KZG
 from py_ecc.optimized_bls12_381 import multiply, add, Z1, curve_order
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.utils import py_ecc_point_to_blst
-
-# Try to import pyblst
-try:
-    from pyblst import BlstP1Element
-    HAS_PYBLST = True
-except ImportError:
-    HAS_PYBLST = False
+from pyblst import BlstP1Element
 
 
 class Verify:
-    def __init__(self, proof, vk, fixed_cols, rl_to_proove, rps, seed_point, Domain):
+    def __init__(self, proof, vk, fixed_cols: list, rl_to_proove, rps, seed_point, Domain):
         (
             self.Cb,
             self.Caccip,
@@ -44,35 +38,22 @@ class Verify:
 
         self.proof_ptr = proof
         self.verifier_key = vk
-        if hasattr(fixed_cols[0], "commitment"):
-            self.Cpx, self.Cpy, self.Cs = (
-                fixed_cols[0].commitment,
-                fixed_cols[1].commitment,
-                fixed_cols[2].commitment,
-            )
-        else:
-            self.Cpx, self.Cpy, self.Cs = fixed_cols
+        self.Cpx, self.Cpy, self.Cs = fixed_cols
         self.relation_to_proove = rl_to_proove
         self.Result_plus_Seed, self.sp, self.D = rps, seed_point, Domain
 
-        # Pre-convert points to pyblst if available
-        self.use_blst = HAS_PYBLST
-        if self.use_blst:
-            try:
-                self.Cb_blst = py_ecc_point_to_blst(self.Cb)
-                self.Caccip_blst = py_ecc_point_to_blst(self.Caccip)
-                self.Caccx_blst = py_ecc_point_to_blst(self.Caccx)
-                self.Caccy_blst = py_ecc_point_to_blst(self.Caccy)
-                self.Cq_blst = py_ecc_point_to_blst(self.Cq)
-                self.Phi_zeta_blst = py_ecc_point_to_blst(self.Phi_zeta)
-                self.Phi_zeta_omega_blst = py_ecc_point_to_blst(self.Phi_zeta_omega)
-                
-                self.Cpx_blst = py_ecc_point_to_blst(self.Cpx)
-                self.Cpy_blst = py_ecc_point_to_blst(self.Cpy)
-                self.Cs_blst = py_ecc_point_to_blst(self.Cs)
-            except Exception as e:
-                print(f"Failed to convert points to pyblst: {e}")
-                self.use_blst = False
+        # Pre-convert points to pyblst 
+        self.Cb_blst = py_ecc_point_to_blst(self.Cb)
+        self.Caccip_blst = py_ecc_point_to_blst(self.Caccip)
+        self.Caccx_blst = py_ecc_point_to_blst(self.Caccx)
+        self.Caccy_blst = py_ecc_point_to_blst(self.Caccy)
+        self.Cq_blst = py_ecc_point_to_blst(self.Cq)
+        self.Phi_zeta_blst = py_ecc_point_to_blst(self.Phi_zeta)
+        self.Phi_zeta_omega_blst = py_ecc_point_to_blst(self.Phi_zeta_omega)
+        
+        self.Cpx_blst = py_ecc_point_to_blst(self.Cpx)
+        self.Cpy_blst = py_ecc_point_to_blst(self.Cpy)
+        self.Cs_blst = py_ecc_point_to_blst(self.Cs)
 
         # can even put as separate function
         self.t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
@@ -87,7 +68,7 @@ class Verify:
             self.cur_t, H.to_int(nm(self.proof_ptr[-4]))
         )
         self.V_list = phase3_nu_vector(
-            self.cur_t, self.proof_ptr[4:11], self.proof_ptr[-3]
+            self.cur_t, list(self.proof_ptr[4:11]), self.proof_ptr[-3]
         )
 
     def contributions_to_constraints_eval_at_zeta(self):
@@ -171,17 +152,6 @@ class Verify:
 
         cs = self.contributions_to_constraints_eval_at_zeta()
 
-        C_a = [
-            self.Cpx,
-            self.Cpy,
-            self.Cs,
-            self.Cb,
-            self.Caccip,
-            self.Caccx,
-            self.Caccy,
-            self.Cq,
-        ]  # commitments which are in bls12 field form
-
         # Precompute vanishing polynomial evaluation
         prod_sum = 1
         for k in range(1, 4):
@@ -199,37 +169,26 @@ class Verify:
         zeta_pow_size_minus_1 = (pow(zeta, SIZE, curve_order) - 1) % curve_order
         q_zeta = self.divide((s_sum * prod_sum) % curve_order, zeta_pow_size_minus_1)
 
-        if self.use_blst:
-            C_a_blst = [
-                self.Cpx_blst,
-                self.Cpy_blst,
-                self.Cs_blst,
-                self.Cb_blst,
-                self.Caccip_blst,
-                self.Caccx_blst,
-                self.Caccy_blst,
-                self.Cq_blst,
-            ]
+        C_a_blst = [
+            self.Cpx_blst,
+            self.Cpy_blst,
+            self.Cs_blst,
+            self.Cb_blst,
+            self.Caccip_blst,
+            self.Caccx_blst,
+            self.Caccy_blst,
+            self.Cq_blst,
+        ]
+        
+        # MSM using pyblst
+        # C_agg = sum(C_a[i] * v_list[i])
+        C_agg = BlstP1Element() 
+        for i in range(len(C_a_blst)):
+            term = C_a_blst[i].scalar_mul(v_list[i])
+            C_agg = C_agg + term
             
-            # MSM using pyblst
-            # C_agg = sum(C_a[i] * v_list[i])
-            # We can use a loop or if pyblst has MSM
-            # Naive loop with pyblst is still fast
-            
-            C_agg = BlstP1Element() # Identity?
-            # Wait, BlstP1Element() constructor creates identity?
-            # My test script showed it creates identity (compressed c00...00).
-            
-            for i in range(len(C_a_blst)):
-                term = C_a_blst[i].scalar_mul(v_list[i])
-                C_agg = C_agg + term
-                
-            # Pass blst point to kzg.verify
-            # kzg.verify handles BlstP1Element now
-        else:
-            C_agg = Z1
-            for i in range(len(C_a)):
-                C_agg = add(C_agg, multiply(C_a[i], v_list[i]))
+        # Pass blst point to kzg.verify
+        # kzg.verify handles BlstP1Element now
 
         MOD = curve_order
 
@@ -246,10 +205,7 @@ class Verify:
 
         Agg_zeta = sum(terms) % MOD
         
-        if self.use_blst:
-            verification = KZG.verify(C_agg, self.Phi_zeta_blst, zeta, Agg_zeta)
-        else:
-            verification = KZG.verify(C_agg, self.Phi_zeta, zeta, Agg_zeta)
+        verification = KZG.verify(C_agg, self.Phi_zeta_blst, zeta, Agg_zeta)
             
         return verification  # , cs
 
@@ -258,10 +214,7 @@ class Verify:
         
         scalar_cl1 = (zeta - self.D[-4]) % curve_order
         
-        if self.use_blst:
-            Cl1 = self.Caccip_blst.scalar_mul(scalar_cl1)
-        else:
-            Cl1 = multiply(self.Caccip, scalar_cl1)
+        Cl1 = self.Caccip_blst.scalar_mul(scalar_cl1)
 
         # Cl2
         x1, y1 = self.accx_zeta, self.accy_zeta
@@ -276,14 +229,9 @@ class Verify:
         C_acc_x_f = C_acc_x * (zeta - self.D[-4]) % curve_order
         C_acc_y_f = C_acc_y * (zeta - self.D[-4]) % curve_order
         #
-        if self.use_blst:
-            term1 = self.Caccx_blst.scalar_mul(C_acc_x_f)
-            term2 = self.Caccy_blst.scalar_mul(C_acc_y_f)
-            Cl2 = term1 + term2
-        else:
-            term1 = multiply(self.Caccx, C_acc_x_f)
-            term2 = multiply(self.Caccy, C_acc_y_f)
-            Cl2 = add(term1, term2)
+        term1 = self.Caccx_blst.scalar_mul(C_acc_x_f)
+        term2 = self.Caccy_blst.scalar_mul(C_acc_y_f)
+        Cl2 = term1 + term2
 
         # c3
         b = self.b_zeta
@@ -294,33 +242,19 @@ class Verify:
         C_acc_x *= (zeta - self.D[-4]) % curve_order
         C_acc_y *= (zeta - self.D[-4]) % curve_order
 
-        if self.use_blst:
-            term1 = self.Caccx_blst.scalar_mul(C_acc_x)
-            term2 = self.Caccy_blst.scalar_mul(C_acc_y)
-            Cl3 = term1 + term2
-        else:
-            term1 = multiply(self.Caccx, C_acc_x)
-            term2 = multiply(self.Caccy, C_acc_y)
-            Cl3 = add(term1, term2)
+        term1 = self.Caccx_blst.scalar_mul(C_acc_x)
+        term2 = self.Caccy_blst.scalar_mul(C_acc_y)
+        Cl3 = term1 + term2
 
         Cl_list = [Cl1, Cl2, Cl3]
 
-        if self.use_blst:
-            Cl = BlstP1Element()
-            for i in range(3):
-                Cl = Cl + Cl_list[i].scalar_mul(alphas_list[i])
-                
-            verified = KZG.verify(
-                Cl, self.Phi_zeta_omega_blst, zeta * OMEGA % curve_order, self.l_zeta_omega
-            )
-        else:
-            Cl = Z1
-            for i in range(3):
-                Cl = add(Cl, multiply(Cl_list[i], alphas_list[i]))
-
-            verified = KZG.verify(
-                Cl, self.Phi_zeta_omega, zeta * OMEGA % curve_order, self.l_zeta_omega
-            )
+        Cl = BlstP1Element()
+        for i in range(3):
+            Cl = Cl + Cl_list[i].scalar_mul(alphas_list[i])
+            
+        verified = KZG.verify(
+            Cl, self.Phi_zeta_omega_blst, zeta * OMEGA % curve_order, self.l_zeta_omega
+        )
 
         return verified
 

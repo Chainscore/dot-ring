@@ -1,7 +1,6 @@
 from typing import Tuple
 from py_ecc.bls import point_compression
 from py_ecc.optimized_bls12_381 import FQ, FQ2, is_on_curve
-from hashlib import sha256, sha512, shake_256, sha384
 
 
 class Helpers:
@@ -156,47 +155,6 @@ class Helpers:
         return val.to_bytes(n_bytes, "little")
 
     @staticmethod
-    def ha_sha512(data: bytes) -> bytes:
-        """SHA512 hash function"""
-        if not isinstance(data, bytes):
-            data = bytes(data)
-        return sha512(data).digest()
-
-    @staticmethod
-    def ha_sha256(data: bytes) -> bytes:
-        """SHA512 hash function"""
-        if not isinstance(data, bytes):
-            data = bytes(data)
-        return sha256(data).digest()
-
-    @staticmethod
-    def ha_sha384(data: bytes) -> bytes:
-        """SHA512 hash function"""
-        if not isinstance(data, bytes):
-            data = bytes(data)
-        return sha384(data).digest()
-
-    @staticmethod
-    def ha_shake256(data: bytes, len_in_bytes: int = 64) -> bytes:
-        """SHA512 hash function"""
-        if not isinstance(data, bytes):
-            data = bytes(data)
-        shake = shake_256()
-        shake.update(data)
-        return shake.digest(len_in_bytes)
-
-    @staticmethod
     def pt_len(prime_field: int) -> int:
         coord_size = (prime_field.bit_length() + 7) // 8
         return coord_size
-
-    @staticmethod
-    def decide_hash(hash_name: str):
-        if hash_name == "SHA-256":
-            return Helpers.ha_sha256
-        elif hash_name == "SHA-384":
-            return Helpers.ha_sha384
-        elif hash_name == "SHA-512":
-            return Helpers.ha_sha512
-        elif hash_name == "Shake-256":
-            return Helpers.ha_shake256

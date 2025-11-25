@@ -4,8 +4,11 @@ from enum import Enum
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, TYPE_CHECKING
 from dot_ring.curve.e2c import E2C_Variant
+
+if TYPE_CHECKING:
+    from dot_ring.curve.point import CurvePoint
 
 
 
@@ -42,6 +45,8 @@ class Curve:
     S_in_bytes: int
     H_A: str
     ENDIAN: str
+    
+    CHALLENGE_LENGTH: int
 
     # Isogeny
     Requires_Isogeny: bool
@@ -55,6 +60,7 @@ class Curve:
     BBx: int
     BBy: int
     UNCOMPRESSED: bool
+    POINT_LEN: int
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
@@ -156,22 +162,7 @@ class Curve:
         Raises:
             ValueError: If the input parameters are invalid
         """
-        if self.H_A == "SHA-512":
-            hash_fn = hashlib.sha512
-
-        elif self.H_A == "SHA-384":
-            hash_fn = hashlib.sha384
-
-        elif self.H_A == "SHA-256":
-            hash_fn = hashlib.sha256
-
-        elif self.H_A == "Shake-256":
-            return self.expand_message_xof(msg, len_in_bytes)
-
-        else:
-            raise ValueError("Invalid hash function")
-
-        b_in_bytes = hash_fn().digest_size
+        b_in_bytes = self.H_A().digest_size
         ell = math.ceil(len_in_bytes / b_in_bytes)
 
         if ell > 255 or len_in_bytes > 65535 or len(self.DST) > 255:
@@ -184,13 +175,13 @@ class Curve:
 
         msg_prime = Z_pad + msg + l_i_b_str + self.I2OSP(0, 1) + DST_prime
 
-        b_0 = hash_fn(msg_prime).digest()
+        b_0 = self.H_A(msg_prime).digest()
 
-        b_1 = hash_fn(b_0 + self.I2OSP(1, 1) + DST_prime).digest()
+        b_1 = self.H_A(b_0 + self.I2OSP(1, 1) + DST_prime).digest()
 
         b_values = [b_1]
         for i in range(2, ell + 1):
-            b_i = hash_fn(
+            b_i = self.H_A(
                 self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime
             ).digest()
             b_values.append(b_i)
@@ -340,3 +331,10 @@ class Curve:
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:
         return bytes(a ^ b for a, b in zip(s1, s2))
+
+
+@dataclass
+class CurveVariant:
+    name: str
+    curve: Curve
+    point: type[CurvePoint]

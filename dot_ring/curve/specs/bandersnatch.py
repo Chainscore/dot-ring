@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
 
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..glv import GLV
 from ..twisted_edwards.te_curve import TECurve
@@ -66,7 +69,7 @@ class BandersnatchParams:
     S_in_bytes: Final[
         int
     ] = 48  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
-    H_A: Final[str] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = "little"
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
@@ -78,6 +81,7 @@ class BandersnatchParams:
         int
     ] = 28442734166467795856797249030329035618871580593056783094884474814923353898473
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 32
 
 
 """GLV endomorphism parameters for Bandersnatch curve."""
@@ -87,50 +91,32 @@ BandersnatchGLV = GLV(
     constant_c=BandersnatchParams.GLV_C,
 )
 
-
-class BandersnatchCurve(TECurve):
-    """
-    Bandersnatch curve implementation.
-
-    A high-performance curve designed for zero-knowledge proofs and VRFs,
-    offering both efficiency and security.
-    """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for Bandersnatch VRF."""
-        return BandersnatchParams.CHALLENGE_LENGTH
-
-    def __init__(self) -> None:
-        """Initialize Bandersnatch curve with its parameters."""
-        super().__init__(
-            PRIME_FIELD=BandersnatchParams.PRIME_FIELD,
-            ORDER=BandersnatchParams.ORDER,
-            GENERATOR_X=BandersnatchParams.GENERATOR_X,
-            GENERATOR_Y=BandersnatchParams.GENERATOR_Y,
-            COFACTOR=BandersnatchParams.COFACTOR,
-            Z=BandersnatchParams.Z,
-            EdwardsA=BandersnatchParams.EDWARDS_A,
-            EdwardsD=BandersnatchParams.EDWARDS_D,
-            SUITE_STRING=BandersnatchParams.SUITE_STRING,
-            DST=BandersnatchParams.DST,
-            E2C=E2C_Variant.ELL2,
-            BBx=BandersnatchParams.BBx,
-            BBy=BandersnatchParams.BBy,
-            M=BandersnatchParams.M,
-            K=BandersnatchParams.K,
-            L=BandersnatchParams.L,
-            S_in_bytes=BandersnatchParams.S_in_bytes,
-            H_A=BandersnatchParams.H_A,
-            Requires_Isogeny=BandersnatchParams.Requires_Isogeny,
-            Isogeny_Coeffs=BandersnatchParams.Isogeny_Coeffs,
-            UNCOMPRESSED=BandersnatchParams.UNCOMPRESSED,
-            ENDIAN=BandersnatchParams.ENDIAN,
-        )
-
-
-# Singleton instance
-Bandersnatch_TE_Curve: Final[BandersnatchCurve] = BandersnatchCurve()
+Bandersnatch_TE_Curve: Final[TECurve] = TECurve(
+    PRIME_FIELD=BandersnatchParams.PRIME_FIELD,
+    ORDER=BandersnatchParams.ORDER,
+    GENERATOR_X=BandersnatchParams.GENERATOR_X,
+    GENERATOR_Y=BandersnatchParams.GENERATOR_Y,
+    COFACTOR=BandersnatchParams.COFACTOR,
+    Z=BandersnatchParams.Z,
+    EdwardsA=BandersnatchParams.EDWARDS_A,
+    EdwardsD=BandersnatchParams.EDWARDS_D,
+    SUITE_STRING=BandersnatchParams.SUITE_STRING,
+    DST=BandersnatchParams.DST,
+    E2C=E2C_Variant.ELL2,
+    BBx=BandersnatchParams.BBx,
+    BBy=BandersnatchParams.BBy,
+    M=BandersnatchParams.M,
+    K=BandersnatchParams.K,
+    L=BandersnatchParams.L,
+    S_in_bytes=BandersnatchParams.S_in_bytes,
+    H_A=BandersnatchParams.H_A,
+    Requires_Isogeny=BandersnatchParams.Requires_Isogeny,
+    Isogeny_Coeffs=BandersnatchParams.Isogeny_Coeffs,
+    UNCOMPRESSED=BandersnatchParams.UNCOMPRESSED,
+    ENDIAN=BandersnatchParams.ENDIAN,
+    POINT_LEN=BandersnatchParams.POINT_LEN,
+    CHALLENGE_LENGTH=BandersnatchParams.CHALLENGE_LENGTH,
+)
 
 
 @dataclass(frozen=True)
@@ -142,18 +128,8 @@ class BandersnatchPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[BandersnatchCurve] = Bandersnatch_TE_Curve
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            BandersnatchPoint: Generator point
-        """
-        return cls(BandersnatchParams.GENERATOR_X, BandersnatchParams.GENERATOR_Y)
-
+    curve: Final[TECurve] = Bandersnatch_TE_Curve
+    
     def __mul__(self, scalar: int) -> Self:
         """
         GLV scalar multiplication using endomorphism.
@@ -169,3 +145,9 @@ class BandersnatchPoint(TEAffinePoint):
         phi = BandersnatchGLV.compute_endomorphism(self)
 
         return BandersnatchGLV.windowed_simultaneous_mult(k1, k2, self, phi, w=2)
+
+Bandersnatch = CurveVariant(
+    name="Bandersnatch",
+    curve=Bandersnatch_TE_Curve,
+    point=BandersnatchPoint,
+)

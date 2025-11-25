@@ -2,26 +2,20 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
+from typing import Protocol, Self, ClassVar, Union, TYPE_CHECKING, TypeVar, Generic
 import hashlib
 
-C = TypeVar("C", bound="CurveProtocol")
+if TYPE_CHECKING:
+    from dot_ring.curve.curve import Curve
+
+# TypeVar for curve types
+C = TypeVar("C", bound="Curve")
+
 
 @dataclass
 class Point:
     x: int
     y: int
-
-class CurveProtocol(Protocol):
-    """Protocol defining required curve operations for points."""
-
-    PRIME_FIELD: int
-    ORDER: int
-    Z: int
-    UNCOMPRESSED: bool
-    ENDIAN: str
-    COFACTOR: int
-    SUITE_STRING: bytes
 
 
 class PointProtocol(Protocol[C]):
@@ -84,6 +78,16 @@ class CurvePoint(Generic[C]):
             0 <= self.x < self.curve.PRIME_FIELD
             and 0 <= self.y < self.curve.PRIME_FIELD
         )
+    
+    @classmethod
+    def generator_point(cls) -> Self:
+        """
+        Get the generator point of the curve.
+
+        Returns:
+            BandersnatchPoint: Generator point
+        """
+        return cls(cls.curve.GENERATOR_X, cls.curve.GENERATOR_Y)
 
     @abstractmethod
     def is_on_curve(self) -> bool:
@@ -189,7 +193,7 @@ class CurvePoint(Generic[C]):
         return x_bytes + y_bytes
 
     @classmethod
-    def uncompressed_s2p(cls, octet_string: Union[str, bytes]) -> "Point[C]":
+    def uncompressed_s2p(cls, octet_string: Union[str, bytes]) -> Self:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
         p = cls.curve.PRIME_FIELD

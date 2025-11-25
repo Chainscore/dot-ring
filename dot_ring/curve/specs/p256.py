@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -49,7 +52,7 @@ class P256Params:
     K: Final[int] = 128  # Security level
     # expand_message: Final[str]="XMD"
     S_in_bytes: Final[int] = 64
-    H_A: Final[str] = "SHA-256"
+    H_A = hashlib.sha256
     ENDIAN = "big"
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
@@ -64,6 +67,7 @@ class P256Params:
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 33
 
 
 class P256Curve(SWCurve):
@@ -73,11 +77,6 @@ class P256Curve(SWCurve):
     A widely standardized curve used in many cryptographic protocols.
     Defined by the equation y² = x³ - 3x + b over the prime field.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for P-256 VRF."""
-        return P256Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize P-256 curve with its parameters."""
@@ -115,6 +114,8 @@ class P256Curve(SWCurve):
             Isogeny_Coeffs=P256Params.Isogeny_Coeffs,
             UNCOMPRESSED=P256Params.UNCOMPRESSED,
             ENDIAN=P256Params.ENDIAN,
+            POINT_LEN=P256Params.POINT_LEN,
+            CHALLENGE_LENGTH=P256Params.CHALLENGE_LENGTH,
         )
 
 
@@ -150,19 +151,6 @@ class P256Point(SWAffinePoint):
 
     curve: Final[P256Curve] = P256_SW_Curve
 
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the P-256 curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
     @classmethod
     def identity_point(cls):
         """
@@ -190,13 +178,15 @@ class P256Point(SWAffinePoint):
             ValueError: If x cannot be recovered
         """
         return SWAffinePoint._x_recover(cls, y)
+    
+P256_RO = CurveVariant(
+    name="P256_RO",
+    curve=P256Curve(e2c_variant=E2C_Variant.SSWU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU),
+)
 
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            P256Point: Generator point
-        """
-        return cls(P256Params.GENERATOR_X, P256Params.GENERATOR_Y)
+P256_NU = CurveVariant(
+    name="P256_NU",
+    curve=P256Curve(e2c_variant=E2C_Variant.SSWU_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU),
+)

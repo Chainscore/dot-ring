@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
 
+import hashlib
+
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -49,7 +51,7 @@ class P384Params:
     M: Final[int] = 1  # Field Extension Degree
     K: Final[int] = 192  # Security level
     # expand_message: Final[str] = "XMD"
-    H_A: Final[str] = "SHA-384"
+    H_A = hashlib.sha384
     ENDIAN = "little"
     L: [int] = 72
     S_in_bytes: [Final] = 128
@@ -67,6 +69,7 @@ class P384Params:
     ] = 0x3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F  # 0x2d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38945678901234567890123456789012345
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 33
 
 
 class P384Curve(SWCurve):
@@ -76,11 +79,6 @@ class P384Curve(SWCurve):
     A high-security standardized curve providing 192-bit security level.
     Defined by the equation y² = x³ - 3x + b over the prime field.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for P-384 VRF."""
-        return P384Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize P-256 curve with its parameters."""
@@ -115,6 +113,8 @@ class P384Curve(SWCurve):
             Isogeny_Coeffs=P384Params.Isogeny_Coeffs,
             UNCOMPRESSED=P384Params.UNCOMPRESSED,
             ENDIAN=P384Params.ENDIAN,
+            POINT_LEN=P384Params.POINT_LEN,
+            CHALLENGE_LENGTH=P384Params.CHALLENGE_LENGTH,
         )
 
 
@@ -149,26 +149,3 @@ class P384Point(SWAffinePoint):
     """
 
     curve: Final[P384Curve] = P384_SW_Curve
-
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the P-384 curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            P384Point: Generator point
-        """
-        return cls(P384Params.GENERATOR_X, P384Params.GENERATOR_Y)

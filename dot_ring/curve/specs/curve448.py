@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, Optional
-from dot_ring.curve.e2c import E2C_Variant  # Unused import
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
+from dot_ring.curve.e2c import E2C_Variant
 from ..montgomery.mg_curve import MGCurve
 from ..montgomery.mg_affine_point import MGAffinePoint
 
@@ -43,11 +46,11 @@ class Curve448Params:
     # Z parameter for SSWU mapping
     Z: Final[int] = -1
     L: Final[int] = 84
-    H_A: [Final] = "Shake-256"
+    H_A = hashlib.shake_256
     ENDIAN = "little"
-    M: [Final] = 1
-    K: [Final] = 224
-    S_in_bytes: [Final] = None
+    M: Final[int] = 1
+    K: Final[int] = 224
+    S_in_bytes: Final = None
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
 
@@ -58,6 +61,7 @@ class Curve448Params:
     BBu: Final[int] = GENERATOR_U
     BBv: Final[int] = GENERATOR_V
     UNCOMPRESSED = True
+    POINT_LEN: Final[int] = 32
 
 
 class Curve448Curve(MGCurve):
@@ -102,12 +106,9 @@ class Curve448Curve(MGCurve):
             Isogeny_Coeffs=Curve448Params.Isogeny_Coeffs,
             UNCOMPRESSED=Curve448Params.UNCOMPRESSED,
             ENDIAN=Curve448Params.ENDIAN,
+            POINT_LEN=Curve448Params.POINT_LEN,
+            CHALLENGE_LENGTH=Curve448Params.CHALLENGE_LENGTH,
         )
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for Curve448 VRF."""
-        return Curve448Params.CHALLENGE_LENGTH
 
     def __post_init__(self):
         """Skip parent validation since Curve448 parameters are known to be valid."""
@@ -137,7 +138,6 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     # Create and return a point class with this curve
     class Curve448PointVariant(MGAffinePoint):
         """Point on Curve448 with custom E2C variant"""
-
         pass
 
     # Set the curve as a class attribute
@@ -152,38 +152,16 @@ class Curve448Point(MGAffinePoint):
     """
 
     curve: Final[Curve448Curve] = Curve448_MG_Curve
+    
+    
+Curve448_NU = CurveVariant(
+    name="Curve448_NU",
+    curve=Curve448Curve(e2c_variant=E2C_Variant.ELL2_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.ELL2_NU),
+)
 
-    def __init__(self, u: Optional[int], v: Optional[int], curve=None) -> None:
-        """
-        Initialize a point on Curve448.
-
-        Args:
-            u: u-coordinate (Montgomery x-coordinate) or None for identity
-            v: v-coordinate (Montgomery y-coordinate) or None for identity
-            curve: Curve instance (defaults to singleton)
-        """
-        if curve is None:
-            curve = Curve448_MG_Curve
-
-        # Call parent constructor
-        super().__init__(u, v, curve)
-
-    @classmethod
-    def generator_point(cls) -> "Curve448Point":
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            Curve448Point: Generator point
-        """
-        return cls(Curve448Params.GENERATOR_U, Curve448Params.GENERATOR_V)
-
-    def __str__(self) -> str:
-        """String representation."""
-        if self.is_identity():
-            return "Curve448Point(IDENTITY)"
-        return f"Curve448Point(u={self.x}, v={self.y})"
-
-    def __repr__(self) -> str:
-        """Detailed string representation."""
-        return self.__str__()
+Curve448_RO = CurveVariant(
+    name="Curve448_RO",
+    curve=Curve448Curve(e2c_variant=E2C_Variant.ELL2),
+    point=nu_variant(e2c_variant=E2C_Variant.ELL2),
+)

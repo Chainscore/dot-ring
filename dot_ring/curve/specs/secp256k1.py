@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Final, Self
 
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..glv import GLV
 from ..short_weierstrass.sw_curve import SWCurve
@@ -58,9 +61,9 @@ class Secp256k1Params:
     M: Final[int] = 1  # Field Extension Degree
     K: Final[int] = 128  # Security level
     # expand_message: Final[str] = "XMD"
-    H_A: Final[str] = "SHA-256"
+    H_A = hashlib.sha256
     ENDIAN = "little"
-    L: [int] = 48
+    L: Final[int] = 48
     S_in_bytes: Final[int] = 64
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
@@ -93,6 +96,7 @@ class Secp256k1Params:
         ],
     }
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 32
 
 
 """GLV endomorphism parameters for secp256k1 curve."""
@@ -110,11 +114,6 @@ class Secp256k1Curve(SWCurve):
     The curve used by Bitcoin and many other cryptocurrencies.
     Defined by the equation y² = x³ + 7 over the prime field.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for secp256k1 VRF."""
-        return Secp256k1Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize secp256k1 curve with its parameters."""
@@ -149,10 +148,11 @@ class Secp256k1Curve(SWCurve):
             Isogeny_Coeffs=Secp256k1Params.Isogeny_Coeffs,
             UNCOMPRESSED=Secp256k1Params.UNCOMPRESSED,
             ENDIAN=Secp256k1Params.ENDIAN,
+            POINT_LEN=Secp256k1Params.POINT_LEN,
+            CHALLENGE_LENGTH=Secp256k1Params.CHALLENGE_LENGTH,
         )
 
 
-# Singleton instance
 Secp256k1_SW_Curve: Final[Secp256k1Curve] = Secp256k1Curve()
 
 
@@ -185,29 +185,6 @@ class Secp256k1Point(SWAffinePoint):
 
     curve: Final[Secp256k1Curve] = Secp256k1_SW_Curve
 
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the secp256k1 curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            Secp256k1Point: Generator point
-        """
-        return cls(Secp256k1Params.GENERATOR_X, Secp256k1Params.GENERATOR_Y)
-
     def __mul__(self, scalar: int) -> Self:
         """
         GLV-optimized scalar multiplication for secp256k1.
@@ -235,3 +212,16 @@ class Secp256k1Point(SWAffinePoint):
         # For now, fall back to standard multiplication
         # TODO: Implement full GLV decomposition
         return super().__mul__(scalar)
+
+
+Secp256k1_RO = CurveVariant(
+    name="Secp256k1_RO",
+    curve=Secp256k1Curve(e2c_variant=E2C_Variant.SSWU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU),
+)
+
+Secp256k1_NU = CurveVariant(
+    name="Secp256k1_NU",
+    curve=Secp256k1Curve(e2c_variant=E2C_Variant.SSWU_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU),
+)

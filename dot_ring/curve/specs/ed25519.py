@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self, Tuple, Union
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
@@ -30,11 +33,11 @@ class Ed25519Params:
     # Z parameter for Elligator 2 mapping (from RFC 9380 Section 4.1)
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
     L: Final[int] = 48
-    H_A: [Final] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = 'little'
-    M: [Final] = 1
-    K: [Final] = 128
-    S_in_bytes: [Final] = 128  # 48 64 136 172\
+    M: Final = 1
+    K: Final = 128
+    S_in_bytes: Final = 128  # 48 64 136 172\
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     # Challenge length in bytes for VRF (from RFC 9381)
@@ -48,6 +51,8 @@ class Ed25519Params:
     ] = 24364467899048426341436922427697710961180476432856951893648702734568269272170
 
     UNCOMPRESSED=False
+    POINT_LEN: Final[int] = 32
+
 
 class Ed25519Curve(TECurve):
     """
@@ -56,11 +61,6 @@ class Ed25519Curve(TECurve):
     A high-performance curve designed for zero-knowledge proofs and VRFs,
     offering both efficiency and security.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for Ed25519 VRF."""
-        return Ed25519Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> None:
         """Initialize Ed25519 curve with RFC-compliant parameters."""
@@ -96,7 +96,9 @@ class Ed25519Curve(TECurve):
             Requires_Isogeny=Ed25519Params.Requires_Isogeny,
             Isogeny_Coeffs=Ed25519Params.Isogeny_Coeffs,
             UNCOMPRESSED=Ed25519Params.UNCOMPRESSED,
-            ENDIAN=Ed25519Params.ENDIAN
+            ENDIAN=Ed25519Params.ENDIAN,
+            POINT_LEN=Ed25519Params.POINT_LEN,
+            CHALLENGE_LENGTH=Ed25519Params.CHALLENGE_LENGTH,
         )
 
 
@@ -141,43 +143,6 @@ class Ed25519Point(TEAffinePoint):
     curve: Final[Ed25519Curve] = Ed25519_TE_Curve
 
     @classmethod
-    def identity_point(cls) -> 'Ed25519Point':
-        """
-        Get the identity point (0, 1) of the curve.
-
-        Returns:
-            Ed25519Point: Identity point
-        """
-        # The identity point in Twisted Edwards coordinates is (0, 1)
-        return cls(0, 1)
-
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the Bandersnatch curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            BandersnatchPoint: Generator point
-        """
-        return cls(
-            Ed25519Params.GENERATOR_X,
-            Ed25519Params.GENERATOR_Y
-        )
-
-    @classmethod
     def map_to_curve(cls, u: int):
         # Use a different mapping specifically for Ed25519
         s, t = cls.curve.map_to_curve_ell2(u)
@@ -197,3 +162,15 @@ class Ed25519Point(TEAffinePoint):
         # x = sqrt(-486664) * u / v mod p
         x = (sqrt_neg_A_minus_2 * u * pow(v, -1, p)) % p
         return cls(x, y)
+    
+Ed25519_RO = CurveVariant(
+    name="Ed25519_RO",
+    curve=Ed25519Curve(e2c_variant=E2C_Variant.ELL2),
+    point=nu_variant(e2c_variant=E2C_Variant.ELL2),
+)
+
+Ed25519_NU = CurveVariant(
+    name="Ed25519_NU",
+    curve=Ed25519Curve(e2c_variant=E2C_Variant.ELL2_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.ELL2_NU),
+)

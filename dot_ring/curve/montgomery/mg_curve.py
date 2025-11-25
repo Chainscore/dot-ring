@@ -41,11 +41,6 @@ class MGCurve(Curve):
         if discriminant == 0:
             raise ValueError("Curve is singular: A² - 4 ≡ 0 (mod p)")
 
-    @property
-    @abstractmethod
-    def CHALLENGE_LENGTH(self) -> int:
-        raise NotImplementedError("CHALLENGE_LENGTH must be implemented by subclasses")
-
     def is_on_curve(self, point: Tuple[int, int]) -> bool:
         """
         Check if point (u, v) satisfies the Montgomery curve equation: Bv² = u³ + Au² + u

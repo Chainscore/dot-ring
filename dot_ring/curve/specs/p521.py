@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -47,7 +50,7 @@ class P521Params:
     M: Final[int] = 1  # Field Extension Degree
     K: Final[int] = 256  # Security level
     # expand_message: Final[str] = "XMD"
-    H_A: Final[str] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = "little"
     L: [int] = 98
     S_in_bytes: [Final] = 128  # 64 128 136 72
@@ -64,6 +67,7 @@ class P521Params:
     ] = 0x011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650  # 0x02D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38945678901234567890123456789012345678901234567890123456789012345678901
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 33
 
 
 class P521Curve(SWCurve):
@@ -73,11 +77,6 @@ class P521Curve(SWCurve):
     The highest security level standardized curve in the NIST suite.
     Defined by the equation y² = x³ - 3x + b over the prime field.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for P-521 VRF."""
-        return P521Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         """Initialize P-521 curve with its parameters."""
@@ -112,6 +111,8 @@ class P521Curve(SWCurve):
             Isogeny_Coeffs=P521Params.Isogeny_Coeffs,
             UNCOMPRESSED=P521Params.UNCOMPRESSED,
             ENDIAN=P521Params.ENDIAN,
+            POINT_LEN=P521Params.POINT_LEN,
+            CHALLENGE_LENGTH=P521Params.CHALLENGE_LENGTH,
         )
 
 
@@ -146,26 +147,15 @@ class P521Point(SWAffinePoint):
     """
 
     curve: Final[P521Curve] = P521_SW_Curve
+    
+P521_RO = CurveVariant(
+    name="P521_RO",
+    curve=P521Curve(e2c_variant=E2C_Variant.SSWU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU),
+)
 
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the P-521 curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            P521Point: Generator point
-        """
-        return cls(P521Params.GENERATOR_X, P521Params.GENERATOR_Y)
+P521_NU = CurveVariant(
+    name="P521_NU",
+    curve=P521Curve(e2c_variant=E2C_Variant.SSWU_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU),
+)
