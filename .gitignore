@@ -3,6 +3,7 @@ __pycache__
 
 # blst dep
 blst
+.blst
 build
 .idea
 .mypy_cache

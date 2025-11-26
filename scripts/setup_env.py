@@ -9,12 +9,22 @@ def install_blst():
     root_dir = Path(__file__).parent.parent
     blst_dir = root_dir / ".blst"
     
-    # 1. Clone blst if not exists
+    # 1. Clone blst if not exists or is invalid
+    should_clone = False
     if not blst_dir.exists():
+        should_clone = True
+    else:
+        # Check if it looks like a valid clone (has bindings/python/run.me)
+        if not (blst_dir / "bindings" / "python" / "run.me").exists():
+            print("Existing blst directory seems incomplete. Re-cloning...")
+            shutil.rmtree(blst_dir)
+            should_clone = True
+        else:
+            print("blst already cloned.")
+
+    if should_clone:
         print("Cloning blst...")
         subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
-    else:
-        print("blst already cloned.")
 
     # 2. Build python bindings
     print("Building blst python bindings...")
