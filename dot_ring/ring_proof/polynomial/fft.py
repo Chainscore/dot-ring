@@ -79,7 +79,6 @@ def _fft_in_place(coeffs: List[int], omega: int, prime: int) -> None:
     if n == 1:
         return
 
-    # Get precomputed values
     rev = _get_bit_reverse(n)
     twiddles = _get_twiddle_factors(n, omega, prime)
 

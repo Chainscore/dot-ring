@@ -11,3 +11,5 @@ perf
 *.c
 *.so 
 *.html
+
+.coverage
