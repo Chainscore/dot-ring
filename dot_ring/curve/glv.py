@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple, Final
+from typing import Any, List, Tuple, Type, TypeVar, cast
 from functools import lru_cache
 import math
 from .point import CurvePoint
+from .twisted_edwards.te_affine_point import TEAffinePoint
+
+from .field_arithmetic import (
+    scalar_mult_windowed_cy as _compiled_msm,
+    scalar_mult_4_cy as _compiled_msm4,
+    projective_to_affine_cy as projective_to_affine,
+)
+
+AffinePointT = TypeVar("AffinePointT", bound=TEAffinePoint[Any])
 
 
 @dataclass(frozen=True)
@@ -206,8 +215,8 @@ class GLV:
         return point.__class__(x_a, y_a)
     
     def windowed_simultaneous_mult(
-        self, k1: int, k2: int, P1: CurvePoint, P2: CurvePoint, w: int = 2
-    ) -> CurvePoint:
+        self, k1: int, k2: int, P1: AffinePointT, P2: AffinePointT, w: int = 2
+    ) -> AffinePointT:
         """
         Compute k1 * P1 + k2 * P2 using windowed simultaneous multi-scalar multiplication.
 
@@ -224,64 +233,77 @@ class GLV:
         Raises:
             TypeError: If P1 or P2 is not compatible with this curve
         """
-        from .twisted_edwards.te_projective_point import TEProjectivePoint
-        
         if P1.curve != P2.curve:
             raise TypeError("Points must be on the same curve")
         
-        P1_proj = TEProjectivePoint.from_point(P1)
-        P2_proj = TEProjectivePoint.from_point(P2)
-        identity_proj = TEProjectivePoint.zero(P1.curve)
-
-        # Step 1: Precompute lookup table for all i*P1 + j*P2 (0 <= i,j < 2^w)
-        table_size = 1 << w
-        table = [[None] * table_size for _ in range(table_size)]
+        p = P1.curve.PRIME_FIELD
+        a_coeff = P1.curve.EdwardsA
+        d_coeff = P1.curve.EdwardsD
         
-        # Precompute P1 multiples: [0, P1, 2*P1, 3*P1, ...]
-        P1_multiples = [identity_proj]
-        current = P1_proj
-        for _ in range(1, table_size):
-            P1_multiples.append(current)
-            current = current + P1_proj
-            
-        # Precompute P2 multiples: [0, P2, 2*P2, 3*P2, ...]
-        P2_multiples = [identity_proj]
-        current = P2_proj
-        for _ in range(1, table_size):
-            P2_multiples.append(current)
-            current = current + P2_proj
+        # Convert to projective coordinates
+        p1_t = (P1.x * P1.y) % p
+        p2_t = (P2.x * P2.y) % p
         
-        # Build full table: table[i][j] = i*P1 + j*P2
-        for i in range(table_size):
-            for j in range(table_size):
-                if i == 0:
-                    table[i][j] = P2_multiples[j]
-                elif j == 0:
-                    table[i][j] = P1_multiples[i]
-                else:
-                    table[i][j] = P1_multiples[i] + P2_multiples[j]
-
-        # Step 2: Split k1 and k2 into w-bit windows
-        max_len = max(k1.bit_length(), k2.bit_length())
-        d = math.ceil(max_len / w)
+        assert projective_to_affine is not None
+        # Use compiled MSM
+        rx, ry, rz, rt = _compiled_msm(
+            k1, k2,
+            P1.x, P1.y, 1, p1_t,
+            P2.x, P2.y, 1, p2_t,
+            a_coeff, d_coeff, p, w
+        )
         
-        # Extract windows directly without intermediate list
-        mask = (1 << w) - 1
+        # Convert back to affine
+        ax, ay = projective_to_affine(rx, ry, rz, p)
+        point_cls = cast(Type[AffinePointT], P1.__class__)
+        return point_cls(ax, ay)
         
-        # Step 3: Double-and-add from MSB to LSB
-        R = identity_proj
 
-        for i in range(d - 1, -1, -1):
-            # Double w times
-            for _ in range(w):
-                R = R.double()
+    def multi_scalar_mult_4(
+        self,
+        k1: int,
+        k2: int,
+        k3: int,
+        k4: int,
+        P1: AffinePointT,
+        P2: AffinePointT,
+        P3: AffinePointT,
+        P4: AffinePointT,
+        w: int = 2,
+    ) -> AffinePointT:
+        """
+        Compute k1*P1 + k2*P2 + k3*P3 + k4*P4 using windowed simultaneous multi-scalar multiplication.
+        
+        This is faster than doing 4 separate scalar multiplications.
 
-            # Extract window indices
-            k1_window = (k1 >> (i * w)) & mask
-            k2_window = (k2 >> (i * w)) & mask
-            
-            # Add precomputed value if non-zero
-            if k1_window != 0 or k2_window != 0:
-                R = R + table[k1_window][k2_window]
+        Args:
+            k1, k2, k3, k4: Scalars
+            P1, P2, P3, P4: Points
+            w: Window size (default=2)
 
-        return R.to_affine()
+        Returns:
+            TEAffinePoint: Result of k1*P1 + k2*P2 + k3*P3 + k4*P4
+        """
+        p = P1.curve.PRIME_FIELD
+        a_coeff = P1.curve.EdwardsA
+        d_coeff = P1.curve.EdwardsD
+        
+        # Convert to projective coordinates
+        p1_t = (P1.x * P1.y) % p
+        p2_t = (P2.x * P2.y) % p
+        p3_t = (P3.x * P3.y) % p
+        p4_t = (P4.x * P4.y) % p
+        
+        assert projective_to_affine is not None
+        rx, ry, rz, rt = _compiled_msm4(
+            k1, k2, k3, k4,
+            P1.x, P1.y, 1, p1_t,
+            P2.x, P2.y, 1, p2_t,
+            P3.x, P3.y, 1, p3_t,
+            P4.x, P4.y, 1, p4_t,
+            a_coeff, d_coeff, p, w
+        )
+        
+        ax, ay = projective_to_affine(rx, ry, rz, p)
+        point_cls = cast(Type[AffinePointT], P1.__class__)
+        return point_cls(ax, ay)

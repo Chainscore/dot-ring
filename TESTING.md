@@ -9,90 +9,47 @@ All unit and integration tests are located under the [`tests/`](./tests) directo
 
 The test suite is organized into the following categories:
 
-### 🔹 Curve Operations Tests
+### 🔹 Curve Operations Tests (`tests/test_curve_ops/`)
 
 Core tests for curve operations and point serialization:
-- **`test_curve_ops.py`** - Tests basic curve operations and properties(Covering All Edwards, Weierstrass and Montgomery Curves)
+- **`test_curve_ops.py`** - Tests basic curve operations and properties (Covering All Edwards, Weierstrass and Montgomery Curves)
 - **`test_curves_s2p_p2s.py`** - Tests point serialization and deserialization for various curve types
+- **`test_mg_curve.py`** - Specific tests for Montgomery curve implementation
 
-### 🔹 VRF Tests (`tests/test_vrfs/`)
+### 🔹 VRF Tests
 
-#### **IETF VRF Tests** (`test_ietf/`)
-Tests the IETF VRF implementation against official test vectors for multiple curves:
-- **`test_bandersnatch_ietf.py`** - Bandersnatch (Twisted Edwards) curve with Elligator 2
-- **`test_p256_sswu_ietf.py`** - P-256 (NIST/Weierstrass) curve with SSWU mapping
-- **`test_p384_sswu_ietf.py`** - P-384 (NIST/Weierstrass) curve with SSWU mapping
-- **`test_secp256K1_sswu_ietf.py`** - secp256k1( Weierstrass) curve with SSWU mapping
-- **`test_curve25519_ell2_ietf.py`** - Curve25519 (Montgomery) curve with Elligator 2
-- **`test_curve448_ell2_ietf.py`** - Curve448 (Montgomery) curve with Elligator 2
-- **`test_ed448_ell2_ietf.py`** - Ed448 (Twisted Edwards) curve with Elligator 2
-- **`test_ed25519_ell2_ietf.py`** - Ed25519 (Twisted Edwards) curve with Elligator 2
-- **`test_ed25519_tai_ietf.py`** - Ed25519 (Twisted Edwards) curve with TAI
-- **`test_jubjub_tai_ietf.py`** - JubJub (Twisted Edwards)  curve with TAI
-- **`test_babyjubjub_tai_ietf.py`** - BabyJubJub (Twisted Edwards) curve with TAI
-- **`test_bandersnatch_sw_tai_ietf.py`** - Bandersnatch ( Weierstrass) with TAI
-- **`test_secp256r1_tai_ietf.py`** - P256 ( Weierstrass) curve with TAI
+#### **IETF VRF Tests** (`tests/test_ietf/`)
+Tests the IETF VRF implementation against official test vectors:
+- **`test_ietf_ark.py`** - Tests using Arkworks vectors (primarily Bandersnatch curve)
+- **`test_ietf_base.py`** - Tests for other supported curves (P-256, P-384, secp256k1, Curve25519, Curve448, Ed25519, etc.)
 
-Test vectors are located in `tests/ark-vrf/` for Bandersnatch and `tests/test_vrfs/vectors/` for other curves.
-
-#### **Pedersen VRF Tests** (`test_pedersen/`)
+#### **Pedersen VRF Tests** (`tests/test_pedersen/`)
 Tests the Pedersen VRF implementation (commitment-based VRF without exposing public key):
-- **`test_bandersnatch_pedersen.py`** - Bandersnatch curve (Twisted Edwards) curve with Elligator 2
-- **`test_p256_sswu_pedersen.py`** - P-256 (NIST/Weierstrass) curve with SSWU mapping
-- **`test_p384_sswu_pedersen.py`** -P-384 (NIST/Weierstrass) curve with SSWU mapping
-- **`test_secp256k1_sswu_pedersen.py`** - secp256k1( Weierstrass) curve with SSWU mapping
-- **`test_curve25519_ell2_pedersen.py`** - Curve25519 (Montgomery) curve with Elligator 2
-- **`test_curve448_ell2_pedersen.py`** - Curve448 (Montgomery) curve with Elligator 2
-- **`test_ed448_ell2_pedersen.py`** - Ed448 (Twisted Edwards) curve with Elligator 2
-- **`test_ed25519_ell2_pedersen.py`** - Ed25519 (Twisted Edwards) curve with Elligator 2
-- **`test_ed25519_tai_pedersen.py`** - Ed25519 (Twisted Edwards) curve with TAI
-- **`test_jubjub_tai_pedersen.py`** - JubJub (Twisted Edwards)  curve with TAI
-- **`test_baby_jubjub_tai_pedersen.py`** - BabyJubJub (Twisted Edwards) curve with TAI
-- **`test_bandersnatch_sw_tai_pedersen.py`** - Bandersnatch ( Weierstrass) with TAI
-- **`test_secp256r1_tai_pedersen.py`** - P256 ( Weierstrass) curve with TAI
+- **`test_pedersen_ark.py`** - Tests using Arkworks vectors (primarily Bandersnatch curve)
+- **`test_pedersen_base.py`** - Tests for other supported curves
 
-#### **Ring Proof Tests** (`test_ring_proof/`)
-- **`test_ring_proof.py`** - Validates ring proofs using BLS12-381 signatures, including ring root construction and signature verification
-
-#### **Ring VRF Tests** (`test_ring_vrf/`)
+#### **Ring VRF Tests** (`tests/test_ring_vrf/`)
 - **`test_ring_vrf.py`** - Tests the complete Ring VRF implementation combining Pedersen VRF with ring proofs for anonymous VRF signatures
 
 ### 🔹 Hash-to-Curve Tests (`tests/test_h2c_suites/`)
 
-Comprehensive RFC 9380-compliant hash-to-curve test suite covering multiple curves and mapping methods:
+Comprehensive RFC 9380-compliant hash-to-curve test suite:
+- **`test_h2c_nu.py`** - Tests for Non-Uniform (NU) mapping variants across various curves
+- **`test_h2c_ro.py`** - Tests for Random Oracle (RO) mapping variants across various curves
+- **`test_bls12_381_G2_ssw_nu.py`** - Specific tests for BLS12-381 G2 Non-Uniform mapping
+- **`test_bls12_381_G2_ssw_ro.py`** - Specific tests for BLS12-381 G2 Random Oracle mapping
+- **`test_e2c_bandersnatch.py`** - Tests for Bandersnatch encode-to-curve
 
+### 🔹 Other Tests
 
-#### **Weierstrass Curves (SSWU, Elligator 2)**
-- **P-256**: `test_p256_ssw_e2c_ro.py`, `test_p256_ssw_e2c_nu.py`
-- **P-384**: `test_p384_ssw_e2c_ro.py`, `test_p384_ssw_e2c_nu.py`
-- **P-521**: `test_p521_ssw_e2c_ro.py`, `test_p521_ssw_e2c_nu.py`
-- **Secp256k1**: `test_secp256k1_e2c_ro.py`, `test_secp256k1_e2c_nu.py`
-- **BLS12_381_G1**: `bls12_381_G1_ssw_ro.py`, `bls12_381_G1_ssw_nu.py`
-- **BLS12_381_G2**: `bls12_381_G2_ssw_ro.py`, `bls12_381_G2_ssw_nu.py`
-
-### **Montgomery Curves (Elligator 2)**
-- **Curve25519**: `test_curve25519_e2c_ell2_ro.py`, `test_curve25519_e2c_ell2_nu.py`
-- **Curve448**: `test_curve448_e2c_ell2_ro.py`, `test_curve448_e2c_ell2_nu.py`
-
-#### **Edwards Curves (Elligator 2)**
-- **Ed25519**: `test_ed25519_ell2_ro.py`, `test_ed25519_ell2_nu.py`
-- **Ed448**: `test_ed448_ell2_ro.py`, `test_ed448_ell2_nu.py`
-- **Bandersnatch**: `test_e2c_bandersnatch.py`
-
-
-**Note**: `_ro` suffix indicates Random Oracle variant, `_nu` suffix indicates Non-Uniform variant.
-
-### 🔹 Integration Tests
-
-- **`test_all_vrfs.py`** - High-level integration test that generates and verifies signatures for all implemented VRF schemes of BandersnatchCurve
-- **`test_ring_vrf_with_third_party_msm.py`** - Tests Ring VRF implementation with third-party MSM (Multi-Scalar Multiplication)
-
+- **`test_bandersnatch_ark.py`** - Specific tests for Bandersnatch curve compatibility with Arkworks
+- **`utils/test_bench_ring.py`** - Benchmarking tests for Ring VRF operations
 
 ### 🔹 Test Data
 
-- **`tests/ark-vrf/`** - Official test vectors from [ark-vrf](https://github.com/davxy/bandersnatch-vrf-spec/tree/main/assets/vectors) for Bandersnatch curve
-- **`tests/test_vrfs/vectors/`** - Sample Test vectors for P-256, P-384, secp256k1, Curve25519, and Curve448
-- **`tests/test_h2c_suites/vectors/`** - [RFC 9380](https://www.rfc-editor.org/rfc/rfc9380.html#name-suite-test-vectors) test vectors for hash-to-curve implementations
+- **`tests/vectors/ark-vrf/`** - Official test vectors from [ark-vrf](https://github.com/davxy/bandersnatch-vrf-spec/tree/main/assets/vectors) for Bandersnatch curve
+- **`tests/vectors/base/`** - Base test vectors for various curves
+- **`tests/vectors/h2c/`** - [RFC 9380](https://www.rfc-editor.org/rfc/rfc9380.html#name-suite-test-vectors) test vectors for hash-to-curve implementations
 
 ---
 
@@ -100,76 +57,61 @@ Comprehensive RFC 9380-compliant hash-to-curve test suite covering multiple curv
 
 Before running tests make sure you have the [Prerequisites](./README.md#prerequisites) installed as mentioned in [README](./README.md).
 
-The tests are written using **pytest**. You can run the entire suite or specific test categories:
+The tests are written using **pytest**. You can run the entire suite or specific test categories using `uv`:
 
 ### Run All Tests
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ### Run Specific Test Categories
 **All Curve Ops tests:**
 ```bash
-pytest tests/test_curve_ops/ -v
+uv run pytest tests/test_curve_ops/ -v
 ```
 
-**All VRF tests:**
+**IETF VRF tests:**
 ```bash
-pytest tests/test_vrfs/ -v
+uv run pytest tests/test_ietf/ -v
 ```
 
-**IETF VRF tests only:**
+**Pedersen VRF tests:**
 ```bash
-pytest tests/test_vrfs/test_ietf/ -v
+uv run pytest tests/test_pedersen/ -v
 ```
 
-**Pedersen VRF tests only:**
+**Ring VRF tests:**
 ```bash
-pytest tests/test_vrfs/test_pedersen/ -v
-```
-
-**Ring proof and Ring VRF tests:**
-```bash
-pytest tests/test_vrfs/test_ring_proof/ tests/test_vrfs/test_ring_vrf/ -v
+uv run pytest tests/test_ring_vrf/ -v
 ```
 
 **Hash-to-curve tests:**
 ```bash
-pytest tests/test_h2c_suites/ -v
+uv run pytest tests/test_h2c_suites/ -v
 ```
 
 ### Run Specific Test Files
 
-**Test a specific curve (e.g., P-256 IETF VRF):**
+**Test IETF VRF Base:**
 ```bash
-pytest tests/test_vrfs/test_ietf/test_p256_sswu_ietf.py -v
+uv run pytest tests/test_ietf/test_ietf_base.py -v
 ```
 
-**Test a specific hash-to-curve implementation:**
+**Test Ring VRF:**
 ```bash
-pytest tests/test_h2c_suites/test_p256_ssw_e2c_ro.py -v
+uv run pytest tests/test_ring_vrf/test_ring_vrf.py -v
 ```
 
 ### Additional Pytest Options
 
 **Run with detailed output:**
 ```bash
-pytest tests/ -vv
+uv run pytest tests/ -vv
 ```
 
 **Run with coverage report:**
 ```bash
-pytest tests/ --cov=dot_ring --cov-report=html
-```
-
-**Run tests in parallel (requires pytest-xdist):**
-```bash
-pytest tests/ -n auto
-```
-
-**Run only failed tests from last run:**
-```bash
-pytest tests/ --lf
+uv run pytest tests/ --cov=dot_ring --cov-report=html
 ```
 
 ---
@@ -181,21 +123,21 @@ The test suite validates VRF implementations across multiple elliptic curves:
 | Curve                | Family | Hash-to-Curve Method |   H2C-Suite-Tests | IETF VRF | Pedersen VRF | Ring VRF |
 |----------------------|--------|----------------------|----|----------|--------------|----------|
 | **Bandersnatch**     | Twisted Edwards | Elligator 2          | ✅    | ✅       | ✅ | ✅ |
-| **P-256/ Secp256r1** | Short Weierstrass | SSWU & TAI           |  ✅   | ✅ | ✅ | ⏳ |
-| **P-384**            | Short Weierstrass | SSWU                 | ✅    | ✅ | ✅ | ⏳ |
-| **P-521**            | Short Weierstrass | SSWU                 |  ✅   | ✅   | ✅  | ⏳ |
-| **secp256k1**        | Short Weierstrass | SSWU                 |  ✅   | ✅ | ✅ | ⏳ |
-| **Curve25519**       | Montgomery | Elligator 2          | ✅    | ✅  | ✅   | ⏳ |
-| **Curve448**         | Montgomery | Elligator 2          |  ✅   | ✅  | ✅   | ⏳ |
-| **Ed25519**          | Twisted Edwards | Elligator 2 & TAI    | ✅    | ✅   | ✅   | ⏳ |
-| **Ed448**            | Twisted Edwards | Elligator 2          |   ✅  | ✅   | ✅   | ⏳ |
-| **JubJub**           | Twisted Edwards | TAI                  |   ✅  | ✅   | ✅  | ⏳ |
-| **BabyJubJub**       | Twisted Edwards | TAI                  |  ✅   | ✅  |  ✅ | ⏳ |
-| **Bandersnatch_SW**  | Twisted Edwards | TAI                  |  ✅   | ✅ | ✅ | ⏳ |
+| **P-256/ Secp256r1** | Short Weierstrass | SSWU & TAI           |  ✅   | ✅ | ✅ |  |
+| **P-384**            | Short Weierstrass | SSWU                 | ✅    | ✅ | ✅ |  |
+| **P-521**            | Short Weierstrass | SSWU                 |  ✅   | ✅   | ✅  |  |
+| **secp256k1**        | Short Weierstrass | SSWU                 |  ✅   | ✅ | ✅ |  |
+| **Curve25519**       | Montgomery | Elligator 2          | ✅    | ✅  | ✅   |  |
+| **Curve448**         | Montgomery | Elligator 2          |  ✅   | ✅  | ✅   |  |
+| **Ed25519**          | Twisted Edwards | Elligator 2 & TAI    | ✅    | ✅   | ✅   |  |
+| **Ed448**            | Twisted Edwards | Elligator 2          |   ✅  | ✅   | ✅   |  |
+| **JubJub**           | Twisted Edwards | TAI                  |   ✅  | ✅   | ✅  |  |
+| **BabyJubJub**       | Twisted Edwards | TAI                  |  ✅   | ✅  |  ✅ |  |
+| **Bandersnatch_SW**  | Twisted Edwards | TAI                  |  ✅   | ✅ | ✅ |  |
 
 
 
-✅ = Implemented and tested | ⏳ = Planned/In progress
+✅ = Implemented and tested |  = Planned/In progress
 
 ---
 

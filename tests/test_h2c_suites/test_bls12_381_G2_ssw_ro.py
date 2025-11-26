@@ -1,7 +1,7 @@
 import json
 import os
 import unittest
-from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2Point
+from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2_RO
 from dot_ring.curve.field_element import FieldElement
 
 class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
                 expected_u = vector['u']
 
                 # Get the prime modulus for Fp
-                p = BLS12_381_G2Point.curve.PRIME_FIELD
+                p = BLS12_381_G2_RO.curve.PRIME_FIELD
 
                 # Convert sample.py values to FieldElements
                 expected_u0 = FieldElement(
@@ -49,7 +49,7 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
                 )
 
                 # Encode message to curve
-                result = BLS12_381_G2Point.encode_to_curve(msg.encode("utf-8"), b"", True)
+                result = BLS12_381_G2_RO.point.encode_to_curve(msg.encode("utf-8"), b"", True)
 
                 # Extract computed values
                 computed_P = result["R"]

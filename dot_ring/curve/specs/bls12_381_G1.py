@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self, Any
 
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -54,7 +57,7 @@ class BLS12_381_G1Params:
     S_IN_BYTES: Final[int] = 64
 
     # Hash used by default in hash-to-curve suites for this curve
-    H_A: Final[str] = "SHA-256"
+    H_A = hashlib.sha256
     ENDIAN = "little"
 
     # Challenge length for VRF / challenge bytes (48 bytes is typical for 381-bit)
@@ -66,6 +69,7 @@ class BLS12_381_G1Params:
     BBy: Final[int | None] = None
     Isogeny_Coeffs: Final[object | None] = None
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 32
 
 
 class BLS12_381_G1Curve(SWCurve):
@@ -75,10 +79,6 @@ class BLS12_381_G1Curve(SWCurve):
     This class wraps the curve parameters and passes them to the SWCurve base
     implementation used in this codebase.
     """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        return BLS12_381_G1Params.CHALLENGE_LENGTH
 
     def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> None:
         SUITE_STRING = BLS12_381_G1Params.SUITE_STRING
@@ -111,6 +111,8 @@ class BLS12_381_G1Curve(SWCurve):
             Isogeny_Coeffs=BLS12_381_G1Params.Isogeny_Coeffs,
             UNCOMPRESSED=BLS12_381_G1Params.UNCOMPRESSED,
             ENDIAN=BLS12_381_G1Params.ENDIAN,
+            POINT_LEN=BLS12_381_G1Params.POINT_LEN,
+            CHALLENGE_LENGTH=BLS12_381_G1Params.CHALLENGE_LENGTH,
         )
 
 
@@ -119,41 +121,20 @@ BLS12_381_G1_SW_Curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve()
 
 
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
-    # Create curve with the specified variant
-    curve = BLS12_381_G1Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class BLS12_381_G1PointVariant(BLS12_381_G1Point):
         """Point on BLS12_381_G1 with custom E2C variant"""
+        curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve(e2c_variant)
 
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            # Call SWAffinePoint.__init__ directly to avoid BLS12_381_G1Point's __init__
-            SWAffinePoint.__init__(self, x, y, curve)
-
-    # Set the curve as a class attribute
-    BLS12_381_G1PointVariant.curve = curve
 
     return BLS12_381_G1PointVariant
 
 
-@dataclass(frozen=True)
 class BLS12_381_G1Point(SWAffinePoint):
     """
     Affine point on BLS12-381 G1.
     """
 
     curve: Final[BLS12_381_G1Curve] = BLS12_381_G1_SW_Curve
-
-    def __init__(self, x: int, y: int) -> None:
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        return cls(
-            BLS12_381_G1Params.GENERATOR_X,
-            BLS12_381_G1Params.GENERATOR_Y,
-        )
 
     @classmethod
     def map_to_curve_simple_swu(cls, u: int) -> BLS12_381_G1Point | Any:
@@ -357,3 +338,15 @@ class BLS12_381_G1Point(SWAffinePoint):
             ) % p
             y = (yp * y_num * pow(y_den, -1, p)) % p
         return cls(x=x, y=y)
+
+BLS12_381_G1_NU = CurveVariant(
+    name="BLS12_381_G1_NU",
+    curve=BLS12_381_G1Curve(e2c_variant=E2C_Variant.SSWU_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU),
+)
+
+BLS12_381_G1_RO = CurveVariant(
+    name="BLS12_381_G1_RO",
+    curve=BLS12_381_G1Curve(e2c_variant=E2C_Variant.SSWU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU),
+)

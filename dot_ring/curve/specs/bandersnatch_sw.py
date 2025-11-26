@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, Self, Union
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -39,7 +42,7 @@ class BandersnatchSWParams:
     L: Final[int] = 64
     K: Final[int] = 1
     S_in_bytes: Final[int] = 64
-    H_A: Final[str] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = "little"
     BBx: Final[
         int
@@ -52,50 +55,40 @@ class BandersnatchSWParams:
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 33
 
 
-class BandersnatchSWCurve(SWCurve):
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        return BandersnatchSWParams.CHALLENGE_LENGTH
-
-    def __init__(self, e2c_variant: E2C_Variant = E2C_Variant.TAI) -> None:
-        super().__init__(
-            PRIME_FIELD=BandersnatchSWParams.PRIME_FIELD,
-            ORDER=BandersnatchSWParams.ORDER,
-            GENERATOR_X=BandersnatchSWParams.GENERATOR_X,
-            GENERATOR_Y=BandersnatchSWParams.GENERATOR_Y,
-            COFACTOR=BandersnatchSWParams.COFACTOR,
-            Z=BandersnatchSWParams.Z,
-            WeierstrassA=BandersnatchSWParams.WEIERSTRASS_A,
-            WeierstrassB=BandersnatchSWParams.WEIERSTRASS_B,
-            SUITE_STRING=BandersnatchSWParams.SUITE_STRING,
-            DST=BandersnatchSWParams.DST,
-            E2C=e2c_variant,
-            BBx=BandersnatchSWParams.BBx,
-            BBy=BandersnatchSWParams.BBy,
-            M=BandersnatchSWParams.M,
-            K=BandersnatchSWParams.K,
-            L=BandersnatchSWParams.L,
-            S_in_bytes=BandersnatchSWParams.S_in_bytes,
-            H_A=BandersnatchSWParams.H_A,
-            Requires_Isogeny=BandersnatchSWParams.Requires_Isogeny,
-            Isogeny_Coeffs=BandersnatchSWParams.Isogeny_Coeffs,
-            UNCOMPRESSED=BandersnatchSWParams.UNCOMPRESSED,
-            ENDIAN=BandersnatchSWParams.ENDIAN,
-        )
+Bandersnatch_SW_SW_Curve: Final[SWCurve] = SWCurve(
+    PRIME_FIELD=BandersnatchSWParams.PRIME_FIELD,
+    ORDER=BandersnatchSWParams.ORDER,
+    GENERATOR_X=BandersnatchSWParams.GENERATOR_X,
+    GENERATOR_Y=BandersnatchSWParams.GENERATOR_Y,
+    COFACTOR=BandersnatchSWParams.COFACTOR,
+    Z=BandersnatchSWParams.Z,
+    WeierstrassA=BandersnatchSWParams.WEIERSTRASS_A,
+    WeierstrassB=BandersnatchSWParams.WEIERSTRASS_B,
+    SUITE_STRING=BandersnatchSWParams.SUITE_STRING,
+    DST=BandersnatchSWParams.DST,
+    E2C=E2C_Variant.TAI,
+    BBx=BandersnatchSWParams.BBx,
+    BBy=BandersnatchSWParams.BBy,
+    M=BandersnatchSWParams.M,
+    K=BandersnatchSWParams.K,
+    L=BandersnatchSWParams.L,
+    S_in_bytes=BandersnatchSWParams.S_in_bytes,
+    H_A=BandersnatchSWParams.H_A,
+    Requires_Isogeny=BandersnatchSWParams.Requires_Isogeny,
+    Isogeny_Coeffs=BandersnatchSWParams.Isogeny_Coeffs,
+    UNCOMPRESSED=BandersnatchSWParams.UNCOMPRESSED,
+    ENDIAN=BandersnatchSWParams.ENDIAN,
+    POINT_LEN=BandersnatchSWParams.POINT_LEN,
+    CHALLENGE_LENGTH=BandersnatchSWParams.CHALLENGE_LENGTH,
+)
 
 
-Bandersnatch_SW_SW_Curve: Final[BandersnatchSWCurve] = BandersnatchSWCurve()
-
-
-@dataclass(frozen=True)
 class Bandersnatch_SW_Point(SWAffinePoint):
-    curve: Final[BandersnatchSWCurve] = Bandersnatch_SW_SW_Curve
-
-    def __init__(self, x: int, y: int) -> None:
-        super().__init__(x, y, self.curve)
-
+    curve: Final[SWCurve] = Bandersnatch_SW_SW_Curve
+    
     @classmethod
     def identity_point(cls) -> None:
         return None
@@ -103,10 +96,6 @@ class Bandersnatch_SW_Point(SWAffinePoint):
     @classmethod
     def _x_recover(cls, y: int) -> int:
         return SWAffinePoint._x_recover(cls, y)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        return cls(BandersnatchSWParams.GENERATOR_X, BandersnatchSWParams.GENERATOR_Y)
 
     def point_to_string(self) -> bytes:
         """ """
@@ -228,3 +217,9 @@ class Bandersnatch_SW_Point(SWAffinePoint):
                 H = H * cls.curve.COFACTOR
             ctr += 1
         return H
+
+Bandersnatch_SW = CurveVariant(
+    name="Bandersnatch_SW",
+    curve=Bandersnatch_SW_SW_Curve,
+    point=Bandersnatch_SW_Point,
+)

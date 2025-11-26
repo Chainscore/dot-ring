@@ -4,8 +4,12 @@ from enum import Enum
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, TYPE_CHECKING
 from dot_ring.curve.e2c import E2C_Variant
+from dot_ring.curve.fast_math import powmod, invert, is_square as fast_is_square, sqrt_mod
+
+if TYPE_CHECKING:
+    from dot_ring.curve.point import CurvePoint
 
 
 
@@ -42,6 +46,8 @@ class Curve:
     S_in_bytes: int
     H_A: str
     ENDIAN: str
+    
+    CHALLENGE_LENGTH: int
 
     # Isogeny
     Requires_Isogeny: bool
@@ -55,6 +61,7 @@ class Curve:
     BBx: int
     BBy: int
     UNCOMPRESSED: bool
+    POINT_LEN: int
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
@@ -132,7 +139,10 @@ class Curve:
             raise ValueError("Message cannot be None")
 
         len_in_bytes = count * self.M * self.L
-        uniform_bytes = self.expand_message_xmd(msg, len_in_bytes)
+        if self._uses_xof():
+            uniform_bytes = self.expand_message_xof(msg, len_in_bytes)
+        else:
+            uniform_bytes = self.expand_message_xmd(msg, len_in_bytes)
         u_values: List[int] = []
         for i in range(count):
             for j in range(self.M):
@@ -156,22 +166,7 @@ class Curve:
         Raises:
             ValueError: If the input parameters are invalid
         """
-        if self.H_A == "SHA-512":
-            hash_fn = hashlib.sha512
-
-        elif self.H_A == "SHA-384":
-            hash_fn = hashlib.sha384
-
-        elif self.H_A == "SHA-256":
-            hash_fn = hashlib.sha256
-
-        elif self.H_A == "Shake-256":
-            return self.expand_message_xof(msg, len_in_bytes)
-
-        else:
-            raise ValueError("Invalid hash function")
-
-        b_in_bytes = hash_fn().digest_size
+        b_in_bytes = self.H_A().digest_size
         ell = math.ceil(len_in_bytes / b_in_bytes)
 
         if ell > 255 or len_in_bytes > 65535 or len(self.DST) > 255:
@@ -184,13 +179,13 @@ class Curve:
 
         msg_prime = Z_pad + msg + l_i_b_str + self.I2OSP(0, 1) + DST_prime
 
-        b_0 = hash_fn(msg_prime).digest()
+        b_0 = self.H_A(msg_prime).digest()
 
-        b_1 = hash_fn(b_0 + self.I2OSP(1, 1) + DST_prime).digest()
+        b_1 = self.H_A(b_0 + self.I2OSP(1, 1) + DST_prime).digest()
 
         b_values = [b_1]
         for i in range(2, ell + 1):
-            b_i = hash_fn(
+            b_i = self.H_A(
                 self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime
             ).digest()
             b_values.append(b_i)
@@ -198,6 +193,20 @@ class Curve:
         uniform_bytes = b"".join(b_values)
 
         return uniform_bytes[:len_in_bytes]
+
+    def _uses_xof(self) -> bool:
+        """Return True when the curve suite requires XOF-based expansion."""
+        if self.S_in_bytes in (None, 0):
+            return True
+        suite = self.SUITE_STRING or b""
+        if b"_XOF" in suite:
+            return True
+        hash_name = getattr(getattr(self.H_A, "__name__", ""), "lower", lambda: "")()
+        return "shake" in hash_name
+
+    def _default_xof_len(self) -> int:
+        scalar_len = (self.ORDER.bit_length() + 7) // 8
+        return max(self.L, self.CHALLENGE_LENGTH, 2 * scalar_len)
 
     def expand_message_xof(self, msg: bytes, len_in_bytes: int) -> bytes:
         # 1.ABORT if len_in_bytes > 65535 or len(DST) > 255
@@ -218,15 +227,30 @@ class Curve:
         msg_prime = msg + self.I2OSP(len_in_bytes, 2) + DST_prime
 
         # Step 4: uniform_bytes = SHAKE256(msg_prime, len_in_bytes)
-        shake = hashlib.shake_256()
-        shake.update(msg_prime)
-        uniform_bytes = shake.digest(len_in_bytes)
+        xof = self.H_A()
+        xof.update(msg_prime)
+        uniform_bytes = xof.digest(len_in_bytes)
         # Step 5: return uniform_bytes
         return uniform_bytes
 
+    def hash(self, data: bytes, out_len: int | None = None) -> bytes:
+        """Hash helper that handles both XOF and XMD suites."""
+        if self._uses_xof():
+            length = out_len or self._default_xof_len()
+            xof = self.H_A()
+            xof.update(data)
+            return xof.digest(length)
+
+        hasher = self.H_A()
+        hasher.update(data)
+        digest = hasher.digest()
+        if out_len is not None:
+            return digest[:out_len]
+        return digest
+
     def mod_inverse(self, val: int) -> int:
         """
-        Compute modular multiplicative inverse.
+        Compute modular multiplicative inverse using gmpy2 if available.
 
         Args:
             val: Value to invert
@@ -237,9 +261,9 @@ class Curve:
         Raises:
             ValueError: If inverse doesn't exist
         """
-        if pow(val, self.PRIME_FIELD - 1, self.PRIME_FIELD) != 1:
+        if powmod(val, self.PRIME_FIELD - 1, self.PRIME_FIELD) != 1:
             raise ValueError("No inverse exists")
-        return pow(val, self.PRIME_FIELD - 2, self.PRIME_FIELD)
+        return invert(val, self.PRIME_FIELD)
 
     @staticmethod
     def CMOV(a: int, b: int, cond: int) -> int:
@@ -255,13 +279,12 @@ class Curve:
         return 5  # 5 is only for bandersnatch
 
     def is_square(self, val: int) -> bool:
-        if val == 0:
-            return True
-        return pow(val, (self.PRIME_FIELD - 1) // 2, self.PRIME_FIELD) == 1
+        """Check if val is a quadratic residue mod p using gmpy2 if available."""
+        return fast_is_square(val, self.PRIME_FIELD)
 
     def mod_sqrt(self, val: int) -> int:
         """
-        Compute the square root modulo prime field.
+        Compute the square root modulo prime field using gmpy2 if available.
 
         Args:
             val: Value to compute square root of
@@ -272,48 +295,10 @@ class Curve:
         Raises:
             ValueError: If no square root exists
         """
-        if val == 0:
-            return 0
-
-        if not self.is_square(val):
+        result = sqrt_mod(val, self.PRIME_FIELD)
+        if result is None:
             raise ValueError("No square root exists")
-
-        # Tonelli-Shanks algorithm
-        q = self.PRIME_FIELD - 1
-        s = 0
-        while q % 2 == 0:
-            q //= 2
-            s += 1
-
-        if s == 1:
-            return pow(val, (self.PRIME_FIELD + 1) // 4, self.PRIME_FIELD)
-
-        # Find quadratic non-residue
-        z = 2
-        while self.is_square(z):
-            z += 1
-
-        m = s
-        c = pow(z, q, self.PRIME_FIELD)
-        t = pow(val, q, self.PRIME_FIELD)
-        r = pow(val, (q + 1) // 2, self.PRIME_FIELD)
-
-        while t != 1:
-            i = 0
-            temp = t
-            while temp != 1:
-                temp = (temp * temp) % self.PRIME_FIELD
-                i += 1
-                if i == m:
-                    raise ValueError("No square root exists")
-
-            b = pow(c, 1 << (m - i - 1), self.PRIME_FIELD)
-            m = i
-            c = (b * b) % self.PRIME_FIELD
-            t = (t * c) % self.PRIME_FIELD
-            r = (r * b) % self.PRIME_FIELD
-
-        return r
+        return result
 
     def inv(self, x: int) -> int:
         # modular inverse in GF(p)
@@ -340,3 +325,10 @@ class Curve:
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:
         return bytes(a ^ b for a, b in zip(s1, s2))
+
+
+@dataclass
+class CurveVariant:
+    name: str
+    curve: Curve
+    point: type[CurvePoint]

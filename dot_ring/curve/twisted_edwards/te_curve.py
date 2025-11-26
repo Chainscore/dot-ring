@@ -25,15 +25,6 @@ class TECurve(Curve):
     EdwardsA: Final[int]
     EdwardsD: Final[int]
 
-    @property
-    @abstractmethod
-    def CHALLENGE_LENGTH(self) -> int:
-        """
-        Abstract property for the challenge length in bytes.
-        Must be implemented by each curve to specify its specific challenge length.
-        """
-        raise NotImplementedError("CHALLENGE_LENGTH must be implemented by subclasses")
-
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
         super().__post_init__()

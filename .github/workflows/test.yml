@@ -1,10 +1,8 @@
 name: Tests
 
 on:
-  push:
-    branches: [ main, perf, develop ]
   pull_request:
-    branches: [ main, perf, develop ]
+    branches: [ main, dev ]
   workflow_dispatch:
 
 jobs:
@@ -15,36 +13,33 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: "3.12"
-        cache: 'pip'
+        version: "latest"
+        enable-cache: true
 
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git gcc g++ python3-dev make swig
+        sudo apt-get install -y git gcc g++ python3-dev make swig libgmp-dev libmpfr-dev libmpc-dev
 
-    - name: Install Python dependencies and build project
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip setuptools wheel build
-        python -m build
-        pip install dist/*.whl
+        uv sync --extra dev
 
-    - name: Setup blst Python bindings
+    - name: Setup environment (blst + cython)
       run: |
-        git clone https://github.com/supranational/blst.git /tmp/blst
-        cd /tmp/blst/bindings/python && ./run.me
-
-    - name: Install test dependencies
-      run: pip install pytest pytest-cov pytest-asyncio
+        uv run python scripts/setup_env.py
 
     - name: Run tests
       env:
-        PYTHONPATH: /tmp/blst/bindings/python:$PYTHONPATH
+        PYTHONPATH: .
       run: |
-        pytest tests/ \
+        uv run pytest tests/ \
           --cov=dot_ring \
           --cov-report=term-missing \
           --cov-report=xml \

@@ -10,7 +10,6 @@ from .te_curve import TECurve
 C = TypeVar("C", bound=TECurve)
 
 
-@dataclass(frozen=True)
 class TEAffinePoint(CurvePoint[C]):
     """
     Twisted Edwards Curve Point in Affine Coordinates.
@@ -29,26 +28,6 @@ class TEAffinePoint(CurvePoint[C]):
         super().__post_init__()
         if not isinstance(self.curve, TECurve):
             raise TypeError("Curve must be a Twisted Edwards curve")
-
-    def _make_point(self, x: int, y: int) -> Self:
-        """
-        Internal helper to create a point of the same type as self.
-        Works around the issue that subclasses have different __init__ signatures.
-        
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-            
-        Returns:
-            Point of the same type as self
-        """
-        # Create instance without calling __init__
-        point = object.__new__(self.__class__)
-        # Set attributes directly (works with frozen dataclasses)
-        object.__setattr__(point, 'x', x)
-        object.__setattr__(point, 'y', y)
-        object.__setattr__(point, 'curve', self.curve)
-        return point
 
     def is_identity(self) -> bool:
         """
@@ -129,7 +108,7 @@ class TEAffinePoint(CurvePoint[C]):
             * pow(1 - dx1x2y1y2, -1, self.curve.PRIME_FIELD)
         ) % p
 
-        return self._make_point(x3, y3)
+        return self.__class__(x3, y3)
 
     def __neg__(self) -> Self:
         """
@@ -138,7 +117,7 @@ class TEAffinePoint(CurvePoint[C]):
         Returns:
             TEAffinePoint: Negated point
         """
-        return self._make_point(-self.x % self.curve.PRIME_FIELD, self.y)
+        return self.__class__(-self.x % self.curve.PRIME_FIELD, self.y)
 
     def __sub__(self, other: PointProtocol[C]) -> Self:
         """
@@ -180,7 +159,7 @@ class TEAffinePoint(CurvePoint[C]):
             * pow(denom_y, -1, self.curve.PRIME_FIELD)
         ) % p
 
-        return self._make_point(x3, y3)
+        return self.__class__(x3, y3)
 
     def __mul__(self, scalar: int) -> Self:
         """
@@ -205,17 +184,17 @@ class TEAffinePoint(CurvePoint[C]):
             addend = addend.double()
             scalar >>= 1
 
-        return result.to_affine()
+        return result.to_affine(self.__class__)
     
-
-    def identity_point(self) -> Self:
+    @classmethod
+    def identity_point(cls) -> Self:
         """
         Get the identity point (0, 1) of the curve.
 
         Returns:
             TEAffinePoint: Identity point
         """
-        return self._make_point(0, 1)
+        return cls(0, 1)
 
     @classmethod
     def encode_to_curve(

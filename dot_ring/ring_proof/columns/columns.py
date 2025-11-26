@@ -46,9 +46,6 @@ class Column:
             self.commitment = KZG.commit(self.coeffs)
 
 
-def _get_default_kzg() -> KZG:
-    return KZG(srs)
-
 @dataclass(slots=True)
 class PublicColumnBuilder:
     size: int = SIZE

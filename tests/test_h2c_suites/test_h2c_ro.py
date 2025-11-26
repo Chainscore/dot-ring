@@ -1,29 +1,29 @@
 import json
 import os
 import pytest
-from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1Point
-from dot_ring.curve.specs.curve25519 import Curve25519Point
-from dot_ring.curve.specs.curve448 import Curve448Point
-from dot_ring.curve.specs.ed25519 import Ed25519Point
-from dot_ring.curve.specs.ed448 import Ed448Point
-from dot_ring.curve.specs.p256 import P256Point
-from dot_ring.curve.specs.p384 import P384Point
-from dot_ring.curve.specs.p521 import P521Point
-from dot_ring.curve.specs.secp256k1 import Secp256k1Point
+from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1_RO
+from dot_ring.curve.specs.curve25519 import Curve25519_RO
+from dot_ring.curve.specs.curve448 import Curve448_RO
+from dot_ring.curve.specs.ed25519 import Ed25519_RO
+from dot_ring.curve.specs.ed448 import Ed448_RO
+from dot_ring.curve.specs.p256 import P256_RO
+from dot_ring.curve.specs.p384 import P384_RO
+from dot_ring.curve.specs.p521 import P521_RO
+from dot_ring.curve.specs.secp256k1 import Secp256k1_RO
 
 HERE = os.path.dirname(__file__)
 
 # (point_class, json_file, byte_size, has_Q_points)
 TEST_CASES = [
-    (BLS12_381_G1Point, "bls12_381_G1_ro.json", 48, False),
-    (Curve25519Point, "curve25519_ro.json", 32, False),
-    (Curve448Point, "curve448_ro.json", 56, False),
-    (Ed25519Point, "ed25519_ro.json", 32, True),
-    (Ed448Point, "ed448_ro.json", 56, False),
-    (P256Point, "p256_ro.json", 32, False),
-    (P384Point, "p384_ro.json", 48, False),
-    (P521Point, "p521_ro.json", 66, False),
-    (Secp256k1Point, "secp256k1_ro.json", 32, False),
+    (BLS12_381_G1_RO.point, "bls12_381_G1_ro.json", 48, False),
+    (Curve25519_RO.point, "curve25519_ro.json", 32, False),
+    (Curve448_RO.point, "curve448_ro.json", 56, False),
+    (Ed25519_RO.point, "ed25519_ro.json", 32, True),
+    (Ed448_RO.point, "ed448_ro.json", 56, False),
+    (P256_RO.point, "p256_ro.json", 32, False),
+    (P384_RO.point, "p384_ro.json", 48, False),
+    (P521_RO.point, "p521_ro.json", 66, False),
+    (Secp256k1_RO.point, "secp256k1_ro.json", 32, False),
 ]
 
 @pytest.mark.parametrize("point_class, json_file, byte_size, has_Q_points", TEST_CASES)

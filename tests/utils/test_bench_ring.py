@@ -6,7 +6,8 @@ from pathlib import Path
 # Add tests directory to path to import utils
 sys.path.insert(0, str(Path(__file__).parent))
 
-from dot_ring.vrf.ring.ring_vrf import RingVrf as RVRF
+from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from .profiler import Profiler
 
 HERE = os.path.dirname(__file__)
@@ -30,14 +31,14 @@ def test_bench_ring_prove():
     
     for index in range(len(data)):
         item = data[index]
-        s_k = item['sk']
-        alpha = item['alpha']
-        ad = item['ad']
-        B_keys = item['ring_pks']
+        s_k = bytes.fromhex(item['sk'])
+        alpha = bytes.fromhex(item['alpha'])
+        ad = bytes.fromhex(item['ad'])
+        keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item['ring_pks']))
         
         # Store ring size
-        ring_root = RVRF.construct_ring_root(B_keys)
-        p_k = RVRF.get_public_key(s_k)
+        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        p_k = RingVRF[Bandersnatch].get_public_key(s_k)
         
         # Benchmark proof generation with profiling
         with Profiler(f"ring_prove_sample_{index+1}", 
@@ -45,21 +46,21 @@ def test_bench_ring_prove():
                      print_stats=False,
                      sort_by='cumulative',
                      limit=25):
-            ring_vrf_proof = RVRF.ring_vrf_proof(alpha, ad, s_k, p_k, B_keys, True)
+            ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
         
         # Verify correctness
         assert p_k.hex() == item['pk'], "Invalid Public Key"
-        assert ring_root.hex() == item['ring_pks_com'], "Invalid Ring Root"
+        assert ring_root.to_bytes().hex() == item['ring_pks_com'], "Invalid Ring Root"
         expected_proof = (item['gamma'] + item['proof_pk_com'] + item['proof_r'] + 
                          item['proof_ok'] + item['proof_s'] + item['proof_sb'] + 
                          item['ring_proof'])
-        assert ring_vrf_proof.hex() == expected_proof, "Unexpected Proof"
+        assert ring_vrf_proof.to_bytes().hex() == expected_proof, "Unexpected Proof"
     
     print(f"📊 Profile saved to: perf/results/")
 
 
 def test_bench_ring_verify():
-    """Benchmark Ring VRF proof generation with profiling"""
+    """Benchmark Ring VRF verification with profiling"""
     data = load_test_data()
     
     # Create results directory
@@ -67,21 +68,27 @@ def test_bench_ring_verify():
     
     for index in range(len(data)):
         item = data[index]
-        alpha = item['alpha']
-        ad = item['ad']
+        alpha = bytes.fromhex(item['alpha'])
+        ad = bytes.fromhex(item['ad'])
+        ring_root_bytes = bytes.fromhex(item['ring_pks_com'])
         
-        proof = (item['gamma'] + item['proof_pk_com'] + item['proof_r'] + 
-                                item['proof_ok'] + item['proof_s'] + item['proof_sb'] + 
-                                item['ring_proof'])
+        proof_hex = (item['gamma'] + item['proof_pk_com'] + item['proof_r'] + 
+                     item['proof_ok'] + item['proof_s'] + item['proof_sb'] + 
+                     item['ring_proof'])
+        proof_bytes = bytes.fromhex(proof_hex)
         
-        # Benchmark proof generation with profiling
+        # Parse proof from bytes
+        ring_vrf_proof = RingVRF[Bandersnatch].from_bytes(proof_bytes)
+        
+        # Benchmark verification with profiling
         with Profiler(f"ring_verify_sample_{index+1}", 
                      save_stats=True, 
                      print_stats=False,
                      sort_by='cumulative',
-                     limit=25):
-            assert RVRF.ring_vrf_proof_verify(ad, bytes.fromhex(item['ring_pks_com']), bytes.fromhex(proof), alpha), "Verification Failed"
+                     limit=100):
+            result = ring_vrf_proof.verify(alpha, ad, ring_root_bytes)
         
+        assert result, "Verification Failed"
 
     print(f"📊 Profile saved to: perf/results/")
 

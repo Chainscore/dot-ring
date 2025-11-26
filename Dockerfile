@@ -4,7 +4,7 @@ FROM python:3.12-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies needed for blst Python binding
+# Install system dependencies needed for blst Python binding and Cython
 RUN apt-get update && apt-get install -y \
     git \
     gcc \
@@ -12,36 +12,29 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     make \
     swig \
+    libgmp-dev \
+    libmpfr-dev \
+    libmpc-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project dependency definitions
-COPY pyproject.toml ./
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Upgrade pip and install build tools
-RUN pip install --upgrade pip setuptools wheel build
-
-# Copy the rest of your library
+# Copy project files
 COPY . .
 
-# Build and install your library
-RUN python -m build && pip install dist/*.whl
+# Install dependencies
+RUN uv sync --extra dev
 
-# Clone blst and build its Python bindings
-RUN git clone https://github.com/supranational/blst.git /opt/blst \
-    && cd /opt/blst/bindings/python \
-    && ./run.me
+# Setup environment (blst + cython)
+RUN uv run python scripts/setup_env.py
 
-# Add blst Python bindings to PYTHONPATH
-ENV PYTHONPATH="/opt/blst/bindings/python"
-
-# Install pytest and run tests with coverage
-RUN pip install --no-cache-dir pytest pytest-cov
-RUN pytest tests/ \
+# Run tests
+RUN uv run pytest tests/ \
     --cov=dot_ring \
     --cov-report=term-missing \
     --cov-report=html \
     -v \
     --tb=short
 
-
-CMD ["python"]
+CMD ["uv", "run", "python"]

@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
@@ -48,7 +51,7 @@ class JubJubParams:
     S_in_bytes: Final[
         int
     ] = 48  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
-    H_A: Final[str] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = "little"
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
@@ -62,25 +65,11 @@ class JubJubParams:
         int
     ] = 47476395315228831116309413527962830333178159651930104661512857647213254194102
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 32
 
 
-class JubJubCurve(TECurve):
-    """
-    Bandersnatch curve implementation.
-
-    A high-performance curve designed for zero-knowledge proofs and VRFs,
-    offering both efficiency and security.
-    """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for JubJub VRF."""
-        return JubJubParams.CHALLENGE_LENGTH  # 256-bit security level
-
-    def __init__(self) -> None:
-        """Initialize Bandersnatch curve with its parameters."""
-        super().__init__(
-            PRIME_FIELD=JubJubParams.PRIME_FIELD,
+JubJub_TE_Curve: Final[TECurve] = TECurve(
+    PRIME_FIELD=JubJubParams.PRIME_FIELD,
             ORDER=JubJubParams.ORDER,
             GENERATOR_X=JubJubParams.GENERATOR_X,
             GENERATOR_Y=JubJubParams.GENERATOR_Y,
@@ -102,14 +91,11 @@ class JubJubCurve(TECurve):
             Isogeny_Coeffs=JubJubParams.Isogeny_Coeffs,
             UNCOMPRESSED=JubJubParams.UNCOMPRESSED,
             ENDIAN=JubJubParams.ENDIAN,
-        )
+            POINT_LEN=JubJubParams.POINT_LEN,
+            CHALLENGE_LENGTH=JubJubParams.CHALLENGE_LENGTH,
+)
 
 
-# Singleton instance
-JubJub_TE_Curve: Final[JubJubCurve] = JubJubCurve()
-
-
-@dataclass(frozen=True)
 class JubJubPoint(TEAffinePoint):
     """
     Point on the Bandersnatch curve.
@@ -118,38 +104,7 @@ class JubJubPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[JubJubCurve] = JubJub_TE_Curve
-
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the Bandersnatch curve.
-
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            BandersnatchPoint: Generator point
-        """
-        return cls(JubJubParams.GENERATOR_X, JubJubParams.GENERATOR_Y)
-
-    @classmethod
-    def identity_point(cls) -> "JubJubPoint":
-        """
-        Get the identity point (0, 1) of the curve.
-
-        Returns:
-            JubJubPoint: Identity point
-        """
-        # The identity point in Twisted Edwards coordinates is (0, 1)
-        return cls(0, 1)
+    curve: Final[TECurve] = JubJub_TE_Curve
+    
+    
+JubJub = CurveVariant(name="JubJub", curve=JubJub_TE_Curve, point=JubJubPoint)

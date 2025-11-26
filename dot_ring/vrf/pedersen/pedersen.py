@@ -3,60 +3,97 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from typing import Final, Optional, Tuple, Type, Any
-from dot_ring.curve.point import Point
+from dot_ring.curve.point import CurvePoint, Point
 
-from ...curve.curve import Curve
+from ...curve.curve import Curve, CurveVariant
 from ..vrf import VRF
 from ...ring_proof.helpers import Helpers
 
-
 @dataclass
-class PedersenVRFProof:
-    """
-    Container for Pedersen VRF proof components.
-
-    Attributes:
-
-        challenge: The challenge value c
-        response: The response value s
-    """
-
-    challenge: int
-    response: int
-
-
 class PedersenVRF(VRF):
-    def __init__(self, curve: Curve, point_type: Type[Point]):
+    """
+    Pedersen VRF implementation.
+
+    This implementation provides Pedersen-style VRF operations
+    with blinding support.
+    
+    Usage:
+    >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
+    >>> from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+    >>> proof = PedersenVRF[Bandersnatch].proof(alpha, secret_key, additional_data)
+    >>> verified = PedersenVRF[Bandersnatch].verify(input_point, additional_data, proof)
+    """
+    
+    output_point: CurvePoint
+    blinded_pk: CurvePoint
+    result_point: CurvePoint
+    ok: CurvePoint
+    s: int
+    sb: int
+    
+    # Blinding factor used in proof generation
+    _blinding_factor: int
+
+    @classmethod
+    def from_bytes(cls, proof: bytes) -> "PedersenVRF":
+        scalar_len = (cls.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
+
+        point_length = cls.cv.curve.POINT_LEN
+        if cls.cv.curve.UNCOMPRESSED:
+            point_length *= 2
+
+        output_point = cls.cv.point.string_to_point(
+            proof[point_length * 0 : point_length * 1]
+        )
+
+        public_key_cp, R, Ok, s, Sb = (
+            cls.cv.point.string_to_point(proof[point_length * 1 : point_length * 2]),
+            cls.cv.point.string_to_point(proof[point_length * 2 : point_length * 3]),
+            cls.cv.point.string_to_point(proof[point_length * 3 : point_length * 4]),
+            Helpers.str_to_int(proof[-scalar_len * 2 : -scalar_len], cls.cv.curve.ENDIAN),
+            Helpers.str_to_int(proof[-scalar_len:], cls.cv.curve.ENDIAN),
+        )
+        
+        return cls(
+            output_point=output_point,
+            blinded_pk=public_key_cp,
+            result_point=R,
+            ok=Ok,
+            s=s,
+            sb=Sb,
+            _blinding_factor=0 # Blinding factor is not needed to verify
+        )
+    
+    def to_bytes(self) -> bytes:
         """
-        Initialize Pedersen VRF with a curve.
+        Serialize proof to bytes.
 
-        Args:
-            curve: Elliptic curve to use (should be Bandersnatch)
+        Returns:
+            bytes: Serialized proof
         """
-        super().__init__(curve, point_type)
-        if not isinstance(curve, Curve):
-            raise TypeError("Curve must be a valid elliptic curve")
+        scalar_len = (self.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
+        point_length = self.cv.curve.POINT_LEN
+        if self.cv.curve.UNCOMPRESSED:
+            point_length *= 2
 
-    def blinding(self, secret: bytes, input_point: bytes, add: bytes) -> int:
-        DOM_SEP_START = b"\xCC"
-        DOM_SEP_END = b"\x00"
-        buf = self.curve.SUITE_STRING + DOM_SEP_START
-        buf += secret
-        buf += input_point
-        buf += add
-        buf += DOM_SEP_END
-        # hashed = hashlib.sha512(buf).digest()
-        hashed = self.hash(buf)
-        return int.from_bytes(hashed) % self.curve.ORDER
-
+        proof = (
+            self.output_point.point_to_string()
+            + self.blinded_pk.point_to_string()
+            + self.result_point.point_to_string()
+            + self.ok.point_to_string()
+            + Helpers.int_to_str(self.s, self.cv.curve.ENDIAN, scalar_len)
+            + Helpers.int_to_str(self.sb, self.cv.curve.ENDIAN, scalar_len)
+        )
+        return proof
+    
+    @classmethod
     def proof(
-        self,
-        alpha: bytes | str,
-        secret_key: bytes | str,
-        additional_data: bytes | str,
-        need_blinding=False,
+        cls,
+        alpha: bytes,
+        secret_key: bytes,
+        additional_data: bytes,
         salt: bytes = b"",
-    ) -> bytes | tuple[Any, bytes]:
+    ) -> PedersenVRF:
         """
         Generate Pedersen VRF proof.
 
@@ -64,134 +101,121 @@ class PedersenVRF(VRF):
             alpha: Input message
             secret_key: Secret key
             additional_data: Additional data for challenge
-            blinding_factor:blinding factor for compressed public Key
+            need_blinding: Whether to return blinding factor
             salt: Optional salt for encoding
 
         Returns:
-            Tuple[Point, Tuple[Point,Point,Point,int,int]]: (output_point, (public_key_cp_proof,r_proof,Ok_proof,s,sb))
+            bytes: Proof bytes, or tuple of (proof, blinding) if need_blinding=True
         """
 
-        if not isinstance(additional_data, bytes):
-            additional_data = bytes.fromhex(additional_data)
-        if not isinstance(alpha, bytes):
-            alpha = bytes.fromhex(alpha)
-
-        scalar_len = (self.curve.PRIME_FIELD.bit_length() + 7) // 8
+        scalar_len = (cls.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
         secret_key = (
-            Helpers.str_to_int(secret_key, self.curve.ENDIAN) % self.curve.ORDER
+            Helpers.str_to_int(secret_key, cls.cv.curve.ENDIAN) % cls.cv.curve.ORDER
         )
 
         # Create generator point
-        generator = self.point_type.generator_point()
+        generator = cls.cv.point.generator_point()
 
-        b_base = self.point_type(self.curve.BBx, self.curve.BBy)
-        input_point = self.point_type.encode_to_curve(alpha, salt)
-        # Use curve's endianness for secret key serialization (big-endian for P256, little-endian for others)
-        # Use scalar_len (not self.point_len) for secret key bytes
-        secret_key_bytes = secret_key.to_bytes(scalar_len, self.curve.ENDIAN)
-        blinding_factor = self.blinding(secret_key_bytes, input_point.point_to_string(), additional_data)
-        # Convert blinding factor to bytes for return value if needed (use scalar_len)
-        blinding = blinding_factor.to_bytes(scalar_len, self.curve.ENDIAN)
+        b_base = cls.cv.point(cls.cv.curve.BBx, cls.cv.curve.BBy)
+        input_point = cls.cv.point.encode_to_curve(alpha, salt)
+        # Use curve's endianness for secret key serialization
+        secret_key_bytes = secret_key.to_bytes(scalar_len, cls.cv.curve.ENDIAN)
+        blinding_factor = cls.blinding(secret_key_bytes, input_point.point_to_string(), additional_data)
+        
         output_point = input_point * secret_key
 
-        if self.point_type.__name__ == "P256PointVariant":
+        if cls.cv.point.__name__ == "P256PointVariant":
             input_point_octet = input_point.point_to_string()
-            k = self.ecvrf_nonce_rfc6979(secret_key, input_point_octet)
-            Kb = self.ecvrf_nonce_rfc6979(blinding_factor, input_point_octet)
-
+            k = cls.ecvrf_nonce_rfc6979(secret_key, input_point_octet)
+            Kb = cls.ecvrf_nonce_rfc6979(blinding_factor, input_point_octet)
         else:
-            k = self.generate_nonce(secret_key, input_point)
-            Kb = self.generate_nonce(blinding_factor, input_point)
+            k = cls.generate_nonce(secret_key, input_point)
+            Kb = cls.generate_nonce(blinding_factor, input_point)
 
         public_key_cp = generator * secret_key + b_base * blinding_factor
         R = generator * k + b_base * Kb
         Ok = input_point * k
-        c = self.challenge(
+        c = cls.challenge(
             [public_key_cp, input_point, output_point, R, Ok], additional_data
         )
-        s = (k + c * secret_key) % self.curve.ORDER
-        Sb = (Kb + c * blinding_factor) % self.curve.ORDER
-        proof = (
-            output_point.point_to_string()
-            + public_key_cp.point_to_string()
-            + R.point_to_string()
-            + Ok.point_to_string()
-            + Helpers.int_to_str(s, self.curve.ENDIAN, scalar_len)
-            + Helpers.int_to_str(Sb, self.curve.ENDIAN, scalar_len)
+        s = (k + c * secret_key) % cls.cv.curve.ORDER
+        Sb = (Kb + c * blinding_factor) % cls.cv.curve.ORDER
+        
+        return cls(
+            output_point=output_point,
+            blinded_pk=public_key_cp,
+            result_point=R,
+            ok=Ok,
+            s=s,
+            sb=Sb,
+            _blinding_factor=blinding_factor
         )
-        if need_blinding:
-            return proof, blinding
-        return proof
-
-    # to make the point type dynamic
 
     def verify(
         self,
-        input_point: Point,
-        additional_data: bytes | str,
-        proof: bytes | str,
+        input: bytes,
+        additional_data: bytes
     ) -> bool:
         """
         Verify Pedersen VRF proof.
 
         Args:
-            input_point: Input point
+            input: Input message bytes
             additional_data: Additional data used in proof
-            output_point: Claimed output point
-            proof: Proof tuple (Compressed_input_point, R_point, Ok_point,c, s)
 
         Returns:
             bool: True if proof is valid
         """
-        if not isinstance(additional_data, bytes):
-            additional_data = bytes.fromhex(additional_data)
-
-        if not isinstance(proof, bytes):
-            proof = bytes.fromhex(proof)
-
-        generator = self.point_type.generator_point()
-
-        scalr_len = (self.curve.PRIME_FIELD.bit_length() + 7) // 8
-
-        point_length = self.point_len
-
-        if self.curve.UNCOMPRESSED:
-            point_length *= 2
-
-        output_point = self.point_type.string_to_point(
-            proof[point_length * 0 : point_length * 1]
-        )
-        b_base = self.point_type(self.curve.BBx, self.curve.BBy)
-
-        public_key_cp, R, Ok, s, Sb = (
-            self.point_type.string_to_point(proof[point_length * 1 : point_length * 2]),
-            self.point_type.string_to_point(proof[point_length * 2 : point_length * 3]),
-            self.point_type.string_to_point(proof[point_length * 3 : point_length * 4]),
-            Helpers.str_to_int(proof[-scalr_len * 2 : -scalr_len], self.curve.ENDIAN),
-            Helpers.str_to_int(proof[-scalr_len:], self.curve.ENDIAN),
-        )
+        generator = self.cv.point.generator_point()
+        input_point = self.cv.point.encode_to_curve(input)
+        b_base = self.cv.point(self.cv.curve.BBx, self.cv.curve.BBy)
 
         c = self.challenge(
-            [public_key_cp, input_point, output_point, R, Ok], additional_data
+            [self.blinded_pk, input_point, self.output_point, self.result_point, self.ok], additional_data
         )
-        
-        # Theta0 = (Ok + output_point * c) == input_point * s
-        theta0_lhs = Ok + output_point * c
-        
-        Theta0 = theta0_lhs == input_point * s
-        
-        # Theta1 = R + (public_key_cp * c) == generator * s + b_base * Sb
-        theta1_lhs = R + (public_key_cp * c)
-        theta1_rhs = generator * s + b_base * Sb
-            
-        Theta1 = theta1_lhs == theta1_rhs
-        return Theta0 == Theta1
 
-    def get_public_key(self, secret_key: bytes | str) -> bytes:
-        """Take the Secret_Key and return Public Key"""
-        secret_key = Helpers.str_to_int(secret_key, self.curve.ENDIAN)
-        # Create generator point
-        generator = self.point_type.generator_point()
-        public_key = generator * secret_key
-        p_k = public_key.point_to_string()
-        return p_k
+        # Check 1: ok + c * output_point - s * input_point == 0
+        # 1*ok + c*output_point + (-s)*input_point == identity
+        check1 = self.cv.point.msm(
+            [self.ok, self.output_point, input_point], 
+            [1, c, -self.s]
+        )
+        Theta0 = check1.is_identity()
+
+        # Check 2: result_point + c * blinded_pk - s * generator - sb * b_base == 0
+        # 1*result_point + c*blinded_pk + (-s)*generator + (-sb)*b_base == identity
+        check2 = self.cv.point.msm(
+            [self.result_point, self.blinded_pk, generator, b_base],
+            [1, c, -self.s, -self.sb]
+        )
+        Theta1 = check2.is_identity()
+
+        return Theta0 and Theta1
+    
+    @classmethod
+    def blinding(cls, secret: bytes, input_point: bytes, add: bytes) -> int:
+        DOM_SEP_START = b"\xCC"
+        DOM_SEP_END = b"\x00"
+        buf = cls.cv.curve.SUITE_STRING + DOM_SEP_START
+        buf += secret
+        buf += input_point
+        buf += add
+        buf += DOM_SEP_END
+        scalar_len = (cls.cv.curve.ORDER.bit_length() + 7) // 8
+        hashed = cls.cv.curve.hash(buf, 2 * scalar_len)
+        return int.from_bytes(hashed, "big") % cls.cv.curve.ORDER
+
+    @classmethod
+    def ecvrf_proof_to_hash(cls, output_point_bytes: bytes | str) -> bytes:
+        """Convert VRF output point to hash.
+
+        Args:
+            output_point_bytes: VRF output point bytes
+
+        Returns:
+            bytes: Hash of VRF output
+        """
+        if not isinstance(output_point_bytes, bytes):
+            output_point_bytes = bytes.fromhex(output_point_bytes)
+        output_point = cls.cv.point.string_to_point(output_point_bytes)
+        return cls.proof_to_hash(output_point)

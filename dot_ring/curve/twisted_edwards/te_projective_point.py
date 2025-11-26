@@ -37,16 +37,23 @@ class TEProjectivePoint(Generic[C]):
             point.curve
         )
 
-    def to_affine(self) -> "TEAffinePoint":
-        from .te_affine_point import TEAffinePoint
+    def to_affine(self, point_cls: type["TEAffinePoint"] | None = None) -> "TEAffinePoint":
+        from .te_affine_point import TEAffinePoint as BaseAffine
+
+        target_cls = point_cls or BaseAffine
+
+        # Ensure the target class has a curve reference
+        if not hasattr(target_cls, "curve"):
+            setattr(target_cls, "curve", self.curve)
+
         if self.z == 0:
-            return TEAffinePoint(0, 1, self.curve) # Identity
+            return target_cls(0, 1)
         
         p = self.curve.PRIME_FIELD
         inv_z = pow(self.z, -1, p)
         x = (self.x * inv_z) % p
         y = (self.y * inv_z) % p
-        return TEAffinePoint(x, y, self.curve)
+        return target_cls(x, y)
 
     @classmethod
     def zero(cls, curve: C) -> Self:

@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Self
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
@@ -47,7 +50,7 @@ class BabyJubJubParams:
     S_in_bytes: Final[
         int
     ] = 128  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
-    H_A: Final[str] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = "little"
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
@@ -62,55 +65,37 @@ class BabyJubJubParams:
         int
     ] = 16313972569917201570489077828713531620741538540099917729994937953803219324220
     UNCOMPRESSED = False
+    POINT_LEN: Final[int] = 32
 
 
-
-class BabyJubJubCurve(TECurve):
-    """
-    Bandersnatch curve implementation.
-
-    A high-performance curve designed for zero-knowledge proofs and VRFs,
-    offering both efficiency and security.
-    """
-
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return the challenge length in bytes for BabyJubJub VRF."""
-        return BabyJubJubParams.CHALLENGE_LENGTH
-
-    def __init__(self) -> None:
-        """Initialize Bandersnatch curve with its parameters."""
-        super().__init__(
-            PRIME_FIELD=BabyJubJubParams.PRIME_FIELD,
-            ORDER=BabyJubJubParams.ORDER,
-            GENERATOR_X=BabyJubJubParams.GENERATOR_X,
-            GENERATOR_Y=BabyJubJubParams.GENERATOR_Y,
-            COFACTOR=BabyJubJubParams.COFACTOR,
-            Z=BabyJubJubParams.Z,
-            EdwardsA=BabyJubJubParams.EDWARDS_A,
-            EdwardsD=BabyJubJubParams.EDWARDS_D,
-            SUITE_STRING=BabyJubJubParams.SUITE_STRING,
-            DST=BabyJubJubParams.DST,
-            E2C=E2C_Variant.TAI,
-            BBx=BabyJubJubParams.BBx,
-            BBy=BabyJubJubParams.BBy,
-            M=BabyJubJubParams.M,
-            K=BabyJubJubParams.K,
-            L=BabyJubJubParams.L,
-            S_in_bytes=BabyJubJubParams.S_in_bytes,
-            H_A=BabyJubJubParams.H_A,
-            Requires_Isogeny=BabyJubJubParams.Requires_Isogeny,
-            Isogeny_Coeffs=BabyJubJubParams.Isogeny_Coeffs,
-            UNCOMPRESSED=BabyJubJubParams.UNCOMPRESSED,
-            ENDIAN=BabyJubJubParams.ENDIAN,
-        )
+BabyJubJub_TE_Curve: Final[TECurve] = TECurve(
+    PRIME_FIELD=BabyJubJubParams.PRIME_FIELD,
+    ORDER=BabyJubJubParams.ORDER,
+    GENERATOR_X=BabyJubJubParams.GENERATOR_X,
+    GENERATOR_Y=BabyJubJubParams.GENERATOR_Y,
+    COFACTOR=BabyJubJubParams.COFACTOR,
+    Z=BabyJubJubParams.Z,
+    EdwardsA=BabyJubJubParams.EDWARDS_A,
+    EdwardsD=BabyJubJubParams.EDWARDS_D,
+    SUITE_STRING=BabyJubJubParams.SUITE_STRING,
+    DST=BabyJubJubParams.DST,
+    E2C=E2C_Variant.TAI,
+    BBx=BabyJubJubParams.BBx,
+    BBy=BabyJubJubParams.BBy,
+    M=BabyJubJubParams.M,
+    K=BabyJubJubParams.K,
+    L=BabyJubJubParams.L,
+    S_in_bytes=BabyJubJubParams.S_in_bytes,
+    H_A=BabyJubJubParams.H_A,
+    Requires_Isogeny=BabyJubJubParams.Requires_Isogeny,
+    Isogeny_Coeffs=BabyJubJubParams.Isogeny_Coeffs,
+    UNCOMPRESSED=BabyJubJubParams.UNCOMPRESSED,
+    ENDIAN=BabyJubJubParams.ENDIAN,
+    POINT_LEN=BabyJubJubParams.POINT_LEN,
+    CHALLENGE_LENGTH=BabyJubJubParams.CHALLENGE_LENGTH,
+)
 
 
-# Singleton instance
-BabyJubJub_TE_Curve: Final[BabyJubJubCurve] = BabyJubJubCurve()
-
-
-@dataclass(frozen=True)
 class BabyJubJubPoint(TEAffinePoint):
     """
     Point on the Bandersnatch curve.
@@ -119,31 +104,7 @@ class BabyJubJubPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[BabyJubJubCurve] = BabyJubJub_TE_Curve
+    curve: Final[TECurve] = BabyJubJub_TE_Curve
 
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize a point on the Bandersnatch curve.
 
-        Args:
-            x: x-coordinate
-            y: y-coordinate
-
-        Raises:
-            ValueError: If point is not on curve
-        """
-        super().__init__(x, y, self.curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            BandersnatchPoint: Generator point
-        """
-        return cls(BabyJubJubParams.GENERATOR_X, BabyJubJubParams.GENERATOR_Y)
-
-    @classmethod
-    def identity_point(cls) -> Self:
-        return cls(0, 1)
+BabyJubJub = CurveVariant(name="BabyJubJub", curve=BabyJubJub_TE_Curve, point=BabyJubJubPoint)

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, Self, Optional
+import hashlib
+
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..montgomery.mg_curve import MGCurve
 from ..montgomery.mg_affine_point import MGAffinePoint
@@ -37,11 +40,11 @@ class Curve25519Params:
     # Z parameter for Elligator 2 mapping (from RFC 9380 Section 4.1)
     Z: Final[int] = 2  # Curve25519 uses Z = 2 for Elligator 2 mapping
     L: Final[int] = 48
-    H_A: [Final] = "SHA-512"
+    H_A = hashlib.sha512
     ENDIAN = "little"
-    M: [Final] = 1
-    K: [Final] = 128
-    S_in_bytes: [Final] = 128  # 48 64 136 172\
+    M: Final[int] = 1
+    K: Final[int] = 128
+    S_in_bytes: Final[int] = 128  # 48 64 136 172\
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
 
@@ -56,6 +59,7 @@ class Curve25519Params:
         int
     ] = GENERATOR_V  # 0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
     UNCOMPRESSED = True
+    POINT_LEN: Final[int] = 32
 
 
 class Curve25519Curve(MGCurve):
@@ -102,12 +106,10 @@ class Curve25519Curve(MGCurve):
             Isogeny_Coeffs=Curve25519Params.Isogeny_Coeffs,
             UNCOMPRESSED=Curve25519Params.UNCOMPRESSED,
             ENDIAN=Curve25519Params.ENDIAN,
+            POINT_LEN=Curve25519Params.POINT_LEN,
+            CHALLENGE_LENGTH=Curve25519Params.CHALLENGE_LENGTH,
         )
 
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        """Return challenge length for VRF operations."""
-        return Curve25519Params.CHALLENGE_LENGTH
 
     def __post_init__(self):
         """Skip parent validation since Curve25519 parameters are known to be valid."""
@@ -125,17 +127,9 @@ class Curve25519CurveSimple(MGCurve):
     A: Final[int] = Curve25519Params.A
     B: Final[int] = Curve25519Params.B
 
-    @property
-    def CHALLENGE_LENGTH(self) -> int:
-        return Curve25519Params.CHALLENGE_LENGTH
-
     def __post_init__(self):
         """Skip validation for known good parameters."""
         pass
-
-
-# Try the main implementation first, fall back to simple if needed
-Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
 
 
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
@@ -149,59 +143,21 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
         A Curve25519Point class configured with the specified variant
     Example:
     """
-    # Create curve with the specified variant
-    curve = Curve25519Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class Curve25519PointVariant(MGAffinePoint):
         """Point on Curve25519 with custom E2C variant"""
-
+        curve: Final[Curve25519Curve] = Curve25519Curve(e2c_variant)
         pass
 
-    # Set the curve as a class attribute
-    Curve25519PointVariant.curve = curve
-
     return Curve25519PointVariant
+    
+Curve25519_NU = CurveVariant(
+    name="Curve25519_NU",
+    curve=Curve25519Curve(e2c_variant=E2C_Variant.ELL2_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.ELL2_NU),
+)
 
-
-class Curve25519Point(MGAffinePoint):
-    """
-    Point on the Curve25519 Montgomery curve.
-    """
-
-    curve: Final[Curve25519Curve] = Curve25519_MG_Curve
-
-    def __init__(self, u: Optional[int], v: Optional[int], curve=None) -> None:
-        """
-        Initialize a point on Curve25519.
-
-        Args:
-            u: u-coordinate (Montgomery x-coordinate) or None for identity
-            v: v-coordinate (Montgomery y-coordinate) or None for identity
-            curve: Curve instance (defaults to singleton)
-        """
-        if curve is None:
-            curve = Curve25519_MG_Curve
-
-        # Call parent constructor
-        super().__init__(u, v, curve)
-
-    @classmethod
-    def generator_point(cls) -> Self:
-        """
-        Get the generator point of the curve.
-
-        Returns:
-            Curve25519Point: Generator point
-        """
-        return cls(Curve25519Params.GENERATOR_U, Curve25519Params.GENERATOR_V)
-
-    def __str__(self) -> str:
-        """String representation."""
-        if self.is_identity():
-            return "Curve25519Point(IDENTITY)"
-        return f"Curve25519Point(u={self.x}, v={self.y})"
-
-    def __repr__(self) -> str:
-        """Detailed string representation."""
-        return self.__str__()
+Curve25519_RO = CurveVariant(
+    name="Curve25519_RO",
+    curve=Curve25519Curve(e2c_variant=E2C_Variant.ELL2),
+    point=nu_variant(e2c_variant=E2C_Variant.ELL2),
+)

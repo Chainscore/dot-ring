@@ -2,26 +2,20 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, Self, TypeVar, Generic, Final, ClassVar, Union
+from typing import Optional, Protocol, Self, ClassVar, Union, TYPE_CHECKING, TypeVar, Generic
 import hashlib
 
-C = TypeVar("C", bound="CurveProtocol")
+if TYPE_CHECKING:
+    from dot_ring.curve.curve import Curve
+
+# TypeVar for curve types
+C = TypeVar("C", bound="Curve")
+
 
 @dataclass
 class Point:
     x: int
     y: int
-
-class CurveProtocol(Protocol):
-    """Protocol defining required curve operations for points."""
-
-    PRIME_FIELD: int
-    ORDER: int
-    Z: int
-    UNCOMPRESSED: bool
-    ENDIAN: str
-    COFACTOR: int
-    SUITE_STRING: bytes
 
 
 class PointProtocol(Protocol[C]):
@@ -43,7 +37,6 @@ class PointProtocol(Protocol[C]):
     def is_identity(self) -> bool:
         ...
 
-@dataclass(frozen=True)
 class CurvePoint(Generic[C]):
     """
     Base implementation of an elliptic curve point.
@@ -60,6 +53,23 @@ class CurvePoint(Generic[C]):
     x: int
     y: int
     curve: C
+    
+    def __init__(self, x: int, y: int, curve: Optional[C] = None) -> None:
+        self.x = x
+        self.y = y
+        if curve is not None:
+            self.curve = curve
+        super().__init__()
+        self.__post_init__()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CurvePoint):
+            return NotImplemented
+        return (
+            self.x == other.x
+            and self.y == other.y
+            and self.curve is other.curve
+        )
 
     # Class constants
     ENCODING_LENGTH: ClassVar[int] = 32
@@ -84,6 +94,35 @@ class CurvePoint(Generic[C]):
             0 <= self.x < self.curve.PRIME_FIELD
             and 0 <= self.y < self.curve.PRIME_FIELD
         )
+    
+    @classmethod
+    def msm(cls, points: List[Self], scalars: List[int]) -> Self:
+        """
+        Compute sum(P_i * s_i) for pairs (P_i, s_i).
+        Default implementation uses naive summation.
+        Subclasses can override with optimized algorithms (e.g. Pippenger, GLV).
+        """
+        if len(points) != len(scalars):
+            raise ValueError("Points and scalars must have same length")
+        
+        if not points:
+            return cls.identity()
+            
+        result = cls.identity()
+        for point, scalar in zip(points, scalars):
+            result = result + (point * scalar)
+            
+        return result
+
+    @classmethod
+    def generator_point(cls) -> Self:
+        """
+        Get the generator point of the curve.
+
+        Returns:
+            BandersnatchPoint: Generator point
+        """
+        return cls(cls.curve.GENERATOR_X, cls.curve.GENERATOR_Y)
 
     @abstractmethod
     def is_on_curve(self) -> bool:
@@ -126,10 +165,7 @@ class CurvePoint(Generic[C]):
 
         p = self.curve.PRIME_FIELD
         n_bytes = (p.bit_length() + 7) // 8
-        endian = self.curve.ENDIAN
-        if endian != 'little' and endian != 'big':
-             raise ValueError("Invalid endianness")
-        y_bytes = bytearray(self.y.to_bytes(n_bytes, endian))
+        y_bytes = bytearray(self.y.to_bytes(n_bytes, self.curve.ENDIAN))
 
         # Compute x sign bit
         x_sign_bit = 1 if self.x > (-self.x % p) else 0
@@ -159,10 +195,7 @@ class CurvePoint(Generic[C]):
         # Mask out MSB to recover y
         y_bytes = bytearray(octet_string)
         y_bytes[-1] &= 0x7F
-        endian = cls.curve.ENDIAN
-        if endian != 'little' and endian != 'big':
-             raise ValueError("Invalid endianness")
-        y = int.from_bytes(y_bytes, endian)
+        y = int.from_bytes(y_bytes, cls.curve.ENDIAN)
         x_candidates = cls._x_recover(y)
 
         if x_candidates is None:
@@ -189,7 +222,7 @@ class CurvePoint(Generic[C]):
         return x_bytes + y_bytes
 
     @classmethod
-    def uncompressed_s2p(cls, octet_string: Union[str, bytes]) -> "Point[C]":
+    def uncompressed_s2p(cls, octet_string: Union[str, bytes]) -> Self:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
         p = cls.curve.PRIME_FIELD

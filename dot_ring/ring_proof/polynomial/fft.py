@@ -1,38 +1,20 @@
 """FFT-based polynomial evaluation over evaluation domains.
 
 This module provides efficient O(n log n) polynomial evaluation over
-structured domains using the Fast Fourier Transform (NTT), replacing
+structured domains using the Number Theoretic Transform (NTT), replacing
 the naive O(n * m) Horner evaluation.
 """
 
-from typing import List, Dict, Tuple
+from functools import lru_cache
+from typing import List
 
-_roots_cache: Dict[Tuple[int, int, int], List[int]] = {}
-_bit_reverse_cache: Dict[int, List[int]] = {}
-
-
-def _get_roots(n: int, omega: int, prime: int) -> List[int]:
-    """Get precomputed roots of unity."""
-    key = (n, omega, prime)
-    if key in _roots_cache:
-        return _roots_cache[key]
-
-    # Precompute all powers of omega: 1, w, w^2, ... w^(n/2-1)
-    powers = [1] * (n // 2)
-    curr = 1
-    for i in range(1, n // 2):
-        curr = (curr * omega) % prime
-        powers[i] = curr
-
-    _roots_cache[key] = powers
-    return powers
+# Cython-based FTT
+from dot_ring.ring_proof.polynomial.ntt import ntt_in_place
 
 
+@lru_cache(maxsize=None)
 def _get_bit_reverse(n: int) -> List[int]:
     """Get precomputed bit-reversal permutation indices."""
-    if n in _bit_reverse_cache:
-        return _bit_reverse_cache[n]
-
     bits = n.bit_length() - 1
     rev_indices = [0] * n
     for i in range(n):
@@ -43,12 +25,50 @@ def _get_bit_reverse(n: int) -> List[int]:
             val >>= 1
         rev_indices[i] = r
 
-    _bit_reverse_cache[n] = rev_indices
     return rev_indices
+
+@lru_cache(maxsize=None)
+def _get_twiddle_factors(n: int, omega: int, prime: int) -> List[List[int]]:
+    """Get precomputed twiddle factors for all NTT stages.
+    
+    Returns a list where twiddles[stage] contains the twiddle factors for that stage.
+    This is more cache-friendly than computing w = roots[j * stride] each time.
+    """
+    twiddles = []
+    m = 2
+    while m <= n:
+        half_m = m >> 1
+        stride = n // m
+        
+        # Compute twiddle factors for this stage
+        stage_twiddles = [0] * half_m
+        w = 1
+        # w_step = omega^stride
+        w_step = pow(omega, stride, prime)
+        
+        for j in range(half_m):
+            stage_twiddles[j] = w
+            w = (w * w_step) % prime
+        
+        twiddles.append(stage_twiddles)
+        m <<= 1
+    
+    return twiddles
+
+@lru_cache(maxsize=None)
+def _get_roots(n: int, omega: int, prime: int) -> List[int]:
+    """Get precomputed roots of unity (legacy, for compatibility)."""
+    powers = [1] * (n // 2)
+    curr = 1
+    for i in range(1, n // 2):
+        curr = (curr * omega) % prime
+        powers[i] = curr
+
+    return powers
 
 
 def _fft_in_place(coeffs: List[int], omega: int, prime: int) -> None:
-    """In-place Cooley-Tukey FFT (radix-2 decimation-in-time).
+    """In-place Cooley-Tukey.
 
     Args:
         coeffs: Coefficient vector (will be modified in-place)
@@ -59,29 +79,11 @@ def _fft_in_place(coeffs: List[int], omega: int, prime: int) -> None:
     if n == 1:
         return
 
-    # Bit-reverse permutation
     rev = _get_bit_reverse(n)
-    for i in range(n):
-        if i < rev[i]:
-            coeffs[i], coeffs[rev[i]] = coeffs[rev[i]], coeffs[i]
+    twiddles = _get_twiddle_factors(n, omega, prime)
 
-    # Precompute roots
-    roots = _get_roots(n, omega, prime)
-
-    # Cooley-Tukey butterfly
-    m = 2
-    while m <= n:
-        stride = n // m
-        # m // 2 butterflies per group
-        for k in range(0, n, m):
-            for j in range(m // 2):
-                w = roots[j * stride]
-                t = (w * coeffs[k + j + m // 2]) % prime
-                u = coeffs[k + j]
-                coeffs[k + j] = (u + t) % prime
-                coeffs[k + j + m // 2] = (u - t) % prime
-        m *= 2
-
+    ntt_in_place(coeffs, twiddles, rev, prime)
+    return
 
 def inverse_fft(values: List[int], omega: int, prime: int) -> List[int]:
     """Inverse FFT.

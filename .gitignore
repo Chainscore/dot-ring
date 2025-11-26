@@ -3,8 +3,14 @@ __pycache__
 
 # blst dep
 blst
+.blst
 build
 .idea
 .mypy_cache
 .pytest_cache
 perf
+*.c
+*.so 
+*.html
+
+.coverage

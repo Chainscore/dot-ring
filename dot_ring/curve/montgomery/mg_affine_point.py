@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any, Union
 from ..point import CurvePoint, PointProtocol
 from .mg_curve import MGCurve
@@ -9,14 +8,13 @@ from dot_ring.curve.e2c import E2C_Variant
 C = TypeVar('C', bound=MGCurve)
 
 
-@dataclass(frozen=True)
 class MGAffinePoint(CurvePoint):
     """
     Affine point on a Montgomery curve.
 
     Notes:
       - Identity is represented by x=None, y=None.
-      - _make_point tries constructor signatures (x,y,curve) and (x,y) and falls
+      - __class__ tries constructor signatures (x,y,curve) and (x,y) and falls
         back to creating an instance directly if necessary.
       - Addition/doubling use canonical Montgomery affine formulas:
           lambda = (y2 - y1)/(x2 - x1)
@@ -25,33 +23,6 @@ class MGAffinePoint(CurvePoint):
         Doubling:
           lambda = (3*x1^2 + 2*A*x1 + 1) / (2*B*y1)
     """
-
-    def _make_point(self, x: Optional[int], y: Optional[int]):
-        """
-        Helper to construct a new point instance in a robust way.
-
-        Some subclasses accept (x, y, curve) and some (x, y). Try both; if both
-        raise TypeError, build an instance bypassing __init__ and set attributes.
-        """
-        cls = self.__class__
-        curve = self.curve
-        try:
-            # try (x, y, curve)
-            return cls(x, y, curve)
-        except TypeError:
-            pass
-        try:
-            # try (x, y)
-            return cls(x, y)
-        except TypeError:
-            pass
-
-        # fallback: create without calling __init__ and set attributes directly
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", x)
-        object.__setattr__(inst, "y", y)
-        object.__setattr__(inst, "curve", curve)
-        return inst
 
     def is_on_curve(self) -> bool:
         """Check if point is on the curve."""
@@ -95,21 +66,21 @@ class MGAffinePoint(CurvePoint):
         if x1 == x2 and y1 == y2:
             # if y == 0 then slope denominator = 0 => result is identity
             if y1 % p == 0:
-                return self._make_point(None, None)
+                return self.__class__(None, None)
             num = (3 * x1 * x1 + 2 * A * x1 + 1) % p
             den = (2 * B * y1) % p
             # Check if denominator is zero before computing inverse
             if den == 0:
-                return self._make_point(None, None)
+                return self.__class__(None, None)
             lam = (num * pow(den, -1, p)) % p
             x3 = (B * (lam * lam % p) - A - 2 * x1) % p
             y3 = (lam * (x1 - x3) - y1) % p
-            return self._make_point(x3, y3)
+            return self.__class__(x3, y3)
 
         # Addition for distinct points
         if x1 == x2:
             # vertical line -> identity (x1 == x2 but y1 != y2)
-            return self._make_point(None, None)
+            return self.__class__(None, None)
 
         num = (y2 - y1) % p
         den = (x2 - x1) % p
@@ -121,13 +92,13 @@ class MGAffinePoint(CurvePoint):
         x3 = (B * lam * lam - A - x1 - x2) % p
         # Corrected formula for y3
         y3 = (lam * (x1 - x3) - y1) % p
-        return self._make_point(x3, y3)
+        return self.__class__(x3, y3)
 
     def __neg__(self) -> "MGAffinePoint[C]":
         """Negate a point (x, y) -> (x, -y)."""
         if self.is_identity():
-            return self._make_point(None, None)
-        return self._make_point(self.x % self.curve.PRIME_FIELD, (-self.y) % self.curve.PRIME_FIELD)
+            return self.__class__(None, None)
+        return self.__class__(self.x % self.curve.PRIME_FIELD, (-self.y) % self.curve.PRIME_FIELD)
 
     def __sub__(self, other: "MGAffinePoint[C]") -> "MGAffinePoint[C]":
         """Subtract points by adding the negation."""
@@ -208,14 +179,14 @@ class MGAffinePoint(CurvePoint):
         by using the same underlying operations.
         """
         if scalar == 0:
-            return self._make_point(None, None)
+            return self.__class__(None, None)
 
         # Handle negative scalar
         if scalar < 0:
             return (-self) * (-scalar)
 
         if self.is_identity():
-            return self._make_point(None, None)
+            return self.__class__(None, None)
 
         # Use double-and-add for consistency with point addition formulas
         return self._scalar_mult_double_add(scalar)
@@ -228,16 +199,16 @@ class MGAffinePoint(CurvePoint):
         by using the same underlying operations.
         """
         if scalar == 0:
-            return self._make_point(None, None)
+            return self.__class__(None, None)
 
         # Handle negative scalar
         if scalar < 0:
             return (-self)._scalar_mult_double_add(-scalar)
 
         if self.is_identity():
-            return self._make_point(None, None)
+            return self.__class__(None, None)
 
-        result = self._make_point(None, None)  # Start with identity
+        result = self.__class__(None, None)  # Start with identity
         current = self
 
         # Convert scalar to binary and process each bit
@@ -262,15 +233,7 @@ class MGAffinePoint(CurvePoint):
     @classmethod
     def identity(cls) -> "MGAffinePoint":
         """Get the identity element (point at infinity)."""
-        # build without calling curve-specific __init__
-        inst = object.__new__(cls)
-        object.__setattr__(inst, "x", None)
-        object.__setattr__(inst, "y", None)
-        # use a curve instance if available via class attribute, else None
-        # Many specific point classes set `curve` as a class attribute (see your Curve25519Point)
-        curve = getattr(cls, "curve", None)
-        object.__setattr__(inst, "curve", curve)
-        return inst
+        return cls(None, None)
 
     @classmethod
     def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
@@ -410,7 +373,7 @@ class MGAffinePoint(CurvePoint):
         s = (x * K) % p
         t = (y * K) % p
 
-        return cls(s, t, cls.curve)
+        return cls(s, t)
 
     def point_to_string(self) -> bytes:
 
@@ -443,7 +406,7 @@ class MGAffinePoint(CurvePoint):
             v = int.from_bytes(v_bytes, 'little')
 
             # Create the point
-            point = cls(u, v, cls.curve)
+            point = cls(u, v)
 
         else:
             ...
