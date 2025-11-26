@@ -136,9 +136,7 @@ uv run pytest tests/
 See [TESTING.md](./TESTING.md) for an overview of the test suite and instructions on running tests.
 
 
-## 🐳 Docker Setup
-
-The following commands guide you through building the image, running tests, generating coverage reports, and accessing an interactive shell.
+## Docker Setup
 
 ### Build the Docker Image
 ```bash
@@ -147,18 +145,18 @@ docker build -t dot_ring .
 
 ### Run tests inside a container
 ```bash
-docker run -it dot_ring pytest tests/
+docker run -it dot_ring uv run pytest tests/
 ```
 
 ### Generate a Coverage report
 - Terminal summary
 ```bash
-docker run -it dot_ring pytest tests/ --cov=dot_ring --cov-report=term-missing
+docker run -it dot_ring uv run pytest tests/ --cov=dot_ring --cov-report=term-missing
 ```
 
 - HTML report
 ```bash
-docker run -it dot_ring pytest tests/ --cov=dot_ring --cov-report=html
+docker run -it dot_ring uv run pytest tests/ --cov=dot_ring --cov-report=html
 open htmlcov/index.html #open it in your browser
 ``` 
 Access an interactive shell inside the container
