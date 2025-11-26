@@ -30,6 +30,11 @@ jobs:
         python -m build
         pip install dist/*.whl
 
+    - name: Build Cython extensions
+      run: |
+        pip install Cython
+        python setup_cython.py build_ext --inplace
+
     - name: Setup blst Python bindings
       run: |
         git clone https://github.com/supranational/blst.git /tmp/blst
@@ -40,7 +45,7 @@ jobs:
 
     - name: Run tests
       env:
-        PYTHONPATH: /tmp/blst/bindings/python:$PYTHONPATH
+        PYTHONPATH: .:/tmp/blst/bindings/python:$PYTHONPATH
       run: |
         pytest tests/ \
           --cov=dot_ring \
