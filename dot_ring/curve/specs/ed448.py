@@ -57,7 +57,7 @@ class Ed448Params:
     ENDIAN = "little"
     M: [Final] = 1
     K: [Final] = 224
-    S_in_bytes: [Final] = None
+    S_in_bytes: [Final] = 0
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
 
@@ -74,7 +74,7 @@ class Ed448Params:
         int
     ] = GENERATOR_Y  # 0x793f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa16
     UNCOMPRESSED = True
-    POINT_LEN: Final[int] = 32
+    POINT_LEN: Final[int] = (PRIME_FIELD.bit_length() + 7) // 8
 
 
 class Ed448Curve(TECurve):
@@ -162,30 +162,6 @@ class Ed448Curve(TECurve):
         return (156326, 1)  # As Curve448 is its equivalent MGC
 
 
-# Singleton instance
-Ed448_TE_Curve: Final[Ed448Curve] = Ed448Curve()
-
-
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
-    # Create curve with the specified variant
-    curve = Ed448Curve(e2c_variant)
-
-    # Create and return a point class with this curve
-    class Ed448PointVariant(Ed448Point):
-        """Point on Ed448 with custom E2C variant"""
-
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            # Call TEAffinePoint.__init__ directly to avoid Ed448Point's __init__
-            TEAffinePoint.__init__(self, x, y, curve)
-
-    # Set the curve as a class attribute
-    Ed448PointVariant.curve = curve
-
-    return Ed448PointVariant
-
-
-@dataclass(frozen=True)
 class Ed448Point(TEAffinePoint):
     """
     Point on the Ed448 curve.
@@ -193,8 +169,6 @@ class Ed448Point(TEAffinePoint):
     Implements point operations specific to the Ed448 curve
     with RFC 8032 and RFC 9380 compliance.
     """
-
-    curve: Final[Ed448Curve] = Ed448_TE_Curve
 
     @classmethod
     def blinding_base(cls) -> Self:
@@ -252,6 +226,14 @@ class Ed448Point(TEAffinePoint):
 
         y = (y_num * cls.curve.inv(y_den)) % p
         return cls(x, y)
+
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
+    class Ed448PointVariant(Ed448Point):
+        """Point on Ed448 with custom E2C variant"""
+        curve: Final[Ed448Curve] = Ed448Curve(e2c_variant)
+
+    return Ed448PointVariant
 
 
 Ed448_NU = CurveVariant(

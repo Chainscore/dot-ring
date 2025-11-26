@@ -1,5 +1,6 @@
+from typing import Any, List, Tuple, cast
+
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
-from sympy import mod_inverse
 from dot_ring.ring_proof.constants import S_PRIME, SIZE, D_512 as D, OMEGA
 from dot_ring.ring_proof.transcript.transcript import Transcript
 from dot_ring.ring_proof.transcript.phases import (
@@ -7,13 +8,72 @@ from dot_ring.ring_proof.transcript.phases import (
     phase2_eval_point,
     phase3_nu_vector,
 )
-from dot_ring.ring_proof.polynomial.ops import lagrange_basis_polynomial, poly_evaluate
-from py_ecc.optimized_bls12_381 import normalize as nm
+from py_ecc.optimized_bls12_381 import normalize as nm  # type: ignore[import-untyped]
 from dot_ring.ring_proof.pcs.kzg import KZG
-from py_ecc.optimized_bls12_381 import multiply, add, Z1, curve_order
+from py_ecc.optimized_bls12_381 import curve_order  # type: ignore[import-untyped]
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.utils import py_ecc_point_to_blst
-from pyblst import BlstP1Element
+
+import blst as _blst  # type: ignore[import-untyped]
+
+blst = cast(Any, _blst)
+
+from pyblst import BlstP1Element  # type: ignore[import-untyped]
+
+
+def blst_msm(points: list, scalars: list) -> BlstP1Element:
+    """
+    Multi-scalar multiplication using Pippenger's algorithm via blst.
+    Much faster than individual scalar_mul + add operations.
+    """
+    if not points:
+        return BlstP1Element()
+    
+    # Convert BlstP1Element to blst.P1 for MSM
+    p1_list = []
+    for p in points:
+        comp = bytes(p.compress())
+        p1 = blst.P1(blst.P1_Affine(comp))
+        p1_list.append(p1)
+    
+    # Use Pippenger MSM
+    memory = blst.P1_Affines.as_memory(p1_list)
+    result = blst.P1_Affines.mult_pippenger(memory, scalars)
+    
+    # Convert back to BlstP1Element
+    return BlstP1Element().uncompress(result.compress())
+
+
+def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime: int) -> int:
+    """
+    Compute L_i(zeta) using closed-form formula for roots of unity domain.
+    
+    L_i(zeta) = (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
+    
+    This is O(1) instead of O(n) polynomial evaluation!
+    """
+    n = domain_size
+    omega_i = pow(omega, index, prime)
+    
+    # zeta^n - 1
+    zeta_n_minus_1 = (pow(zeta, n, prime) - 1) % prime
+    
+    # zeta - omega^i
+    zeta_minus_omega_i = (zeta - omega_i) % prime
+    
+    # Handle special case when zeta == omega^i
+    if zeta_minus_omega_i == 0:
+        return 1  # L_i(omega^i) = 1
+    
+    # omega^i / n
+    inv_n = pow(n, -1, prime)
+    omega_i_over_n = (omega_i * inv_n) % prime
+    
+    # Final: (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
+    numerator = (omega_i_over_n * zeta_n_minus_1) % prime
+    result = (numerator * pow(zeta_minus_omega_i, -1, prime)) % prime
+    
+    return result
 
 
 class Verify:
@@ -80,11 +140,9 @@ class Verify:
         # Precompute common values
         zeta_minus_d4 = (zeta - D[-4]) % MOD
         
-        # Compute Lagrange basis evaluations once
-        L_0_x = lagrange_basis_polynomial(self.D, 0, S_PRIME)
-        L_0_zeta = poly_evaluate(L_0_x, zeta, S_PRIME) % MOD
-        L_N_4_x = lagrange_basis_polynomial(self.D, SIZE - 4, S_PRIME)
-        L_N_4_zeta = poly_evaluate(L_N_4_x, zeta, S_PRIME) % MOD
+        # Use O(1) Lagrange evaluation instead of O(n) polynomial construction + evaluation
+        L_0_zeta = lagrange_at_zeta(SIZE, 0, zeta, OMEGA, MOD)
+        L_N_4_zeta = lagrange_at_zeta(SIZE, SIZE - 4, zeta, OMEGA, MOD)
 
         # Constraint 1
         term1 = (self.b_zeta * self.s_zeta) % MOD
@@ -97,7 +155,6 @@ class Verify:
         x2, y2 = self.px_zeta, self.py_zeta
         b = self.b_zeta
         one_minus_b = (1 - b) % MOD
-        coeff_a = BandersnatchParams.EDWARDS_A
         
         # Precompute common subexpressions
         y1_y2 = (y1 * y2) % MOD
@@ -108,7 +165,6 @@ class Verify:
         c2 = (b * (-(x1_y1 + x2_y2)) + one_minus_b * (-x1)) % MOD
         c2_zeta = (c2 * zeta_minus_d4) % MOD
         
-        x1_y2_minus_x2_y1 = ((x1 * y2) - (x2 * y1)) % MOD
         c3 = (b * (-(x1_y1 - x2_y2)) + one_minus_b * (-y1)) % MOD
         c3_zeta = (c3 * zeta_minus_d4) % MOD
 
@@ -132,22 +188,19 @@ class Verify:
         return c1_zeta, c2_zeta, c3_zeta, c4_zeta, c5_zeta, c6_zeta, c7_zeta
 
     def divide(self, numr, denom):
-        # Compute inverse
-        denominator_inv = mod_inverse(
-            denom, curve_order
-        )  # which prime modulus need o be taken!
-
-        # Compute final result
-        q_zeta = numr * denominator_inv % curve_order  # field_modulus
-
+        # Use built-in pow with -1 exponent for modular inverse (faster than sympy)
+        denominator_inv = pow(denom, -1, curve_order)
+        q_zeta = (numr * denominator_inv) % curve_order
         return q_zeta
 
-    def evaluation_of_quotient_poly_at_zeta(self):
-        """
-        input: commitments, alphas, zeta,
-        output:
-        """
-
+    def is_valid(self):
+        """If both the verifications are true then sign is valid"""
+        verification1 = self._prepare_quotient_poly_verification()
+        verification2 = self._prepare_linearization_poly_verification()
+        return KZG.batch_verify([verification1, verification2])
+    
+    def _prepare_quotient_poly_verification(self):
+        """Prepare KZG verification data for quotient polynomial"""
         alphas_list, zeta, v_list = self.alpha_list, self.zeta_p, self.V_list
 
         cs = self.contributions_to_constraints_eval_at_zeta()
@@ -180,15 +233,8 @@ class Verify:
             self.Cq_blst,
         ]
         
-        # MSM using pyblst
-        # C_agg = sum(C_a[i] * v_list[i])
-        C_agg = BlstP1Element() 
-        for i in range(len(C_a_blst)):
-            term = C_a_blst[i].scalar_mul(v_list[i])
-            C_agg = C_agg + term
-            
-        # Pass blst point to kzg.verify
-        # kzg.verify handles BlstP1Element now
+        # Use Pippenger MSM instead of loop (much faster)
+        C_agg = blst_msm(C_a_blst, v_list)
 
         MOD = curve_order
 
@@ -205,63 +251,53 @@ class Verify:
 
         Agg_zeta = sum(terms) % MOD
         
-        verification = KZG.verify(C_agg, self.Phi_zeta_blst, zeta, Agg_zeta)
-            
-        return verification  # , cs
-
-    def evaluation_of_linearization_poly_at_zeta_omega(self):
+        return (C_agg, self.Phi_zeta_blst, zeta, Agg_zeta)
+    
+    def _prepare_linearization_poly_verification(self):
+        """Prepare KZG verification data for linearization polynomial"""
         alphas_list, zeta, v_list = self.alpha_list, self.zeta_p, self.V_list
         
-        scalar_cl1 = (zeta - self.D[-4]) % curve_order
+        zeta_minus_d4 = (zeta - self.D[-4]) % curve_order
         
-        Cl1 = self.Caccip_blst.scalar_mul(scalar_cl1)
+        # Cl1 scalar
+        scalar_cl1 = zeta_minus_d4
 
-        # Cl2
+        # Cl2 scalars
         x1, y1 = self.accx_zeta, self.accy_zeta
         x2, y2 = self.px_zeta, self.py_zeta
         b = self.b_zeta
         coeff_a = BandersnatchParams.EDWARDS_A
-        #
-        C_acc_x = (
+        
+        C_acc_x_cl2 = (
             b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME
         ) % S_PRIME
-        C_acc_y = 0
-        C_acc_x_f = C_acc_x * (zeta - self.D[-4]) % curve_order
-        C_acc_y_f = C_acc_y * (zeta - self.D[-4]) % curve_order
-        #
-        term1 = self.Caccx_blst.scalar_mul(C_acc_x_f)
-        term2 = self.Caccy_blst.scalar_mul(C_acc_y_f)
-        Cl2 = term1 + term2
+        C_acc_x_f_cl2 = (C_acc_x_cl2 * zeta_minus_d4) % curve_order
 
-        # c3
-        b = self.b_zeta
-        x1, y1 = self.accx_zeta, self.accy_zeta
-        x2, y2 = self.px_zeta, self.py_zeta
-        C_acc_x = 0
-        C_acc_y = ((b * (x1 * y2 - x2 * y1)) % S_PRIME + (1 - b) % S_PRIME) % S_PRIME
-        C_acc_x *= (zeta - self.D[-4]) % curve_order
-        C_acc_y *= (zeta - self.D[-4]) % curve_order
+        # Cl3 scalars
+        C_acc_y_cl3 = ((b * (x1 * y2 - x2 * y1)) % S_PRIME + (1 - b) % S_PRIME) % S_PRIME
+        C_acc_y_f_cl3 = (C_acc_y_cl3 * zeta_minus_d4) % curve_order
+        
+        # Combined scalars
+        scalar_accip = (alphas_list[0] * scalar_cl1) % curve_order
+        scalar_accx = (alphas_list[1] * C_acc_x_f_cl2) % curve_order
+        scalar_accy = (alphas_list[2] * C_acc_y_f_cl3) % curve_order
+        
+        # Use MSM for the final combination
+        points = [self.Caccip_blst, self.Caccx_blst, self.Caccy_blst]
+        scalars = [scalar_accip, scalar_accx, scalar_accy]
+        Cl = blst_msm(points, scalars)
+        
+        zeta_omega = (zeta * OMEGA) % curve_order
+        
+        return (Cl, self.Phi_zeta_omega_blst, zeta_omega, self.l_zeta_omega)
 
-        term1 = self.Caccx_blst.scalar_mul(C_acc_x)
-        term2 = self.Caccy_blst.scalar_mul(C_acc_y)
-        Cl3 = term1 + term2
+    # Legacy methods for backwards compatibility
+    def evaluation_of_quotient_poly_at_zeta(self):
+        """Legacy method - use is_valid() with batch verification instead"""
+        verification = self._prepare_quotient_poly_verification()
+        return KZG.verify(*verification)
 
-        Cl_list = [Cl1, Cl2, Cl3]
-
-        Cl = BlstP1Element()
-        for i in range(3):
-            Cl = Cl + Cl_list[i].scalar_mul(alphas_list[i])
-            
-        verified = KZG.verify(
-            Cl, self.Phi_zeta_omega_blst, zeta * OMEGA % curve_order, self.l_zeta_omega
-        )
-
-        return verified
-
-    def is_valid(self):
-        """If both the verifications are true then sign is valid"""
-        # Evaluate both in sequence to avoid short-circuit if first fails
-        # This ensures consistent timing
-        result1 = self.evaluation_of_quotient_poly_at_zeta()
-        result2 = self.evaluation_of_linearization_poly_at_zeta_omega()
-        return result1 and result2
+    def evaluation_of_linearization_poly_at_zeta_omega(self):
+        """Legacy method - use is_valid() with batch verification instead"""
+        verification = self._prepare_linearization_poly_verification()
+        return KZG.verify(*verification)

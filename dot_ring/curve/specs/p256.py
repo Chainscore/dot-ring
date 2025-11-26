@@ -23,12 +23,8 @@ class P256Params:
     DST = b"QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters for y² = x³ - 3x + b
-    PRIME_FIELD: Final[
-        int
-    ] = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
-    ORDER: Final[
-        int
-    ] = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+    PRIME_FIELD: Final[int] = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
+    ORDER: Final[int] = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
     COFACTOR: Final[int] = 1
 
     # Generator point
@@ -119,37 +115,20 @@ class P256Curve(SWCurve):
         )
 
 
-# Singleton instance
-P256_SW_Curve: Final[P256Curve] = P256Curve()
-
-
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
-    # Create curve with the specified variant
-    curve = P256Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class P256PointVariant(P256Point):
         """Point on P256 with custom E2C variant"""
-
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            SWAffinePoint.__init__(self, x, y, curve)
-
-    # Set the curve as a class attribute
-    P256PointVariant.curve = curve
+        curve: Final[P256Curve] = P256Curve(e2c_variant)
 
     return P256PointVariant
 
 
-@dataclass(frozen=True)
 class P256Point(SWAffinePoint):
     """
     Point on the NIST P-256 curve.
 
     Implements point operations specific to the P-256 curve.
     """
-
-    curve: Final[P256Curve] = P256_SW_Curve
 
     @classmethod
     def identity_point(cls):
@@ -186,7 +165,7 @@ P256_RO = CurveVariant(
 )
 
 P256_NU = CurveVariant(
-    name="P256_NU",
-    curve=P256Curve(e2c_variant=E2C_Variant.SSWU_NU),
-    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU),
+    name="P256_TAI",
+    curve=P256Curve(e2c_variant=E2C_Variant.TAI),
+    point=nu_variant(e2c_variant=E2C_Variant.TAI),
 )

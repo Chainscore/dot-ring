@@ -6,10 +6,9 @@ from dot_ring.curve.specs.p256 import P256_RO
 from dot_ring.curve.specs.curve448 import Curve448_RO
 from dot_ring.curve.specs.ed25519 import Ed25519_RO
 from dot_ring.curve.specs.ed448 import Ed448_RO
-# TODO: p384, p521, secp256k1 don't have CurveVariant yet, skip for now
-# from dot_ring.curve.specs.p384 import P384_RO
-# from dot_ring.curve.specs.p521 import P521_RO
-# from dot_ring.curve.specs.secp256k1 import Secp256k1_RO
+from dot_ring.curve.specs.p384 import P384_RO
+from dot_ring.curve.specs.p521 import P521_RO
+from dot_ring.curve.specs.secp256k1 import Secp256k1_RO
 from dot_ring.vrf.ietf.ietf import IETF_VRF
 
 HERE = os.path.dirname(__file__)
@@ -20,9 +19,9 @@ TEST_CASES = [
     (Curve448_RO, "curve448_base_vectors"),
     (Ed25519_RO, "ed25519_base_vectors"),
     (Ed448_RO, "ed448_base_vectors"),
-    # (P384_RO, "p384_base_vectors"),
-    # (P521_RO, "p521_base_vectors"),
-    # (Secp256k1_RO, "secp256k1_base_vectors"),
+    (P384_RO, "p384_base_vectors"),
+    (P521_RO, "p521_base_vectors"),
+    (Secp256k1_RO, "secp256k1_base_vectors"),
 ]
 
 @pytest.mark.parametrize("curve_variant, file_prefix", TEST_CASES)
@@ -47,12 +46,8 @@ def test_ietf_base(curve_variant, file_prefix):
                 alpha = bytes.fromhex(vector["alpha"])
                 additional_data = bytes.fromhex(vector["ad"])
                 
-                # Input point H
-                input_point = curve_variant.point.encode_to_curve(alpha)
-                
                 # Public Key
                 pk_bytes = IETF_VRF[curve_variant].get_public_key(secret_scalar)
-                public_key = curve_variant.point.string_to_point(pk_bytes)
                 
                 proof = IETF_VRF[curve_variant].proof(alpha, secret_scalar, additional_data)
                 proof_bytes = proof.to_bytes()

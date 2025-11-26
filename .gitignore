@@ -8,3 +8,6 @@ build
 .mypy_cache
 .pytest_cache
 perf
+*.c
+*.so 
+*.html

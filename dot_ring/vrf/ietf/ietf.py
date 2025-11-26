@@ -124,7 +124,8 @@ class IETF_VRF(VRF):
         self,
         public_key: bytes,
         input: bytes,
-        additional_data: bytes
+        additional_data: bytes,
+        salt: bytes = b""
     ) -> bool:
         """
         Verify IETF VRF proof.
@@ -134,11 +135,12 @@ class IETF_VRF(VRF):
             input_point: Input point
             additional_data: Additional data used in proof
             proof: Proof bytes
+            salt: Optional salt for encoding
 
         Returns:
             bool: True if proof is valid
         """
-        input_point = self.cv.point.encode_to_curve(input)
+        input_point = self.cv.point.encode_to_curve(input, salt)
         public_key = self.cv.point.string_to_point(public_key)
 
         # Compute proof points

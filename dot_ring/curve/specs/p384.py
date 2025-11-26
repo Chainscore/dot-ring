@@ -5,6 +5,7 @@ from typing import Final, Self
 
 import hashlib
 
+from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
@@ -69,7 +70,7 @@ class P384Params:
     ] = 0x3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F  # 0x2d3c6863973926e049e637cb1b5f40a36dac28af1766968c30c2313f3a38945678901234567890123456789012345
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
-    POINT_LEN: Final[int] = 33
+    POINT_LEN: Final[int] = 49
 
 
 class P384Curve(SWCurve):
@@ -118,34 +119,22 @@ class P384Curve(SWCurve):
         )
 
 
-# Singleton instance
-P384_SW_Curve: Final[P384Curve] = P384Curve()
-
-
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
-    # Create curve with the specified variant
-    curve = P384Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class P384PointVariant(SWAffinePoint):
         """Point on P384 with custom E2C variant"""
-
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            super().__init__(x, y, curve)
-
-    # Set the curve as a class attribute
-    P384PointVariant.curve = curve
+        curve: Final[P384Curve] = P384Curve(e2c_variant)
 
     return P384PointVariant
 
 
-@dataclass(frozen=True)
-class P384Point(SWAffinePoint):
-    """
-    Point on the NIST P-384 curve.
+P384_RO = CurveVariant(
+    name="P384_RO",
+    curve=P384Curve(e2c_variant=E2C_Variant.SSWU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU)
+)
 
-    Implements point operations specific to the P-384 curve.
-    """
-
-    curve: Final[P384Curve] = P384_SW_Curve
+P384_NU = CurveVariant(
+    name="P384_NU",
+    curve=P384Curve(e2c_variant=E2C_Variant.SSWU_NU),
+    point=nu_variant(e2c_variant=E2C_Variant.SSWU_NU)
+)

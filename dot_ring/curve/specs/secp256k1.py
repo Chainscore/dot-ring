@@ -96,7 +96,7 @@ class Secp256k1Params:
         ],
     }
     UNCOMPRESSED = False
-    POINT_LEN: Final[int] = 32
+    POINT_LEN: Final[int] = 33
 
 
 """GLV endomorphism parameters for secp256k1 curve."""
@@ -156,25 +156,6 @@ class Secp256k1Curve(SWCurve):
 Secp256k1_SW_Curve: Final[Secp256k1Curve] = Secp256k1Curve()
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
-    # Create curve with the specified variant
-    curve = Secp256k1Curve(e2c_variant)
-
-    # Create and return a point class with this curve
-    class Secp256k1PointVariant(SWAffinePoint):
-        """Point on Secp256k1 with custom E2C variant"""
-
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            super().__init__(x, y, curve)
-
-    # Set the curve as a class attribute
-    Secp256k1PointVariant.curve = curve
-
-    return Secp256k1PointVariant
-
-
-@dataclass(frozen=True)
 class Secp256k1Point(SWAffinePoint):
     """
     Point on the secp256k1 curve.
@@ -182,8 +163,6 @@ class Secp256k1Point(SWAffinePoint):
     Implements optimized point operations specific to the secp256k1 curve,
     including GLV scalar multiplication for enhanced performance.
     """
-
-    curve: Final[Secp256k1Curve] = Secp256k1_SW_Curve
 
     def __mul__(self, scalar: int) -> Self:
         """
@@ -212,6 +191,14 @@ class Secp256k1Point(SWAffinePoint):
         # For now, fall back to standard multiplication
         # TODO: Implement full GLV decomposition
         return super().__mul__(scalar)
+    
+    
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+    class Secp256k1PointVariant(Secp256k1Point):
+        """Point on Secp256k1 with custom E2C variant"""
+        curve: Final[Secp256k1Curve] = Secp256k1Curve(e2c_variant)
+        
+    return Secp256k1PointVariant
 
 
 Secp256k1_RO = CurveVariant(

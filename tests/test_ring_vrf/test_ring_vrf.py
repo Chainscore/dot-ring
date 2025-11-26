@@ -36,11 +36,11 @@ def test_ring_proof():
         assert p_k.hex() == item['pk'], "Invalid Public Key"
         assert ring_root.to_bytes().hex() == item['ring_pks_com'], "Invalid Ring Root"
         assert ring_vrf_proof.to_bytes().hex() == item['gamma'] + item['proof_pk_com'] + item['proof_r'] + item['proof_ok'] + item['proof_s'] + item['proof_sb'] + item['ring_proof'], "Unexpected Proof"
-        
+        start = time.time()
         assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
+        print("Time taken for Ring VRF Proof Verification: \t ", time.time() - start, " seconds")
         assert proof_rt.to_bytes() == proof_bytes
         assert proof_rt.verify(alpha, ad, ring_root)
         
-        print("Time taken for Ring VRF Proof Verification: \t ", time.time() - end_time, " seconds")
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
 

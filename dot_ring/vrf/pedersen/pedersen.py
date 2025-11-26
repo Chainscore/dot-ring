@@ -160,38 +160,37 @@ class PedersenVRF(VRF):
         Verify Pedersen VRF proof.
 
         Args:
-            input_point: Input point
+            input: Input message bytes
             additional_data: Additional data used in proof
-            proof: Proof bytes
 
         Returns:
             bool: True if proof is valid
         """
-
         generator = self.cv.point.generator_point()
         input_point = self.cv.point.encode_to_curve(input)
-
-        point_length = self.cv.curve.POINT_LEN
-        if self.cv.curve.UNCOMPRESSED:
-            point_length *= 2
-
         b_base = self.cv.point(self.cv.curve.BBx, self.cv.curve.BBy)
 
         c = self.challenge(
             [self.blinded_pk, input_point, self.output_point, self.result_point, self.ok], additional_data
         )
-        
-        # Theta0 = (Ok + output_point * c) == input_point * s
-        theta0_lhs = self.ok + self.output_point * c
-        
-        Theta0 = theta0_lhs == input_point * self.s
-        
-        # Theta1 = R + (public_key_cp * c) == generator * s + b_base * Sb
-        theta1_lhs = self.result_point + (self.blinded_pk * c)
-        theta1_rhs = generator * self.s + b_base * self.sb
-            
-        Theta1 = theta1_lhs == theta1_rhs
-        return Theta0 == Theta1
+
+        # Check 1: ok + c * output_point - s * input_point == 0
+        # 1*ok + c*output_point + (-s)*input_point == identity
+        check1 = self.cv.point.msm(
+            [self.ok, self.output_point, input_point], 
+            [1, c, -self.s]
+        )
+        Theta0 = check1.is_identity()
+
+        # Check 2: result_point + c * blinded_pk - s * generator - sb * b_base == 0
+        # 1*result_point + c*blinded_pk + (-s)*generator + (-sb)*b_base == identity
+        check2 = self.cv.point.msm(
+            [self.result_point, self.blinded_pk, generator, b_base],
+            [1, c, -self.s, -self.sb]
+        )
+        Theta1 = check2.is_identity()
+
+        return Theta0 and Theta1
     
     @classmethod
     def blinding(cls, secret: bytes, input_point: bytes, add: bytes) -> int:
@@ -202,8 +201,9 @@ class PedersenVRF(VRF):
         buf += input_point
         buf += add
         buf += DOM_SEP_END
-        hashed = cls.cv.curve.H_A(buf).digest()
-        return int.from_bytes(hashed) % cls.cv.curve.ORDER
+        scalar_len = (cls.cv.curve.ORDER.bit_length() + 7) // 8
+        hashed = cls.cv.curve.hash(buf, 2 * scalar_len)
+        return int.from_bytes(hashed, "big") % cls.cv.curve.ORDER
 
     @classmethod
     def ecvrf_proof_to_hash(cls, output_point_bytes: bytes | str) -> bytes:

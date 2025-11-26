@@ -96,7 +96,6 @@ JubJub_TE_Curve: Final[TECurve] = TECurve(
 )
 
 
-@dataclass(frozen=True)
 class JubJubPoint(TEAffinePoint):
     """
     Point on the Bandersnatch curve.

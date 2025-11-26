@@ -86,7 +86,6 @@ Bandersnatch_SW_SW_Curve: Final[SWCurve] = SWCurve(
 )
 
 
-@dataclass(frozen=True)
 class Bandersnatch_SW_Point(SWAffinePoint):
     curve: Final[SWCurve] = Bandersnatch_SW_SW_Curve
     

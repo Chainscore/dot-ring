@@ -22,9 +22,8 @@ class RingRoot:
         py_commitment = H.bls_g1_decompress(data[48:96].hex())
         s_commitment = H.bls_g1_decompress(data[96:144].hex())
         
-        ring_root = cls()
-        ring_root.px = Column(name="px", evals=[], commitment=px_commitment)
-        ring_root.py = Column(name="py", evals=[], commitment=py_commitment)
-        ring_root.s = Column(name="s", evals=[], commitment=s_commitment)
+        px = Column(name="px", evals=[], commitment=px_commitment)
+        py = Column(name="py", evals=[], commitment=py_commitment)
+        s = Column(name="s", evals=[], commitment=s_commitment)
         
-        return ring_root
+        return cls(px=px, py=py, s=s)

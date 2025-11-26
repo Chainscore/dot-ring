@@ -67,7 +67,7 @@ class P521Params:
     ] = 0x011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650  # 0x02D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38945678901234567890123456789012345678901234567890123456789012345678901
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
-    POINT_LEN: Final[int] = 33
+    POINT_LEN: Final[int] = 67
 
 
 class P521Curve(SWCurve):
@@ -116,38 +116,14 @@ class P521Curve(SWCurve):
         )
 
 
-# Singleton instance
-P521_SW_Curve: Final[P521Curve] = P521Curve()
-
-
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
-    # Create curve with the specified variant
-    curve = P521Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class P521PointVariant(SWAffinePoint):
         """Point on P521 with custom E2C variant"""
-
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            super().__init__(x, y, curve)
-
-    # Set the curve as a class attribute
-    P521PointVariant.curve = curve
+        curve: Final[P521Curve] = P521Curve(e2c_variant)
 
     return P521PointVariant
 
 
-@dataclass(frozen=True)
-class P521Point(SWAffinePoint):
-    """
-    Point on the NIST P-521 curve.
-
-    Implements point operations specific to the P-521 curve.
-    """
-
-    curve: Final[P521Curve] = P521_SW_Curve
-    
 P521_RO = CurveVariant(
     name="P521_RO",
     curve=P521Curve(e2c_variant=E2C_Variant.SSWU),

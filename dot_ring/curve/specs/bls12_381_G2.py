@@ -145,7 +145,6 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
     return BLS12_381_G2PointVariant
 
 
-@dataclass(frozen=True)
 class BLS12_381_G2Point(SWAffinePoint):
     """
     Point on the BLS12-381 G2 curve.

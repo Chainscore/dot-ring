@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Self
+from typing import Final, Self, List
 
 import hashlib
 
@@ -119,7 +119,6 @@ Bandersnatch_TE_Curve: Final[TECurve] = TECurve(
 )
 
 
-@dataclass(frozen=True)
 class BandersnatchPoint(TEAffinePoint):
     """
     Point on the Bandersnatch curve.
@@ -145,6 +144,38 @@ class BandersnatchPoint(TEAffinePoint):
         phi = BandersnatchGLV.compute_endomorphism(self)
 
         return BandersnatchGLV.windowed_simultaneous_mult(k1, k2, self, phi, w=2)
+
+    @classmethod
+    def msm(cls, points: List[Self], scalars: List[int]) -> Self:
+        """
+        Optimized multi-scalar multiplication using GLV.
+        """
+        if not points:
+            return cls.identity()
+            
+        # Normalize scalars to [0, ORDER) for GLV
+        n = cls.curve.ORDER
+        scalars = [s % n for s in scalars]
+        
+        if len(points) == 2:
+            return BandersnatchGLV.windowed_simultaneous_mult(
+                scalars[0], scalars[1], points[0], points[1]
+            )
+            
+        if len(points) == 4:
+            return BandersnatchGLV.multi_scalar_mult_4(
+                scalars[0], scalars[1], scalars[2], scalars[3],
+                points[0], points[1], points[2], points[3]
+            )
+            
+        if len(points) == 3:
+            # Pad to 4 with identity and 0 scalar
+            return BandersnatchGLV.multi_scalar_mult_4(
+                scalars[0], scalars[1], scalars[2], 0,
+                points[0], points[1], points[2], cls.identity()
+            )
+            
+        return super().msm(points, scalars)
 
 Bandersnatch = CurveVariant(
     name="Bandersnatch",

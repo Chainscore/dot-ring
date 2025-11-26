@@ -1,6 +1,7 @@
 """Quick run to test functionality, isolated to Bandersnatch. Running all tests on all curves is recommended."""
 import json
 import os
+from time import time
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.vrf.ietf.ietf import IETF_VRF
@@ -103,9 +104,14 @@ def test_ring_proof():
         alpha = bytes.fromhex(item['alpha'])
         ad = bytes.fromhex(item['ad'])
         keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item['ring_pks']))
+        start = time()
         ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        ring_time = time()
+        print(f"\nTime taken for Ring Root Construction: \t\t {1000 * (ring_time - start):.2f} ms")
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
         ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+        pk_time = time()
+        print(f"Time taken for Proof Generation: \t {1000 * (pk_time - ring_time):.2f} ms")
         proof_bytes = ring_vrf_proof.to_bytes()
         proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
         
@@ -115,6 +121,9 @@ def test_ring_proof():
         
         assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
         assert proof_rt.to_bytes() == proof_bytes
+        start = time()
         assert proof_rt.verify(alpha, ad, ring_root)
+        verify_time = time()
+        print(f"Time taken for Proof Verification: \t {1000 * (verify_time - start):.2f} ms")
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
 

@@ -86,14 +86,14 @@ class VRF:
         sk_encoded = Helpers.int_to_str(
             secret_key % cls.cv.curve.ORDER, cls.cv.curve.ENDIAN, scalr_len
         )
-        # hashed_sk = bytes(Hash.sha512(sk_encoded))
-        hashed_sk = cls.cv.curve.H_A(sk_encoded).digest()
-        sk_hash = hashed_sk[32:64]  # Use second half of SHA-512 output
+        hash_len = 2 * scalr_len
+        hashed_sk = cls.cv.curve.hash(sk_encoded, hash_len)
+        sk_hash = hashed_sk[scalr_len:hash_len]
         # Concatenate with input point encoding
         point_octet = input_point.point_to_string()
         data = sk_hash + point_octet
         # Generate final nonce
-        nonce_hash = cls.cv.curve.H_A(data).digest()
+        nonce_hash = cls.cv.curve.hash(data, hash_len)
         nonce = Helpers.str_to_int(nonce_hash, cls.cv.curve.ENDIAN)
         return nonce % cls.cv.curve.ORDER
 
@@ -123,7 +123,7 @@ class VRF:
         hash_input = challenge_string + additional_data + bytes([0x00])
 
         # Generate hash output
-        hash_output = cls.cv.curve.H_A(hash_input).digest()
+        hash_output = cls.cv.curve.hash(hash_input, cls.cv.curve.CHALLENGE_LENGTH)
 
         # Truncate to the curve's specified challenge length
         challenge_hash = hash_output[: cls.cv.curve.CHALLENGE_LENGTH]
@@ -238,7 +238,7 @@ class VRF:
         """
         proof_to_hash_domain_separator_front = b"\x03"
         proof_to_hash_domain_separator_back = b"\x00"
-        beta_string = cls.cv.curve.H_A(
+        beta_string = cls.cv.curve.hash(
             cls.cv.curve.SUITE_STRING
             + proof_to_hash_domain_separator_front
             + (
@@ -248,8 +248,8 @@ class VRF:
                 if not mul_cofactor
                 else gamma * cls.cv.curve.COFACTOR
             ).point_to_string()
-            + proof_to_hash_domain_separator_back
-        ).digest()
+            + proof_to_hash_domain_separator_back,
+        )
         return beta_string
 
     @classmethod

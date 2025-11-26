@@ -132,10 +132,6 @@ class Curve25519CurveSimple(MGCurve):
         pass
 
 
-# Try the main implementation first, fall back to simple if needed
-Curve25519_MG_Curve: Final[Curve25519Curve] = Curve25519Curve()
-
-
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     """
     Factory function to create a Curve25519Point class with a specific E2C variant.
@@ -147,27 +143,12 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
         A Curve25519Point class configured with the specified variant
     Example:
     """
-    # Create curve with the specified variant
-    curve = Curve25519Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class Curve25519PointVariant(MGAffinePoint):
         """Point on Curve25519 with custom E2C variant"""
-
+        curve: Final[Curve25519Curve] = Curve25519Curve(e2c_variant)
         pass
 
-    # Set the curve as a class attribute
-    Curve25519PointVariant.curve = curve
-
     return Curve25519PointVariant
-
-
-class Curve25519Point(MGAffinePoint):
-    """
-    Point on the Curve25519 Montgomery curve.
-    """
-
-    curve: Final[Curve25519Curve] = Curve25519_MG_Curve
     
 Curve25519_NU = CurveVariant(
     name="Curve25519_NU",

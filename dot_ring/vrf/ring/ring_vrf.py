@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Any
+from typing import List, Any, Tuple
 from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME, Blinding_Base, PaddingPoint, SeedPoint
 from dot_ring.ring_proof.constraints.aggregation import aggregate_constraints

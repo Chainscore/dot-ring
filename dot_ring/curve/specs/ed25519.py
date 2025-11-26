@@ -101,7 +101,6 @@ class Ed25519Curve(TECurve):
             CHALLENGE_LENGTH=Ed25519Params.CHALLENGE_LENGTH,
         )
 
-
     @classmethod
     def calculate_j_k(cls) -> Tuple[int, int]:
         """
@@ -113,26 +112,6 @@ class Ed25519Curve(TECurve):
         return (486662, 1) #As Curve25519 is its equivalent MGC
 
 
-# Singleton instance
-Ed25519_TE_Curve: Final[Ed25519Curve] = Ed25519Curve()
-
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
-    # Create curve with the specified variant
-    curve = Ed25519Curve(e2c_variant)
-    # Create and return a point class with this curve
-    class Ed25519PointVariant(Ed25519Point):
-        """Point on Ed25519 with custom E2C variant"""
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            # Call TEAffinePoint.__init__ directly to avoid Ed25519Point's __init__
-            TEAffinePoint.__init__(self, x, y, curve)
-
-    # Set the curve as a class attribute
-    Ed25519PointVariant.curve = curve
-
-    return Ed25519PointVariant
-
-@dataclass(frozen=True)
 class Ed25519Point(TEAffinePoint):
     """
     Point on the Bandersnatch curve.
@@ -140,7 +119,6 @@ class Ed25519Point(TEAffinePoint):
     Implements optimized point operations specific to the Bandersnatch curve,
     including GLV scalar multiplication.
     """
-    curve: Final[Ed25519Curve] = Ed25519_TE_Curve
 
     @classmethod
     def map_to_curve(cls, u: int):
@@ -163,6 +141,15 @@ class Ed25519Point(TEAffinePoint):
         x = (sqrt_neg_A_minus_2 * u * pow(v, -1, p)) % p
         return cls(x, y)
     
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
+    class Ed25519PointVariant(Ed25519Point):
+        """Point on Ed25519 with custom E2C variant"""
+        curve: Final[Ed25519Curve] = Ed25519Curve(e2c_variant)
+
+    return Ed25519PointVariant
+
+
 Ed25519_RO = CurveVariant(
     name="Ed25519_RO",
     curve=Ed25519Curve(e2c_variant=E2C_Variant.ELL2),
@@ -170,7 +157,7 @@ Ed25519_RO = CurveVariant(
 )
 
 Ed25519_NU = CurveVariant(
-    name="Ed25519_NU",
-    curve=Ed25519Curve(e2c_variant=E2C_Variant.ELL2_NU),
-    point=nu_variant(e2c_variant=E2C_Variant.ELL2_NU),
+    name="Ed25519_TAI",
+    curve=Ed25519Curve(e2c_variant=E2C_Variant.TAI),
+    point=nu_variant(e2c_variant=E2C_Variant.TAI),
 )

@@ -10,7 +10,6 @@ from ..field_element import FieldElement
 
 T = TypeVar('T', bound='SWAffinePoint')
 
-@dataclass(frozen=True)
 class SWAffinePoint(CurvePoint):
     """
     Affine point implementation for Short Weierstrass curves.

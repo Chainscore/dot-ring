@@ -121,25 +121,14 @@ BLS12_381_G1_SW_Curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve()
 
 
 def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
-    # Create curve with the specified variant
-    curve = BLS12_381_G1Curve(e2c_variant)
-
-    # Create and return a point class with this curve
     class BLS12_381_G1PointVariant(BLS12_381_G1Point):
         """Point on BLS12_381_G1 with custom E2C variant"""
+        curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve(e2c_variant)
 
-        def __init__(self, x: int, y: int) -> None:
-            """Initialize a point with the variant curve."""
-            # Call SWAffinePoint.__init__ directly to avoid BLS12_381_G1Point's __init__
-            SWAffinePoint.__init__(self, x, y, curve)
-
-    # Set the curve as a class attribute
-    BLS12_381_G1PointVariant.curve = curve
 
     return BLS12_381_G1PointVariant
 
 
-@dataclass(frozen=True)
 class BLS12_381_G1Point(SWAffinePoint):
     """
     Affine point on BLS12-381 G1.

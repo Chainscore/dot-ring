@@ -61,7 +61,7 @@ class Curve448Params:
     BBu: Final[int] = GENERATOR_U
     BBv: Final[int] = GENERATOR_V
     UNCOMPRESSED = True
-    POINT_LEN: Final[int] = 32
+    POINT_LEN: Final[int] = (PRIME_FIELD.bit_length() + 7) // 8
 
 
 class Curve448Curve(MGCurve):
