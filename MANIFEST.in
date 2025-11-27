@@ -3,3 +3,4 @@ include README.md
 include LICENSE
 recursive-include dot_ring *.pyx *.pxd *.c *.h
 recursive-include dot_ring/blst *.so *.dylib *.dll
+recursive-include dot_ring/vrf/data *.bin
