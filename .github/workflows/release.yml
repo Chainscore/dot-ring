@@ -38,13 +38,12 @@ jobs:
           # Use manylinux_2_28 (AlmaLinux 8 based) instead of manylinux2014 (CentOS 7 - EOL)
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
-          # Install SWIG 4.x from source (dnf swig is too old for blst)
+          # Install SWIG 4.x from official release tarball (includes pre-generated parser, no bison needed)
           CIBW_BEFORE_ALL_LINUX: >
             dnf install -y pcre2-devel gcc-c++ make wget &&
-            wget https://github.com/swig/swig/archive/refs/tags/v4.2.1.tar.gz &&
-            tar xzf v4.2.1.tar.gz &&
+            wget https://sourceforge.net/projects/swig/files/swig/swig-4.2.1/swig-4.2.1.tar.gz &&
+            tar xzf swig-4.2.1.tar.gz &&
             cd swig-4.2.1 &&
-            ./autogen.sh &&
             ./configure --prefix=/usr/local &&
             make -j$(nproc) &&
             make install &&
