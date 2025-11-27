@@ -35,7 +35,9 @@ jobs:
         env:
           # Skip PyPy and older Python versions
           CIBW_SKIP: "pp* cp36-* cp37-*"
-          # Ensure we have necessary build tools
+          # Install swig and build tools before building (swig needed for blst bindings)
+          CIBW_BEFORE_ALL_LINUX: "yum install -y swig || apt-get update && apt-get install -y swig || apk add swig"
+          CIBW_BEFORE_ALL_MACOS: "brew install swig"
           CIBW_BEFORE_BUILD: "pip install Cython setuptools wheel"
           # Build for x86_64 and aarch64 on Linux
           CIBW_ARCHS_LINUX: auto aarch64
@@ -88,21 +90,21 @@ jobs:
           files: dist/*
           generate_release_notes: true
 
-  # publish_pypi:
-  #   needs: [build_wheels, build_sdist]
-  #   runs-on: ubuntu-latest
-  #   environment: pypi
-  #   permissions:
-  #     id-token: write
-  #   if: startsWith(github.ref, 'refs/tags/')
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         pattern: cibw-*
-  #         path: dist
-  #         merge-multiple: true
-  #
-  #     - name: Publish to PyPI
-  #       uses: pypa/gh-action-pypi-publish@release/v1
-  #       # with:
-  #       #   password: ${{ secrets.PYPI_API_TOKEN }}
+  publish_pypi:
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+  
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
