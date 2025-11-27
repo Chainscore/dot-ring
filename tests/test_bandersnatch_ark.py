@@ -31,7 +31,7 @@ def test_ietf_ark_bandersnatch():
             if 'h' in vector:
                 assert input_point.point_to_string().hex() == vector['h']
             
-            proof = IETF_VRF[Bandersnatch].proof(alpha, secret_scalar, additional_data)
+            proof = IETF_VRF[Bandersnatch].prove(alpha, secret_scalar, additional_data)
             proof_bytes = proof.to_bytes()
             proof_rt = IETF_VRF[Bandersnatch].from_bytes(proof_bytes)
             
@@ -68,7 +68,7 @@ def test_pedersen_ark_bandersnatch():
             if 'h' in vector:
                 assert input_point.point_to_string().hex() == vector['h']
             
-            proof = PedersenVRF[Bandersnatch].proof(
+            proof = PedersenVRF[Bandersnatch].prove(
                 alpha, 
                 secret_scalar, 
                 additional_data
@@ -109,7 +109,7 @@ def test_ring_proof():
         ring_time = time()
         print(f"\nTime taken for Ring Root Construction: \t\t {1000 * (ring_time - start):.2f} ms")
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
-        ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
         pk_time = time()
         print(f"Time taken for Proof Generation: \t {1000 * (pk_time - ring_time):.2f} ms")
         proof_bytes = ring_vrf_proof.to_bytes()

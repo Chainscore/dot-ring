@@ -47,7 +47,7 @@ class VRF:
     Usage with subscript syntax:
         >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
         >>> from dot_ring.vrf.ietf.ietf import IETF_VRF
-        >>> proof = IETF_VRF[Bandersnatch].proof(alpha, secret_key, additional_data)
+        >>> proof = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     """
 
     cv: CurveVariant

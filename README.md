@@ -76,7 +76,7 @@ ring_pks="7b32d917d5aa771d493c47b0e096886827cd056c82dbdba19e60baa8b2c60313d3b1bd
 from dot_ring import Bandersnatch, IETF_VRF
 
 # Generate Proof
-proof: IETF_VRF = IETF_VRF[Bandersnatch].proof(alpha, secret_key, add)
+proof: IETF_VRF = IETF_VRF[Bandersnatch].prove(alpha, secret_key, add)
 # Or from bytes
 proof_bytes = proof.to_bytes()
 proof: IETF_VRF = IETF_VRF[Bandersnatch].from_bytes(proof_bytes)
@@ -91,7 +91,7 @@ is_valid: bool = proof.verify(public_key, alpha, add)
 from dot_ring import Bandersnatch, PedersenVRF
 
 # Generate Proof
-proof: PedersenVRF = PedersenVRF[Bandersnatch].proof(alpha, secret_key, add)
+proof: PedersenVRF = PedersenVRF[Bandersnatch].prove(alpha, secret_key, add)
 # Or import from bytes
 proof_bytes = proof.to_bytes()
 proof: PedersenVRF = PedersenVRF[Bandersnatch].from_bytes(proof_bytes)
@@ -114,7 +114,7 @@ ring_root = RingVRF[Bandersnatch].construct_ring_root(keys_list)
 # Generate Ring VRF proof
 # producer_key is the public key corresponding to secret_key
 producer_key = RingVRF[Bandersnatch].get_public_key(secret_key)
-proof: RingVRF = RingVRF[Bandersnatch].proof(alpha, add, secret_key, producer_key, keys_list)
+proof: RingVRF = RingVRF[Bandersnatch].prove(alpha, add, secret_key, producer_key, keys_list)
 # Or from bytes
 proof_bytes = proof.to_bytes() # 768 bytes ring proof
 proof: RingVRF = RingVRF[Bandersnatch].from_bytes(proof_bytes)

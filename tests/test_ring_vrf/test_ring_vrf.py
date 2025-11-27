@@ -26,7 +26,7 @@ def test_ring_proof():
         print(f"\nTime taken for Ring Root Construction: \t\t {ring_time - start_time} seconds")
         
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
-        ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
         proof_bytes = ring_vrf_proof.to_bytes()
         proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
         
