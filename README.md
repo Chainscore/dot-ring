@@ -1,4 +1,4 @@
-![alt text](./docs/cover.svg)
+![alt text](https://raw.githubusercontent.com/Chainscore/dot-ring/refs/heads/main/docs/cover.svg)
 
 [![Tests](https://github.com/Chainscore/dot-ring/actions/workflows/test.yml/badge.svg)](https://github.com/Chainscore/dot-ring/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/Chainscore/dot-ring/branch/main/graph/badge.svg)](https://codecov.io/gh/Chainscore/dot-ring)
@@ -165,7 +165,7 @@ docker run -it dot_ring bash
 
 Prasad // Chainscore Labs
 
-![alt text](<docs/chainscore.png>)
+![alt text](https://raw.githubusercontent.com/Chainscore/dot-ring/refs/heads/main/docs/chainscore.png)
 
 [Email](mailto:prasad@chainscore.finance)
 
