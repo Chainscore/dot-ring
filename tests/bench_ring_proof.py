@@ -19,7 +19,7 @@ from pathlib import Path
 # Add blst to path if needed
 sys.path.insert(0, str(Path(__file__).parent / "blst" / "bindings" / "python"))
 
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring import Bandersnatch
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 

@@ -263,7 +263,6 @@ dependencies = [
     { name = "gmpy2" },
     { name = "numpy" },
     { name = "py-ecc" },
-    { name = "pyblst" },
     { name = "pytest" },
     { name = "sympy" },
 ]
@@ -289,7 +288,6 @@ requires-dist = [
     { name = "gmpy2", specifier = ">=2.1.0" },
     { name = "numpy", specifier = ">=2.2.3" },
     { name = "py-ecc", specifier = ">=8.0.0" },
-    { name = "pyblst", specifier = ">=0.3.13" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
@@ -481,29 +479,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1c/96/e73075d5c885274efada2fbc5db6377022036c2f5b4b470dbcf4106e07d5/py_ecc-8.0.0.tar.gz", hash = "sha256:56aca19e5dc37294f60c1cc76666c03c2276e7666412b9a559fa0145d099933d", size = 51193, upload-time = "2025-04-14T16:14:03.29Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/58/383335eac96d2f1aba78741c6ce128c54e7eba2ea1dc47408257d751d35c/py_ecc-8.0.0-py3-none-any.whl", hash = "sha256:c0b2dfc4bde67a55122a392591a10e851a986d5128f680628c80b405f7663e13", size = 47814, upload-time = "2025-04-14T16:14:01.827Z" },
-]
-
-[[package]]
-name = "pyblst"
-version = "0.3.15"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/58/ec/c5aa7ee876a5cbed66438d590fa4eb1eb84d6527f632cd74511096f255ab/pyblst-0.3.15.tar.gz", hash = "sha256:258831210c069ece6d9894bffbe8013834f094d874f30070a4ad8d5a0e317c08", size = 12187, upload-time = "2025-10-14T20:51:17.372Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/e3/0f80fdb042ad60aaadcc78aec42b7fdcc8f6df3e0ecd590a55cd88eb45b8/pyblst-0.3.15-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:d174dfc26d5cc8a147216566173636a3285d80cb66feec08135937451d3c141f", size = 298081, upload-time = "2025-10-14T20:50:55.218Z" },
-    { url = "https://files.pythonhosted.org/packages/53/f7/c353a18576515eeb29854f29ac411e9782dc65c1ac1c6f99117b3941badb/pyblst-0.3.15-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c2612e97637eadce6cef0ed006681c0ff6e1b4edf3b59c8f5ed590957971693f", size = 284005, upload-time = "2025-10-14T20:50:56.089Z" },
-    { url = "https://files.pythonhosted.org/packages/8d/d8/c7abff2554e266dfb2073c95f2278c099757042ba65062a8db1124225bdc/pyblst-0.3.15-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7408a9a8d3694b4f20668e5c3f966e22e61fe5e84e9511f38b5300b225d19182", size = 320028, upload-time = "2025-10-14T20:50:57.027Z" },
-    { url = "https://files.pythonhosted.org/packages/97/8b/de6b56f248cf35bd964dafd467f445a485b5019bb9689c145cf3fa477187/pyblst-0.3.15-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6d9143edc459af7bcc43a1ff73cfcf3227a6f848a4140fde2cb41531ca34db95", size = 340715, upload-time = "2025-10-14T20:50:58.096Z" },
-    { url = "https://files.pythonhosted.org/packages/b7/1e/8aae4afa103565165e17fdf47f0403202c13c3b11469804f2d3037f8f879/pyblst-0.3.15-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:a476ab90a76a0282b7404f8ebdbf0f14519faaded28cd4f3982d691862907b65", size = 349145, upload-time = "2025-10-14T20:50:59.223Z" },
-    { url = "https://files.pythonhosted.org/packages/61/c4/0955c6a92f24107111155d3beb38922e3d22d78f2ab3cecd46de275e455e/pyblst-0.3.15-cp312-cp312-win_amd64.whl", hash = "sha256:0c2e1f73a4739e9c5c000f00e362d6abe8cd405ec4b94a7db509ef546033999a", size = 188331, upload-time = "2025-10-14T20:51:00.118Z" },
-    { url = "https://files.pythonhosted.org/packages/31/23/7027b20404b92c1a38c075ec919fdafb6544e772b44f07926fe7ec100a98/pyblst-0.3.15-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:4b82f23ade52a751c89049cb114257d55671e10c86cd6d7cf727022f837f060e", size = 298068, upload-time = "2025-10-14T20:51:00.897Z" },
-    { url = "https://files.pythonhosted.org/packages/18/49/a818461e5943925f5e7d4087e24590f68abed3d0f5c774318f44f72ed17c/pyblst-0.3.15-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:c8748d1d1ae5459d3832e1f25d1f85d589410e60c8a033f8fc1819962f7d48d1", size = 284057, upload-time = "2025-10-14T20:51:01.705Z" },
-    { url = "https://files.pythonhosted.org/packages/db/f8/9da4927989c33972f7d556ec45a907efe248fc49bac4f32dd07acdf6b536/pyblst-0.3.15-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:566fdcb29cf517400846192e7c8b748866f1b7ddc6cac2d118f3b524e1e7c74f", size = 319700, upload-time = "2025-10-14T20:51:02.542Z" },
-    { url = "https://files.pythonhosted.org/packages/e1/da/41fb855e9091b893b2490f0e76a0480066ceffa8a50a95049d6309d945e0/pyblst-0.3.15-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cc156bbe5fc1544f23055ecde82486fcd036ae6f0ee8951991d1b3da11f61872", size = 339888, upload-time = "2025-10-14T20:51:03.393Z" },
-    { url = "https://files.pythonhosted.org/packages/22/bb/926f29502fbace3321d36ecc1779f3a93893498d54bf39f36ad6b808c703/pyblst-0.3.15-cp313-cp313-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:575a25fe6ed8c7f8f4fa3fc711a99bb5fb7b375dfb3fbadf6504e590e88a3377", size = 348312, upload-time = "2025-10-14T20:51:04.389Z" },
-    { url = "https://files.pythonhosted.org/packages/af/48/a07bf11b682f58037928cf992e43f1f7c8470292cf11a9a27583e91c439d/pyblst-0.3.15-cp313-cp313-win_amd64.whl", hash = "sha256:c9e038d9fa4a27f97cb554d316827c92672c1b9c4df06f66bdc8bdbca8825991", size = 187731, upload-time = "2025-10-14T20:51:05.28Z" },
-    { url = "https://files.pythonhosted.org/packages/8f/bc/02f2fdc237048608ad3e6206ea7fda3314ca76f6d2157882d2abb23d6be8/pyblst-0.3.15-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6955cf55c29130f6d6a628a98b0355b79c65d34e3e3daa5fbdf5da566ff6e017", size = 318717, upload-time = "2025-10-14T20:51:06.126Z" },
-    { url = "https://files.pythonhosted.org/packages/49/ca/26977441e9b82ce974231c72de8d75029fb56999a57dff028ebb4c633c4f/pyblst-0.3.15-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5862365f3d699760342359d682902709659002046b6ece65c61975def6d999db", size = 339990, upload-time = "2025-10-14T20:51:07.073Z" },
-    { url = "https://files.pythonhosted.org/packages/75/8f/cf4e992039f1516fb8d099969625a3b63cdedb2e600ca26c62ff2fa2065d/pyblst-0.3.15-cp314-cp314-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:25aef3945ba479dd5d6436ec9054ef5f0ef9e6bd53ed8a0a49af3fb2d389797b", size = 348582, upload-time = "2025-10-14T20:51:07.969Z" },
 ]
 
 [[package]]

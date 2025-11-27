@@ -73,8 +73,7 @@ ring_pks="7b32d917d5aa771d493c47b0e096886827cd056c82dbdba19e60baa8b2c60313d3b1bd
 ```
 ### For IETF VRF
 ```python
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
-from dot_ring.vrf.ietf.ietf import IETF_VRF
+from dot_ring import Bandersnatch, IETF_VRF
 
 # Generate Proof
 proof: IETF_VRF = IETF_VRF[Bandersnatch].proof(alpha, secret_key, add)
@@ -89,8 +88,7 @@ is_valid: bool = proof.verify(public_key, alpha, add)
 
 ### For Pedersen VRF
 ```python
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
-from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+from dot_ring import Bandersnatch, PedersenVRF
 
 # Generate Proof
 proof: PedersenVRF = PedersenVRF[Bandersnatch].proof(alpha, secret_key, add)
@@ -105,8 +103,7 @@ is_valid: bool = proof.verify(alpha, add)
 
 ### For Ring VRF
 ```python
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
-from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring import Bandersnatch, RingVRF
 
 # Parse keys if they are in a single byte string
 keys_list = RingVRF[Bandersnatch].parse_keys(ring_pks)
