@@ -33,25 +33,30 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
         env:
-          # Skip PyPy and older Python versions, skip musllinux
-          CIBW_SKIP: "pp* cp36-* cp37-* cp38-* *-musllinux_*"
+          # Skip PyPy, older Python versions, and musllinux
+          CIBW_SKIP: "pp* cp36-* cp37-* cp38-* cp39-* *-musllinux_*"
           # Use manylinux_2_28 (AlmaLinux 8 based) instead of manylinux2014 (CentOS 7 - EOL)
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           # Install SWIG 4.x from official release tarball (includes pre-generated parser, no bison needed)
-          CIBW_BEFORE_ALL_LINUX: >
-            dnf install -y pcre2-devel gcc-c++ make wget &&
-            wget https://sourceforge.net/projects/swig/files/swig/swig-4.2.1/swig-4.2.1.tar.gz &&
-            tar xzf swig-4.2.1.tar.gz &&
-            cd swig-4.2.1 &&
-            ./configure --prefix=/usr/local &&
-            make -j$(nproc) &&
-            make install &&
+          # Use command -v to check for dnf/yum availability
+          CIBW_BEFORE_ALL_LINUX: |
+            if command -v dnf &> /dev/null; then
+              dnf install -y pcre2-devel gcc-c++ make wget
+            elif command -v yum &> /dev/null; then
+              yum install -y pcre2-devel gcc-c++ make wget
+            fi
+            wget https://sourceforge.net/projects/swig/files/swig/swig-4.2.1/swig-4.2.1.tar.gz
+            tar xzf swig-4.2.1.tar.gz
+            cd swig-4.2.1
+            ./configure --prefix=/usr/local
+            make -j$(nproc)
+            make install
             ln -sf /usr/local/bin/swig /usr/bin/swig
           CIBW_BEFORE_ALL_MACOS: "brew install swig"
           CIBW_BEFORE_BUILD: "pip install Cython setuptools wheel"
-          # Build for x86_64 and aarch64 on Linux
-          CIBW_ARCHS_LINUX: auto aarch64
+          # Build only x86_64 for now (aarch64 requires different handling)
+          CIBW_ARCHS_LINUX: x86_64
           # Build for x86_64 and arm64 on macOS
           CIBW_ARCHS_MACOS: x86_64 arm64
 
