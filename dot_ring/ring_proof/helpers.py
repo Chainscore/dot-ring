@@ -48,7 +48,7 @@ class Helpers:
         """
         # Fast path: use BLST directly if available
         try:
-            import blst
+            from dot_ring import blst
             if isinstance(byte_array, str):
                 byte_array = bytes.fromhex(byte_array)
             p1_affine = blst.P1_Affine(byte_array)

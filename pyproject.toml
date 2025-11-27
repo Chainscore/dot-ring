@@ -41,7 +41,6 @@ dependencies = [
     "sympy>=1.13.1",
     "pytest>=8.3.5",
     "py-ecc>=8.0.0",
-    "pyblst>=0.3.13",
     "gmpy2>=2.1.0"
 ]
 
@@ -76,5 +75,5 @@ Issues = "https://github.com/chainscore/dot-ring/issues"
 Documentation = "https://github.com/chainscore/dot-ring#readme"
 
 [build-system]
-requires = ["setuptools>=65.0.0", "wheel"]
+requires = ["setuptools>=65.0.0", "wheel", "Cython>=3.0.0"]
 build-backend = "setuptools.build_meta"

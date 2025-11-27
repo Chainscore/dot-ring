@@ -12,36 +12,24 @@ from py_ecc.optimized_bls12_381 import normalize as nm  # type: ignore[import-un
 from dot_ring.ring_proof.pcs.kzg import KZG
 from py_ecc.optimized_bls12_381 import curve_order  # type: ignore[import-untyped]
 from dot_ring.ring_proof.helpers import Helpers as H
-from dot_ring.ring_proof.pcs.utils import py_ecc_point_to_blst
+from dot_ring.ring_proof.pcs.utils import g1_to_blst
 
-import blst as _blst  # type: ignore[import-untyped]
+from dot_ring import blst as _blst  # type: ignore[import-untyped]
 
 blst = cast(Any, _blst)
 
-from pyblst import BlstP1Element  # type: ignore[import-untyped]
 
-
-def blst_msm(points: list, scalars: list) -> BlstP1Element:
+def blst_msm(points: list, scalars: list):
     """
     Multi-scalar multiplication using Pippenger's algorithm via blst.
     Much faster than individual scalar_mul + add operations.
     """
     if not points:
-        return BlstP1Element()
-    
-    # Convert BlstP1Element to blst.P1 for MSM
-    p1_list = []
-    for p in points:
-        comp = bytes(p.compress())
-        p1 = blst.P1(blst.P1_Affine(comp))
-        p1_list.append(p1)
+        return blst.P1()
     
     # Use Pippenger MSM
-    memory = blst.P1_Affines.as_memory(p1_list)
-    result = blst.P1_Affines.mult_pippenger(memory, scalars)
-    
-    # Convert back to BlstP1Element
-    return BlstP1Element().uncompress(result.compress())
+    memory = blst.P1_Affines.as_memory(points)
+    return blst.P1_Affines.mult_pippenger(memory, scalars)
 
 
 def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime: int) -> int:
@@ -102,18 +90,17 @@ class Verify:
         self.relation_to_proove = rl_to_proove
         self.Result_plus_Seed, self.sp, self.D = rps, seed_point, Domain
 
-        # Pre-convert points to pyblst 
-        self.Cb_blst = py_ecc_point_to_blst(self.Cb)
-        self.Caccip_blst = py_ecc_point_to_blst(self.Caccip)
-        self.Caccx_blst = py_ecc_point_to_blst(self.Caccx)
-        self.Caccy_blst = py_ecc_point_to_blst(self.Caccy)
-        self.Cq_blst = py_ecc_point_to_blst(self.Cq)
-        self.Phi_zeta_blst = py_ecc_point_to_blst(self.Phi_zeta)
-        self.Phi_zeta_omega_blst = py_ecc_point_to_blst(self.Phi_zeta_omega)
+        self.Cb_blst = g1_to_blst(self.Cb)
+        self.Caccip_blst = g1_to_blst(self.Caccip)
+        self.Caccx_blst = g1_to_blst(self.Caccx)
+        self.Caccy_blst = g1_to_blst(self.Caccy)
+        self.Cq_blst = g1_to_blst(self.Cq)
+        self.Phi_zeta_blst = g1_to_blst(self.Phi_zeta)
+        self.Phi_zeta_omega_blst = g1_to_blst(self.Phi_zeta_omega)
         
-        self.Cpx_blst = py_ecc_point_to_blst(self.Cpx)
-        self.Cpy_blst = py_ecc_point_to_blst(self.Cpy)
-        self.Cs_blst = py_ecc_point_to_blst(self.Cs)
+        self.Cpx_blst = g1_to_blst(self.Cpx)
+        self.Cpy_blst = g1_to_blst(self.Cpy)
+        self.Cs_blst = g1_to_blst(self.Cs)
 
         # can even put as separate function
         self.t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
