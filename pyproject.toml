@@ -1,6 +1,6 @@
 [project]
 name = "dot-ring"
-version = "0.1.0"
+version = "0.1.1"
 description = "Serves as a library to generate and verify a signature using IETF, Pedersen and Ring VRF-AD Schemes"
 authors = [
     {name = "prasad-kumkar", email = "prasad@chainscore.finance"}
@@ -47,6 +47,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 include = ["dot_ring*"]
 exclude = ["tests*", "blst*", "perf*", "testenv*"]
+
+[tool.setuptools.package-data]
+dot_ring = ["vrf/data/*.bin"]
 
 [project.optional-dependencies]
 dev = [
