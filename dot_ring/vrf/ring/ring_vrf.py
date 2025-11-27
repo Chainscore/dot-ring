@@ -33,7 +33,7 @@ class RingVRF(VRF):
     Usage:
     >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
     >>> from dot_ring.vrf.ring.ring_vrf import RingVRF
-    >>> proof = RingVRF[Bandersnatch].proof(alpha, ad, secret_key, producer_key, keys)
+    >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, producer_key, keys)
     >>> verified = RingVRF[Bandersnatch].verify(ad, ring_root, proof)
     
     Note: Ring VRF currently only supports Bandersnatch curve.
@@ -303,7 +303,7 @@ class RingVRF(VRF):
         return RingRoot(*fixed_cols)
 
     @classmethod
-    def proof(
+    def prove(
         cls,
         alpha: bytes,
         ad: bytes,
@@ -315,7 +315,7 @@ class RingVRF(VRF):
         Generate ring VRF proof (pedersen vrf proof + ring_proof)
         """
         # pedersen_proof
-        pedersen_proof = PedersenVRF[cls.cv].proof(alpha, secret_key, ad)
+        pedersen_proof = PedersenVRF[cls.cv].prove(alpha, secret_key, ad)
 
         # ring_proof
         ring_proof = cls.generate_bls_signature(

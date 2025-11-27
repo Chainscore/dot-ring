@@ -59,7 +59,7 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     # =========================================================================
     print("Warming up...")
     for _ in range(warmup_iters):
-        ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
         ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
         ring_vrf_proof.verify(alpha, ad, ring_root)
     
@@ -83,7 +83,7 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     proofs = []
     for _ in range(bench_iters):
         start = time.perf_counter()
-        ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
         elapsed = (time.perf_counter() - start) * 1000
         proof_times.append(elapsed)
         proofs.append(ring_vrf_proof)

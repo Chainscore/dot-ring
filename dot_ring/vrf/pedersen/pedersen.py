@@ -20,7 +20,7 @@ class PedersenVRF(VRF):
     Usage:
     >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
     >>> from dot_ring.vrf.pedersen.pedersen import PedersenVRF
-    >>> proof = PedersenVRF[Bandersnatch].proof(alpha, secret_key, additional_data)
+    >>> proof = PedersenVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     >>> verified = PedersenVRF[Bandersnatch].verify(input_point, additional_data, proof)
     """
     
@@ -87,7 +87,7 @@ class PedersenVRF(VRF):
         return proof
     
     @classmethod
-    def proof(
+    def prove(
         cls,
         alpha: bytes,
         secret_key: bytes,

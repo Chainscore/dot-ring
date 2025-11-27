@@ -16,7 +16,7 @@ class IETF_VRF(VRF):
     Usage:
     >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
     >>> from dot_ring.vrf.ietf.ietf import IETF_VRF
-    >>> proof: IETF_VRF = IETF_VRF[Bandersnatch].proof(alpha, secret_key, additional_data)
+    >>> proof: IETF_VRF = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     >>> verified = proof.verify(public_key, input_point, additional_data)
     """
     output_point: CurvePoint
@@ -71,7 +71,7 @@ class IETF_VRF(VRF):
         return proof
     
     @classmethod
-    def proof(
+    def prove(
         cls,
         alpha: bytes,
         secret_key: bytes,

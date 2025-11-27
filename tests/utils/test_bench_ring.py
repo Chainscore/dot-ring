@@ -46,7 +46,7 @@ def test_bench_ring_prove():
                      print_stats=False,
                      sort_by='cumulative',
                      limit=25):
-            ring_vrf_proof = RingVRF[Bandersnatch].proof(alpha, ad, s_k, p_k, keys)
+            ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
         
         # Verify correctness
         assert p_k.hex() == item['pk'], "Invalid Public Key"

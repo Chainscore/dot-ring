@@ -49,7 +49,7 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 if 'h' in vector:
                     assert input_point.point_to_string().hex() == vector['h']
                 
-                proof = PedersenVRF[curve_variant].proof(alpha, secret_scalar, additional_data)
+                proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
                 proof_bytes = proof.to_bytes()
                 proof_rt = PedersenVRF[curve_variant].from_bytes(proof_bytes)
                 

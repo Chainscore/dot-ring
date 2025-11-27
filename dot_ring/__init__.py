@@ -7,16 +7,16 @@ Example usage:
     >>> from dot_ring import Bandersnatch, IETF_VRF, PedersenVRF, RingVRF
     >>> 
     >>> # IETF VRF
-    >>> proof = IETF_VRF[Bandersnatch].proof(alpha, secret_key, additional_data)
+    >>> proof = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     >>> is_valid = proof.verify(public_key, alpha, additional_data)
     >>>
     >>> # Pedersen VRF
-    >>> proof = PedersenVRF[Bandersnatch].proof(alpha, secret_key, additional_data)
+    >>> proof = PedersenVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     >>> is_valid = proof.verify(alpha, additional_data)
     >>>
     >>> # Ring VRF
     >>> ring_root = RingVRF[Bandersnatch].construct_ring_root(keys_list)
-    >>> proof = RingVRF[Bandersnatch].proof(alpha, ad, secret_key, producer_key, keys)
+    >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, producer_key, keys)
     >>> is_valid = proof.verify(alpha, ad, ring_root)
 """
 

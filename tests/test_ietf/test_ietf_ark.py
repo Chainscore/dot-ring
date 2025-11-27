@@ -54,7 +54,7 @@ def test_ietf_ark(curve_variant, file_prefix, subdir, gamma_len):
                 if 'h' in vector:
                     assert input_point.point_to_string().hex() == vector['h']
                 
-                proof = IETF_VRF[curve_variant].proof(alpha, secret_scalar, additional_data, salt)
+                proof = IETF_VRF[curve_variant].prove(alpha, secret_scalar, additional_data, salt)
                 proof_bytes = proof.to_bytes()
                 proof_rt = IETF_VRF[curve_variant].from_bytes(proof_bytes)
                 

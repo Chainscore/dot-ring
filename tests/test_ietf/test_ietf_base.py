@@ -49,7 +49,7 @@ def test_ietf_base(curve_variant, file_prefix):
                 # Public Key
                 pk_bytes = IETF_VRF[curve_variant].get_public_key(secret_scalar)
                 
-                proof = IETF_VRF[curve_variant].proof(alpha, secret_scalar, additional_data)
+                proof = IETF_VRF[curve_variant].prove(alpha, secret_scalar, additional_data)
                 proof_bytes = proof.to_bytes()
                 proof_rt = IETF_VRF[curve_variant].from_bytes(proof_bytes)
                 
