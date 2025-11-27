@@ -33,13 +33,22 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
         env:
-          # Skip PyPy and older Python versions, skip older manylinux
+          # Skip PyPy and older Python versions, skip musllinux
           CIBW_SKIP: "pp* cp36-* cp37-* cp38-* *-musllinux_*"
           # Use manylinux_2_28 (AlmaLinux 8 based) instead of manylinux2014 (CentOS 7 - EOL)
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
-          # Install swig and build tools before building (swig needed for blst bindings)
-          CIBW_BEFORE_ALL_LINUX: "dnf install -y swig"
+          # Install SWIG 4.x from source (dnf swig is too old for blst)
+          CIBW_BEFORE_ALL_LINUX: >
+            dnf install -y pcre2-devel gcc-c++ make wget &&
+            wget https://github.com/swig/swig/archive/refs/tags/v4.2.1.tar.gz &&
+            tar xzf v4.2.1.tar.gz &&
+            cd swig-4.2.1 &&
+            ./autogen.sh &&
+            ./configure --prefix=/usr/local &&
+            make -j$(nproc) &&
+            make install &&
+            ln -sf /usr/local/bin/swig /usr/bin/swig
           CIBW_BEFORE_ALL_MACOS: "brew install swig"
           CIBW_BEFORE_BUILD: "pip install Cython setuptools wheel"
           # Build for x86_64 and aarch64 on Linux
