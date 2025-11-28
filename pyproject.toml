@@ -49,16 +49,20 @@ include = ["dot_ring*"]
 exclude = ["tests*", "blst*", "perf*", "testenv*"]
 
 [tool.setuptools.package-data]
-dot_ring = ["vrf/data/*.bin", "ring_proof/columns/*.json"]
+dot_ring = [
+    "py.typed",
+    "vrf/data/*.bin",
+    "ring_proof/columns/*.json",
+    "blst/*.so",
+    "blst/*.dylib",
+    "blst/*.dll",
+    "blst/*.pyd",
+]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-timeout>=2.1.0",
-    "pytest-xdist>=3.0.0",
     "Cython>=3.0.0",
     "build>=1.0.0",
     "setuptools>=65.0.0",
@@ -66,10 +70,21 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
 filterwarnings = [
     "ignore:.*SwigPy.*:DeprecationWarning",
     "ignore:.*swigvarlink.*:DeprecationWarning"
 ]
+
+[tool.pyright]
+include = ["dot_ring", "tests", "scripts"]
+pythonVersion = "3.12"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportMissingImports = false
+reportMissingTypeStubs = false
+extraPaths = ["."]
 
 [project.urls]
 Homepage = "https://github.com/chainscore/dot-ring"

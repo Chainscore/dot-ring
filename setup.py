@@ -1,3 +1,16 @@
+"""
+Build script for dot-ring.
+
+Builds:
+1. Cython extensions for performance-critical code
+2. blst library bindings (BLS12-381 cryptography)
+
+Requirements:
+- C compiler (gcc/clang)
+- SWIG (for blst bindings)
+- Cython
+"""
+
 import os
 import sys
 import subprocess
@@ -7,7 +20,7 @@ from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 from Cython.Build import cythonize
 
-# Define Cython extensions
+
 cython_extensions = [
     Extension(
         "dot_ring.curve.field_arithmetic",
@@ -26,66 +39,80 @@ cython_extensions = [
     ),
 ]
 
+
 class CustomBuildExt(build_ext):
+    """Custom build that also compiles blst bindings."""
+
     def run(self):
-        # 1. Build Cython extensions
         super().run()
-        
-        # 2. Build blst bindings
         self.build_blst()
 
     def build_blst(self):
-        print("Building blst bindings...")
+        """Build blst library bindings from source."""
         root_dir = Path(__file__).parent.absolute()
+        dest_dir = root_dir / "dot_ring" / "blst"
         blst_dir = root_dir / ".blst"
-        
-        # Check if blst source exists
+
+        print("Building blst bindings...")
+
+        # Clone blst if not present
         if not blst_dir.exists():
-            print("Cloning blst...")
-            subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
-        
+            print("Cloning blst repository...")
+            subprocess.check_call([
+                "git", "clone", "--depth", "1",
+                "https://github.com/supranational/blst.git",
+                str(blst_dir)
+            ])
+
+        # Clean previous build artifacts (may be for different platform)
+        self._clean_blst_artifacts(blst_dir)
+
+        # Build blst
         bindings_dir = blst_dir / "bindings" / "python"
         run_me = bindings_dir / "run.me"
-        
+
         if not run_me.exists():
-             print("Error: run.me not found in blst bindings. Re-cloning...")
-             shutil.rmtree(blst_dir)
-             subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
-        
-        # Ensure run.me is executable
+            raise RuntimeError("blst/bindings/python/run.me not found")
+
         os.chmod(run_me, 0o755)
-        
-        # Run the build script
+
         if sys.platform == "win32":
-            # On Windows, try to use git bash's sh.exe or similar if available
-            # Or just assume sh is in path (e.g. from Git)
             subprocess.check_call(["sh", str(run_me)], cwd=bindings_dir)
         else:
             subprocess.check_call([str(run_me)], cwd=bindings_dir)
-        
+
         # Copy artifacts to dot_ring/blst
-        dest_dir = root_dir / "dot_ring" / "blst"
         dest_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Copy blst.py -> __init__.py
         shutil.copy(bindings_dir / "blst.py", dest_dir / "__init__.py")
-        
+
         # Copy shared library
-        extensions = ["*.so", "*.dylib", "*.dll"]
         copied = False
-        for ext in extensions:
-            for file in bindings_dir.glob(ext):
-                print(f"Copying {file.name} to {dest_dir}...")
-                shutil.copy(file, dest_dir / file.name)
+        for ext in ["*.so", "*.dylib", "*.dll"]:
+            for f in bindings_dir.glob(ext):
+                print(f"Copying {f.name} to {dest_dir}")
+                shutil.copy(f, dest_dir / f.name)
                 copied = True
-        
+
         if not copied:
-            raise RuntimeError("Failed to build/find blst shared library")
+            raise RuntimeError("Failed to build blst shared library")
+
+    def _clean_blst_artifacts(self, blst_dir: Path):
+        """Clean previous blst build artifacts."""
+        for pattern in ["libblst.a", "**/*.o", "**/*.so", "**/*.dylib"]:
+            for f in blst_dir.glob(pattern):
+                f.unlink()
+
+        bindings_dir = blst_dir / "bindings" / "python"
+        for f in ["blst.py", "blst_wrap.cpp"]:
+            path = bindings_dir / f
+            if path.exists():
+                path.unlink()
+
 
 setup(
     name="dot-ring",
-    version="0.1.0",
-    packages=find_packages(),
+    version="0.1.2",
+    packages=find_packages(exclude=["tests*", "perf*"]),
     ext_modules=cythonize(
         cython_extensions,
         compiler_directives={
@@ -97,7 +124,10 @@ setup(
     ),
     cmdclass={"build_ext": CustomBuildExt},
     package_data={
-        "dot_ring.blst": ["*.so", "*.dylib", "*.dll"],
+        "dot_ring": ["py.typed"],
+        "dot_ring.blst": ["*.so", "*.dylib", "*.dll", "*.pyd"],
+        "dot_ring.vrf": ["data/*.bin"],
+        "dot_ring.ring_proof": ["columns/*.json"],
     },
     include_package_data=True,
 )
