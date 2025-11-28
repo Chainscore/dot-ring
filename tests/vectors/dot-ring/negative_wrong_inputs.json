@@ -1,0 +1,29 @@
+[
+  {
+    "comment": "wrong public key - should fail",
+    "proof": "0c00ccefb9512cc4879aff8435211325aeaa475b820f2249b84b3813b6b43c865683f8f5215b4a24a0bd3456be26aeae66e6eec0dc53dca49f5fcc4bf96d6f1c79cbe349e38c20a8733b47ec8ae8a230576fb893c000a6515e92dbc4f6f43f0f",
+    "correct_pk": "cafe3a1001a946130f813ce160fc9c9e8eb25130d352da2e60706de439552383",
+    "wrong_pk": "65ad058d7b69d446cbe4b648633ae0cd61d6b660bd857bbe47594cb8362b8caf",
+    "alpha": "746573745f696e707574",
+    "ad": "746573745f6164",
+    "expected_result": "FAIL"
+  },
+  {
+    "comment": "wrong alpha input - should fail",
+    "proof": "0c00ccefb9512cc4879aff8435211325aeaa475b820f2249b84b3813b6b43c865683f8f5215b4a24a0bd3456be26aeae66e6eec0dc53dca49f5fcc4bf96d6f1c79cbe349e38c20a8733b47ec8ae8a230576fb893c000a6515e92dbc4f6f43f0f",
+    "pk": "cafe3a1001a946130f813ce160fc9c9e8eb25130d352da2e60706de439552383",
+    "correct_alpha": "746573745f696e707574",
+    "wrong_alpha": "77726f6e675f696e707574",
+    "ad": "746573745f6164",
+    "expected_result": "FAIL"
+  },
+  {
+    "comment": "wrong additional data - should fail",
+    "proof": "0c00ccefb9512cc4879aff8435211325aeaa475b820f2249b84b3813b6b43c865683f8f5215b4a24a0bd3456be26aeae66e6eec0dc53dca49f5fcc4bf96d6f1c79cbe349e38c20a8733b47ec8ae8a230576fb893c000a6515e92dbc4f6f43f0f",
+    "pk": "cafe3a1001a946130f813ce160fc9c9e8eb25130d352da2e60706de439552383",
+    "alpha": "746573745f696e707574",
+    "correct_ad": "746573745f6164",
+    "wrong_ad": "77726f6e675f6164",
+    "expected_result": "FAIL"
+  }
+]

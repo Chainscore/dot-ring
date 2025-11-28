@@ -1,0 +1,93 @@
+[
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-1",
+    "sk": "01d0fabd251fcbbe2b93b4b927b26ad2a1a99077152e45ded1e678afa45dbec5",
+    "pk": "02683b87ef94aee8c668723e34885460e582acb56b55295288fac1b193fb28a629",
+    "alpha": "",
+    "salt": "",
+    "ad": "",
+    "h": "032c15230b26dbc6fc9a37051158c95b79656e17a1a920b11394ca91c44247d3e4",
+    "gamma": "03687b14e6b83fa5b518e66de9fbc9014383c000bb4665d55e832fe3f76cb99106",
+    "beta": "8d2ff9100aaa8168ed3457ef9f173f64d41dd01496508428b2d4c460b295cd64",
+    "proof_c": "2b4ecee97bb3d3612889a97c7624dcaa",
+    "proof_s": "fd250772540aad05f63a75563699b5669e830f936958b510665dfd70a9ab8487"
+  },
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-2",
+    "sk": "5778f985db754c6628691f56fadae50c65fddbe8eb2e93039633fefa05d45e31",
+    "pk": "03f5f7c9dea689dbfc78c28370577ce16bdc04fda1f52df06533e32c7528f1c474",
+    "alpha": "0a",
+    "salt": "",
+    "ad": "",
+    "h": "02fd749a4b45933f12b05a8a5802c93be40571127d0508fa793163ebbaac390ba6",
+    "gamma": "02c1f369b520ddc3b788bc1e025af5436aafd6355f118f1cc982d154d2f37a5354",
+    "beta": "05b0d56ef6bdfba09ae2eaad058c49082422ef64d53ba02099eac80e1a12f440",
+    "proof_c": "a9a6dca138e428eb4c81982b0004d28b",
+    "proof_s": "9f75d37d9097f04030610f2b9ea194598e4208c9de35d2bdcb601d01fc77968c"
+  },
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-3",
+    "sk": "91d3827f052f5a4b44d5fe2bed657c752247365d94f80a33cb09c1436a16b125",
+    "pk": "02a818ed11a1b37f257442ff6d00f17f17735576359d881101d2d85d31dc06b56c",
+    "alpha": "",
+    "salt": "",
+    "ad": "0b8c",
+    "h": "032c15230b26dbc6fc9a37051158c95b79656e17a1a920b11394ca91c44247d3e4",
+    "gamma": "026dc59c255ac1826f141e45694d81a8691159ab5895d66336d793d557b9c5d44f",
+    "beta": "b7d3da688c07f2685739669f544407dad4de07d17fb6c16658b6ccf37f09eb54",
+    "proof_c": "17165d695fcfb710c57242920d15bbc1",
+    "proof_s": "fbc973e74bda6677096e0e52d33f6c060314318d096998240fe0d7bcd346bcea"
+  },
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-4",
+    "sk": "4b78063b9c224da311bd1d3fb969bba19e7e91ee07b506f9c4c438828915563f",
+    "pk": "033e441d682c546275a3cc5ed4f3bb3473bb4ce35f39ca081cdce545fdcbe8b8d9",
+    "alpha": "73616d706c65",
+    "salt": "",
+    "ad": "",
+    "h": "024d2f866b0fa33bbd70d75149911e3e14e079641474dfe8c17713076a135731c5",
+    "gamma": "02059a84ddc78cff6214eacf5b8969b9165a2af3ed4d08b365a26d497411ca0d19",
+    "beta": "8665c7d87a26e4608aa243047037a265da3230b8f0e4eb29ebae4540268a0b33",
+    "proof_c": "484a945302033e6441eed652870d8d43",
+    "proof_s": "1291c711e8ceba8f3b586027c3465a899e133b9957d2842e528ef3764bc7daec"
+  },
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-5",
+    "sk": "aae761377f3b4f1f07d982783b902314b61a9cbe6ccfdfa96559039f07e332ed",
+    "pk": "030a7095ccfa8b1e92df5a976cf3175089778b0a53f684cfe48711ac980f3665f9",
+    "alpha": "42616e646572736e6174636820766563746f72",
+    "salt": "",
+    "ad": "",
+    "h": "0330c348b35054c3a750e221f52b8a971f29c4877db2c0714ca96c3823d3f40cef",
+    "gamma": "02a29669626784ae33f4152b8bf606826a2c312d02193b6cebba785511ad931c9c",
+    "beta": "f5b517b8c71888ac2c5b7b1fd6eb95c3a38f7952fa37340647270a996ec17796",
+    "proof_c": "80e1074cfacb56664dc481c54dc278bc",
+    "proof_s": "0889ec09a5620903fe474f4f2bca73d5d3ced9b9c1e590e70fa66305336187a1"
+  },
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-6",
+    "sk": "aae761377f3b4f1f07d982783b902314b61a9cbe6ccfdfa96559039f07e332ed",
+    "pk": "030a7095ccfa8b1e92df5a976cf3175089778b0a53f684cfe48711ac980f3665f9",
+    "alpha": "42616e646572736e6174636820766563746f72",
+    "salt": "",
+    "ad": "1f42",
+    "h": "0330c348b35054c3a750e221f52b8a971f29c4877db2c0714ca96c3823d3f40cef",
+    "gamma": "02a29669626784ae33f4152b8bf606826a2c312d02193b6cebba785511ad931c9c",
+    "beta": "f5b517b8c71888ac2c5b7b1fd6eb95c3a38f7952fa37340647270a996ec17796",
+    "proof_c": "e8d1bb2cc7e4cd0298a70d30b5c291ae",
+    "proof_s": "6180fbacd0a062ef7d2b983992bf7153bad3599b0db56fc91e1f5b7614cff9b6"
+  },
+  {
+    "comment": "secp256r1_sha-256_tai_ietf - vector-7",
+    "sk": "938834d6c6369917101c182c58e7834aa8763fee2d35f7e06559075288c62310",
+    "pk": "02f909f5a74fa6624b35b9d6d4d06fefe5335ab465170c26b4efbfbfce9aebe4b8",
+    "alpha": "42616e646572736e6174636820766563746f72",
+    "salt": "",
+    "ad": "1f42",
+    "h": "0330c348b35054c3a750e221f52b8a971f29c4877db2c0714ca96c3823d3f40cef",
+    "gamma": "0257c5289cce52523feea54f26167b50fd368df2f0896fd9dfa82da5ad27a04196",
+    "beta": "4c04f77f7f58fa0be45916c08a75dcaae6bea6c0cb65a473d1c466a252a91529",
+    "proof_c": "cd35cccf3aaccdb060f905bdff59953a",
+    "proof_s": "b3a1c62e52e90a954b90c15cc53244678cb8540a4e33f07ea0a35a1c20b57daf"
+  }
+]
