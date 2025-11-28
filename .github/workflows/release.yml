@@ -43,6 +43,9 @@ jobs:
             ln -sf /usr/local/bin/swig /usr/bin/swig
           CIBW_BEFORE_ALL_MACOS: brew install swig
           
+          # Set macOS deployment target (blst requires 11.0+)
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
+          
           # Install Python build dependencies
           CIBW_BEFORE_BUILD: pip install Cython setuptools wheel
           
