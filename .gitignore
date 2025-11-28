@@ -1,6 +1,8 @@
 __pycache__
 *.egg-info
 
+dist
+
 # blst dep
 blst
 .blst

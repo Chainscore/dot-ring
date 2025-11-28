@@ -44,8 +44,28 @@ class CustomBuildExt(build_ext):
     """Custom build that also compiles blst bindings."""
 
     def run(self):
-        super().run()
+        # Build blst FIRST so it's available for packaging
         self.build_blst()
+        super().run()
+        self.copy_blst_to_build()
+
+    def copy_blst_to_build(self):
+        """Copy blst artifacts to the build output directory."""
+        root_dir = Path(__file__).parent.absolute()
+        src_blst = root_dir / "dot_ring" / "blst"
+        
+        if not src_blst.exists():
+            return
+            
+        # Get the build lib directory
+        build_lib = Path(self.build_lib) / "dot_ring" / "blst"
+        build_lib.mkdir(parents=True, exist_ok=True)
+        
+        # Copy all blst files to build directory
+        for f in src_blst.iterdir():
+            if f.is_file():
+                shutil.copy(f, build_lib / f.name)
+                print(f"Copied {f.name} to build directory")
 
     def build_blst(self):
         """Build blst library bindings from source."""
@@ -112,7 +132,7 @@ class CustomBuildExt(build_ext):
 setup(
     name="dot-ring",
     version="0.1.2",
-    packages=find_packages(exclude=["tests*", "perf*"]),
+    packages=find_packages(exclude=["tests*", "perf*"]) + ["dot_ring.blst"],
     ext_modules=cythonize(
         cython_extensions,
         compiler_directives={
