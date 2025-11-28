@@ -49,7 +49,7 @@ pip install -e .[dev]
 ## Usage
 
 ```python
-secret_key = "3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18"
+secret_key = bytes.fromhex("3d6406500d4009fdf2604546093665911e753f2213570a29521fd88bc30ede18")
 alpha = b"input data"
 ad = b"additional data"
 ```
@@ -138,3 +138,7 @@ docker run -it dot-ring pytest tests/
 ![alt text](https://raw.githubusercontent.com/Chainscore/dot-ring/refs/heads/main/docs/chainscore.png)
 
 [Email](mailto:prasad@chainscore.finance) • [Website](https://chainscore.finance)
+
+## Benchmarks
+
+See the `docs/BENCHMARK.md` for performance results.
