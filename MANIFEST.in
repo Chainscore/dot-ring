@@ -2,3 +2,4 @@ include pyproject.toml
 include README.md
 include LICENSE
 recursive-include dot_ring *.pyx *.pxd *.json *.bin py.typed
+recursive-include scripts *

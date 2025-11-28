@@ -2,7 +2,7 @@
 Setup script for Cython extensions.
 
 Usage:
-    python setup_cython.py build_ext --inplace
+    python scripts/setup_cython.py build_ext --inplace
 """
 from setuptools import setup, Extension
 from Cython.Build import cythonize
@@ -36,6 +36,6 @@ setup(
             "wraparound": False,
             "cdivision": True,
         },
-        annotate=True,  # Generate HTML annotation showing Python interaction
+        annotate=True,
     ),
 )

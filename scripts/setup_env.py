@@ -94,10 +94,13 @@ def install_blst():
 def build_cython_extensions():
     print("Building Cython extensions...")
     root_dir = Path(__file__).parent.parent
-    setup_script = root_dir / "setup_cython.py"
+    # Prefer script in scripts/ if present, fallback to repository root
+    setup_script = root_dir / "scripts" / "setup_cython.py"
+    if not setup_script.exists():
+        setup_script = root_dir / "setup_cython.py"
     
     if not setup_script.exists():
-        print("Error: setup_cython.py not found.")
+        print("Error: setup_cython.py not found in scripts/ or root.")
         sys.exit(1)
 
     subprocess.check_call([sys.executable, str(setup_script), "build_ext", "--inplace"], cwd=root_dir)
