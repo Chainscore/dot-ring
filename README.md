@@ -17,24 +17,26 @@
 
 ## Installation
 
-### Prerequisites
+### Install from PyPI (Recommended)
 
-Install system dependencies before installing dot-ring:
-
-| OS | Command |
-|----|---------|
-| **macOS** | `brew install gmp swig` |
-| **Ubuntu/Debian** | `sudo apt install libgmp-dev swig build-essential` |
-| **Fedora/RHEL** | `sudo dnf install gmp-devel swig gcc-c++` |
-| **Arch** | `sudo pacman -S gmp swig base-devel` |
-
-### Install
+Pre-built wheels are available for Linux and macOS - no build tools required:
 
 ```bash
 pip install dot-ring
 ```
 
 ### Development Setup
+
+For building from source, you need system dependencies:
+
+| OS | Command |
+|----|---------|
+| **macOS** | `brew install swig` |
+| **Ubuntu/Debian** | `sudo apt install swig build-essential` |
+| **Fedora/RHEL** | `sudo dnf install swig gcc-c++` |
+| **Arch** | `sudo pacman -S swig base-devel` |
+
+Then install in development mode:
 
 ```bash
 git clone https://github.com/chainscore/dot-ring.git
@@ -123,9 +125,9 @@ docker run -it dot-ring pytest tests/
 
 | Error | Solution |
 |-------|----------|
-| `gmp.h not found` | Install GMP: `brew install gmp` / `apt install libgmp-dev` |
-| `swig: command not found` | Install SWIG: `brew install swig` / `apt install swig` |
-| `gcc failed` | Install compiler: `xcode-select --install` / `apt install build-essential` |
+| `swig: command not found` | Only needed for building from source. Install: `brew install swig` / `apt install swig` |
+| `gcc failed` | Only needed for building from source. Install: `xcode-select --install` / `apt install build-essential` |
+| Import errors | Try: `pip install dot-ring --force-reinstall --no-cache-dir` |
 
 ---
 
