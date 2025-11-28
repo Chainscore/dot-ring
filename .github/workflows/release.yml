@@ -34,13 +34,10 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           
-          # Install system dependencies
+          # Install system dependencies (use EPEL for pre-built swig)
           CIBW_BEFORE_ALL_LINUX: >
-            dnf install -y pcre2-devel gcc-c++ make wget &&
-            wget -q https://sourceforge.net/projects/swig/files/swig/swig-4.2.1/swig-4.2.1.tar.gz &&
-            tar xzf swig-4.2.1.tar.gz &&
-            cd swig-4.2.1 && ./configure --prefix=/usr/local && make -j$(nproc) && make install &&
-            ln -sf /usr/local/bin/swig /usr/bin/swig
+            dnf install -y epel-release &&
+            dnf install -y swig pcre2-devel gcc-c++ make
           CIBW_BEFORE_ALL_MACOS: brew install swig
           
           # Set macOS deployment target (blst requires 11.0+)
