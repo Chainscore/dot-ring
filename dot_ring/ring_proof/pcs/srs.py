@@ -112,7 +112,7 @@ class SRS:
         return cls(g1_jac, g2_jac, g1_points=g1_points, g2_points=g2_points)
 
     @staticmethod
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=128)
     def default(max_deg: int = 2048) -> "SRS":
         return SRS.from_loaded(max_deg)
 

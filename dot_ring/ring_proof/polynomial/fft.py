@@ -12,7 +12,7 @@ from typing import List
 from dot_ring.ring_proof.polynomial.ntt import ntt_in_place
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def _get_bit_reverse(n: int) -> List[int]:
     """Get precomputed bit-reversal permutation indices."""
     bits = n.bit_length() - 1
@@ -27,7 +27,7 @@ def _get_bit_reverse(n: int) -> List[int]:
 
     return rev_indices
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def _get_twiddle_factors(n: int, omega: int, prime: int) -> List[List[int]]:
     """Get precomputed twiddle factors for all NTT stages.
     
@@ -55,7 +55,7 @@ def _get_twiddle_factors(n: int, omega: int, prime: int) -> List[List[int]]:
     
     return twiddles
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=1024)
 def _get_roots(n: int, omega: int, prime: int) -> List[int]:
     """Get precomputed roots of unity (legacy, for compatibility)."""
     powers = [1] * (n // 2)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Protocol, Self, ClassVar, Union, TYPE_CHECKING, TypeVar, Generic
+from typing import List, Optional, Protocol, Self, ClassVar, Union, TYPE_CHECKING, TypeVar, Generic
 import hashlib
 
 if TYPE_CHECKING:
@@ -73,7 +73,7 @@ class CurvePoint(Generic[C]):
 
     # Class constants
     ENCODING_LENGTH: ClassVar[int] = 32
-
+    
     def __post_init__(self) -> None:
         """Validate point after initialization."""
         if not self._validate_coordinates():
@@ -308,3 +308,6 @@ class CurvePoint(Generic[C]):
                 H = H.clear_cofactor()
             ctr += 1
         return H
+
+    def __hash__(self):
+        return (self.x + self.y) % self.curve.ORDER

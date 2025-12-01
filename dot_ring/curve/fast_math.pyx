@@ -98,3 +98,75 @@ cpdef object sqrt_mod(object x, object p):
         c = (b * b) % p
         t = (t * c) % p
         R = (R * b) % p
+
+
+cpdef object map_to_curve_ell2_fast(object u, object J, object K, object Z, object p):
+    """
+    Fast Elligator 2 map to curve implementation.
+    """
+    cdef object pm = _get_mpz_prime(p)
+    cdef object um = _mpz(u)
+    cdef object Jm = _mpz(J)
+    cdef object Km = _mpz(K)
+    cdef object Zm = _mpz(Z)
+    
+    # Compute constants
+    # c1 = (J * K^-1) % p
+    cdef object c1 = (Jm * _invert(Km, pm)) % pm
+    # c2 = (K^2)^-1 % p
+    cdef object c2 = _invert((Km * Km) % pm, pm)
+
+    # Main mapping computation
+    # tv1 = (Z * u^2) % p
+    cdef object tv1 = (Zm * um * um) % pm
+    
+    cdef bint e1 = (tv1 == -1) or (tv1 == pm - 1)
+    if e1:
+        tv1 = _mpz(0)
+        
+    # x1 = (-c1 * (tv1 + 1)^-1) % p
+    cdef object x1 = (-c1 * _invert(tv1 + 1, pm)) % pm
+    
+    # gx1 = (((x1 + c1) * x1 + c2) * x1) % p
+    cdef object gx1 = (((x1 + c1) * x1 + c2) * x1) % pm
+    
+    # x2 = (-x1 - c1) % p
+    cdef object x2 = (-x1 - c1) % pm
+    
+    # gx2 = (tv1 * gx1) % p
+    cdef object gx2 = (tv1 * gx1) % pm
+    
+    # Choose correct values
+    # e2 = is_square(gx1)
+    cdef bint e2 = is_square(gx1, p)
+    
+    cdef object x, y2
+    if e2:
+        x = x1
+        y2 = gx1
+    else:
+        x = x2
+        y2 = gx2
+        
+    # Compute square root
+    cdef object y = sqrt_mod(y2, p)
+    if y is None:
+        # This should not happen if map is correct
+        raise ValueError("Failed to compute sqrt in map_to_curve")
+        
+    cdef object ym = _mpz(y)
+    
+    # Adjust sign
+    # e3 = (y & 1) == 1
+    cdef bint e3 = (ym % 2) == 1
+    
+    if e2 ^ e3:
+        ym = -ym % pm
+        
+    # Scale coordinates
+    # s = (x * K) % p
+    cdef object s = (x * Km) % pm
+    # t = (y * K) % p
+    cdef object t = (ym * Km) % pm
+    
+    return (int(s), int(t))
