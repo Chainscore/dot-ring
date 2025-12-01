@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 
-
 S_PRIME: int = BandersnatchParams.PRIME_FIELD  # Finite‑field modulus p
 S_ORDER: int = BandersnatchParams.ORDER  # Prime subgroup order r
 

@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, Tuple, Optional, Any
-
 import hashlib
+from dataclasses import dataclass
+from typing import Any, Final, Self, cast
+
+from py_ecc.bls12_381 import FQ2, add, multiply
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..short_weierstrass.sw_curve import SWCurve
-from ..short_weierstrass.sw_affine_point import SWAffinePoint
-from ..field_element import FieldElement
 
-Fp2 = Tuple[int, int]
-from py_ecc.bls12_381 import add, FQ2, multiply
+from ..field_element import FieldElement
+from ..short_weierstrass.sw_affine_point import SWAffinePoint
+from ..short_weierstrass.sw_curve import SWCurve
+
+Fp2 = tuple[int, int]
 
 
 @dataclass(frozen=True)
@@ -40,16 +41,16 @@ class BLS12_381_G2Params:
     # Cofactor (h)
     COFACTOR: Final[
         int
-    ] = 0xBC69F08F2EE75B3584C6A0EA91B352888E2A8E9145AD7689986FF031508FFE1329C2F178731DB956D82BF015D1212B02EC0EC69D7477C1AE954CBC06689F6A359894C0ADEBBF6B4E8020005AAA95551  # 0x5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5
+    ] = 0xBC69F08F2EE75B3584C6A0EA91B352888E2A8E9145AD7689986FF031508FFE1329C2F178731DB956D82BF015D1212B02EC0EC69D7477C1AE954CBC06689F6A359894C0ADEBBF6B4E8020005AAA95551  # noqa: E501
 
     # Generator point (G2)
     GENERATOR_X: Final[Fp2] = (
-        0x024AA2B2F08F0A91260805272DC51051C6E47AD4FA403B02B4510B647AE3D1770BAC0326A805BBEFD48056C8C121BDB8,
-        0x13E02B6052719F607DACD3A088274F65596BD0D09920B61AB5DA61BBDC7F5049334CF11213945D57E5AC7D055D042B7E,
+        0x024AA2B2F08F0A91260805272DC51051C6E47AD4FA403B02B4510B647AE3D1770BAC0326A805BBEFD48056C8C121BDB8,  # noqa: E501
+        0x13E02B6052719F607DACD3A088274F65596BD0D09920B61AB5DA61BBDC7F5049334CF11213945D57E5AC7D055D042B7E,  # noqa: E501
     )
     GENERATOR_Y: Final[Fp2] = (
-        0x0CE5D527727D6E118CC9CDC6DA2E351AADFD9BAA8CBDD3A76D429A695160D12C923AC9CC3BACA289E193548608B82801,
-        0x0606C4A02EA734CC32ACD2B02BC28B99CB3E287E85A763AF267492AB572E99AB3F370D275CEC1DA1AAA9075FF05F79BE,
+        0x0CE5D527727D6E118CC9CDC6DA2E351AADFD9BAA8CBDD3A76D429A695160D12C923AC9CC3BACA289E193548608B82801,  # noqa: E501
+        0x0606C4A02EA734CC32ACD2B02BC28B99CB3E287E85A763AF267492AB572E99AB3F370D275CEC1DA1AAA9075FF05F79BE,  # noqa: E501
     )
 
     # Curve equation: y² = x³ + 4(1 + i)
@@ -74,8 +75,8 @@ class BLS12_381_G2Params:
     Isogeny_Coeffs = None
 
     # Blinding base for Pedersen VRF (not used in basic implementation)
-    BBx: Final[Fp2] = None
-    BBy: Final[Fp2] = None
+    BBx: Final[Fp2 | None] = None
+    BBy: Final[Fp2 | None] = None
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 32
 
@@ -123,10 +124,12 @@ class BLS12_381_G2Curve(SWCurve):
             CHALLENGE_LENGTH=BLS12_381_G2Params.CHALLENGE_LENGTH,
         )
 
+
 # Singleton instance for convenience
 BLS12_381_G2_SW_Curve: Final[BLS12_381_G2Curve] = BLS12_381_G2Curve()
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> type[BLS12_381_G2Point]:
     # Create curve with the specified variant
     curve = BLS12_381_G2Curve(e2c_variant)
 
@@ -136,7 +139,6 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
 
         def __init__(self, x: int, y: int) -> None:
             """Initialize a point with the variant curve."""
-            # Call SWAffinePoint.__init__ directly to avoid BLS12_381_G1Point's __init__
             SWAffinePoint.__init__(self, x, y, curve)
 
     # Set the curve as a class attribute
@@ -152,9 +154,9 @@ class BLS12_381_G2Point(SWAffinePoint):
     Implements point operations specific to the BLS12-381 G2 curve.
     """
 
-    curve: Final[BLS12_381_G2Curve] = BLS12_381_G2_SW_Curve
+    curve: BLS12_381_G2Curve = BLS12_381_G2_SW_Curve
 
-    def __add__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:
+    def __add__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:  # type: ignore[override]
         """
         Add two points on the BLS12-381 G2 curve using the group law.
 
@@ -174,20 +176,31 @@ class BLS12_381_G2Point(SWAffinePoint):
             return self
 
         # Helper function to convert coordinates to FQ2 format
-        def to_fq2(x, y):
+        def to_fq2(
+            x: int | tuple[int, int] | FieldElement,
+            y: int | tuple[int, int] | FieldElement,
+        ) -> tuple[FQ2, FQ2]:
             # If x is a tuple, use it directly
             if isinstance(x, tuple) and isinstance(y, tuple):
                 return (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]))
             # If x is a FieldElement, use its re and im attributes
             elif hasattr(x, "re") and hasattr(x, "im"):
+                x = cast(FieldElement, x)
+                y = cast(FieldElement, y)
                 return (FQ2([x.re, x.im]), FQ2([y.re, y.im]))
             # Fallback for other cases (shouldn't happen)
             else:
-                return (FQ2([x, 0]), FQ2([y, 0]))
+                return (FQ2([cast(int, x), 0]), FQ2([cast(int, y), 0]))
 
         # Convert points to FQ2 format for py_ecc
-        p1 = to_fq2(self.x, self.y)
-        p2 = to_fq2(other.x, other.y)
+        p1 = to_fq2(
+            cast(int | tuple[int, int] | FieldElement, self.x),
+            cast(int | tuple[int, int] | FieldElement, self.y),
+        )
+        p2 = to_fq2(
+            cast(int | tuple[int, int] | FieldElement, other.x),
+            cast(int | tuple[int, int] | FieldElement, other.y),
+        )
 
         # Perform addition using py_ecc
         result = add(p1, p2)
@@ -200,7 +213,7 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         return self.__class__(x, y)
 
-    def __neg__(self) -> "BLS12_381_G2Point":
+    def __neg__(self) -> BLS12_381_G2Point:
         """
         Negate a point on the BLS12-381 G2 curve.
         For a point (x, y), the negation is (x, -y).
@@ -213,7 +226,7 @@ class BLS12_381_G2Point(SWAffinePoint):
 
         # Use FieldElement's negation if y is a FieldElement
         if hasattr(self.y, "__neg__"):
-            neg_y = -self.y
+            neg_y = -self.y  # type: ignore[operator]
         # Handle tuple case (Fp2 elements)
         elif isinstance(self.y, tuple):
             from ..field_element import FieldElement
@@ -225,11 +238,13 @@ class BLS12_381_G2Point(SWAffinePoint):
             neg_y = (neg_y_fe.re, neg_y_fe.im)
         else:
             # Fallback for regular integers
+            if self.y is None:
+                raise ValueError("Cannot negate identity point")
             neg_y = (-self.y) % self.curve.PRIME_FIELD
 
         return self.__class__(self.x, neg_y)
 
-    def __sub__(self, other: "BLS12_381_G2Point") -> "BLS12_381_G2Point":
+    def __sub__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:  # type: ignore[override]
         """
         Subtract one point from another on the BLS12-381 G2 curve.
         This is equivalent to adding the negation of the other point.
@@ -261,10 +276,17 @@ class BLS12_381_G2Point(SWAffinePoint):
             return (-self) * (-scalar)
         try:
             # Convert point to FQ2 format for py_ecc
-            p = (FQ2([self.x[0], self.x[1]]), FQ2([self.y[0], self.y[1]]))
+            # Try treating as tuple/list first
+            p = (
+                FQ2([cast(Any, self.x)[0], cast(Any, self.x)[1]]),
+                FQ2([cast(Any, self.y)[0], cast(Any, self.y)[1]]),
+            )
 
-        except Exception as e:
-            p = (FQ2([self.x.re, self.x.im]), FQ2([self.y.re, self.y.im]))
+        except (TypeError, IndexError):
+            # Fallback to .re/.im attributes (FieldElement)
+            x_num = [cast(Any, self.x).re, cast(Any, self.x).im]
+            y_num = [cast(Any, self.y).re, cast(Any, self.y).im]
+            p = (FQ2(x_num), FQ2(y_num))
 
         # Perform scalar multiplication using py_ecc
         result = multiply(p, scalar)
@@ -308,12 +330,12 @@ class BLS12_381_G2Point(SWAffinePoint):
         R = R * cls.curve.COFACTOR
         if General_Check:
             return {"u": [u0, u1], "Q0": q0, "Q1": q1, "R": R}
-        return R
+        return cast(Self, R)
 
     @classmethod
     def sswu_hash2_curve_nu(
         cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
-    ) -> SWAffinePoint | Any:
+    ) -> Self | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -337,7 +359,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return R
 
     @classmethod
-    def map_to_curve_simple_swu(cls, u: FieldElement) -> "BLS12_381_G2Point":
+    def map_to_curve_simple_swu(cls, u: FieldElement) -> BLS12_381_G2Point:  # type: ignore[override]
         """
         Simplified SWU map with 3-isogeny for BLS12-381 G2
         Combines SSWU map and 3-isogeny map in one function
@@ -349,7 +371,10 @@ class BLS12_381_G2Point(SWAffinePoint):
         x, y = cls._apply_3_isogeny(point_on_e_prime)
 
         # 3. Wrap into a BLS12_381_G2Point object
-        point = cls(x, y)
+        # Convert FieldElements to tuples
+        x_tuple = (x.re, x.im)
+        y_tuple = (y.re, y.im)
+        point = cls(x_tuple, y_tuple)
         if not point.is_on_curve():
             print("ERROR: Point is not on the curve after mapping!")
             # Print curve equation and point for debugging
@@ -360,7 +385,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return point
 
     @staticmethod
-    def _sgn0(x):
+    def _sgn0(x: FieldElement) -> int:
         """
         Return the sign of x: 1 if odd, 0 if even.
 
@@ -375,7 +400,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         x0, x1 = x.re, x.im
 
         # sgn0 for Fp: 1 if odd, 0 if even
-        def sgn0_fp(a):
+        def sgn0_fp(a: int) -> int:
             return a % 2
 
         if x0 != 0:
@@ -383,7 +408,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return sgn0_fp(x1)
 
     @classmethod
-    def _sswu_map_to_e_prime(cls, u):
+    def _sswu_map_to_e_prime(cls, u: FieldElement) -> tuple[FieldElement, FieldElement]:
         p = u.p
         Z = FieldElement(-2, -1, p)  # -(2 + I)
         A_prime = FieldElement(0, 240, p)  # 240*I
@@ -398,11 +423,11 @@ class BLS12_381_G2Point(SWAffinePoint):
             x1 = B_prime * ((Z * A_prime).inv())
         else:
             x1 = (-B_prime * (A_prime.inv())) * (1 + tv1)
-
         gx1 = x1**3 + A_prime * x1 + B_prime
 
         if gx1.is_square():
             y1 = gx1.sqrt()
+            assert y1 is not None
             left = y1 * y1
             right = x1 * x1 * x1 + A_prime * x1 + B_prime
             assert left == right, "Invalid point on E'"
@@ -411,18 +436,21 @@ class BLS12_381_G2Point(SWAffinePoint):
             x2 = Z * u_sq * x1
             gx2 = x2**3 + A_prime * x2 + B_prime
             y2 = gx2.sqrt()
+            assert y2 is not None
             left = y2 * y2
             right = x2 * x2 * x2 + A_prime * x2 + B_prime
             assert left == right, "Invalid point on E'"
             x, y = x2, y2
 
         # Step 9: Ensure sgn0(u) == sgn0(y)
-        if cls._sgn0(u) != cls._sgn0(y):
-            y = -y
-        return x, y
+        if cls._sgn0(u) != cls._sgn0(cast(FieldElement, y)):
+            y = -cast(FieldElement, y)
+        return x, cast(FieldElement, y)
 
     @classmethod
-    def _apply_3_isogeny(cls, point):
+    def _apply_3_isogeny(
+        cls, point: tuple[FieldElement, FieldElement]
+    ) -> tuple[FieldElement, FieldElement]:
         x_prime, y_prime = point
         p = cls.curve.PRIME_FIELD
 
@@ -514,6 +542,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         right = x * x * x + FieldElement(4, 4, p)  # 4 * (1 + i)
         assert left == right, "Mapped point is not on the curve"
         return x, y
+
 
 BLS12_381_G2_NU = CurveVariant(
     name="BLS12_381_G2_NU",

@@ -1,15 +1,17 @@
 from __future__ import annotations
-from typing import List, Sequence
+
+from collections.abc import Sequence
+
+from dot_ring.ring_proof.constants import D_512 as D
 from dot_ring.ring_proof.constants import S_PRIME
-from dot_ring.ring_proof.polynomial.ops import (
-    poly_multiply,
-    vect_scalar_mul,
-    vect_add,
-)
-from dot_ring.ring_proof.constants import OMEGA_2048 as omega_2048, D_512 as D
 from dot_ring.ring_proof.polynomial.interpolation import (
     poly_interpolate_fft,
     poly_mul_fft,
+)
+from dot_ring.ring_proof.polynomial.ops import (
+    poly_multiply,
+    vect_add,
+    vect_scalar_mul,
 )
 
 __all__ = [
@@ -18,7 +20,7 @@ __all__ = [
 ]
 
 
-def vanishing_poly(k: int, omega_root: int, prime: int = S_PRIME) -> List[int]:
+def vanishing_poly(k: int, omega_root: int, prime: int = S_PRIME) -> list[int]:
     vanishing_term = [1]
     for i in range(1, k + 1):
         vanishing_term = poly_mul_fft(vanishing_term, [-D[-i], 1], prime)
@@ -31,9 +33,9 @@ def aggregate_constraints(
     omega_root: int,
     prime: int = S_PRIME,
     k: int = 3,
-) -> List[int]:
+) -> list[int]:
     result = [0] * len(polys[0])
-    for poly, alpha in zip(polys, alphas):
+    for poly, alpha in zip(polys, alphas, strict=False):
         weighted = vect_scalar_mul(poly, alpha, prime)
         result = vect_add(result, weighted, prime)
     interpolated_result = poly_interpolate_fft(result, omega_root, prime)

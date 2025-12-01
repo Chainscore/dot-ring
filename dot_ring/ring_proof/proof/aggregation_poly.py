@@ -1,12 +1,14 @@
 from dot_ring.ring_proof.constants import S_PRIME
-from dot_ring.ring_proof.polynomial.ops import poly_add, poly_scalar
-from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.polynomial.ops import poly_add, poly_scalar
+
 
 class AggPoly:
     # get the aggregated poly
     @classmethod
-    def aggregated_poly(cls, fixed_cols, witness_cols, Q_p, cf_vectors):
+    def aggregated_poly(
+        cls, fixed_cols: list, witness_cols: list, Q_p: list[int], cf_vectors: list[int]
+    ) -> list[int]:
         poly_I = [
             fixed_cols[0].coeffs,
             fixed_cols[1].coeffs,
@@ -27,7 +29,16 @@ class AggPoly:
 
     # two proof openings
     @classmethod
-    def proof_contents_phi(cls, zeta, zeta_omega, l_agg, fixed_cols, witness_cols, Q_p, cf_vectors):
+    def proof_contents_phi(
+        cls,
+        zeta: int,
+        zeta_omega: int,
+        l_agg: list[int],
+        fixed_cols: list,
+        witness_cols: list,
+        Q_p: list[int],
+        cf_vectors: list[int],
+    ) -> tuple:
         """
         input:agg_poly, liner_poly, zeta, zeta_omega
         output: Phi_zeta, phi_zeta_omega

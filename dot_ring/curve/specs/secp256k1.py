@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Final, Self
-
 import hashlib
+from dataclasses import dataclass
+from typing import Final, Self, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
+
 from ..glv import GLV
-from ..short_weierstrass.sw_curve import SWCurve
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
+from ..short_weierstrass.sw_curve import SWCurve
 
 
 @dataclass(frozen=True)
@@ -175,29 +175,27 @@ class Secp256k1Point(SWAffinePoint):
             Secp256k1Point: Result of scalar multiplication
         """
         if scalar == 0:
-            return self.identity()
+            return cast(Self, self.identity())
 
         if scalar < 0:
-            return (-self).__mul__(-scalar)
+            return cast(Self, (-self).__mul__(-scalar))
 
         # GLV decomposition: k = k1 + k2*λ (mod n)
         # where λ is the GLV parameter
-        n = self.curve.ORDER
+        scalar %= self.curve.ORDER
 
         # Simple GLV decomposition (can be optimized further)
-        k1 = scalar % n
-        k2 = 0  # Simplified - in practice you'd compute proper decomposition
-
         # For now, fall back to standard multiplication
         # TODO: Implement full GLV decomposition
-        return super().__mul__(scalar)
-    
-    
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+        return cast(Self, super().__mul__(scalar))
+
+
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> type[SWAffinePoint]:
     class Secp256k1PointVariant(Secp256k1Point):
         """Point on Secp256k1 with custom E2C variant"""
-        curve: Final[Secp256k1Curve] = Secp256k1Curve(e2c_variant)
-        
+
+        curve: Secp256k1Curve = Secp256k1Curve(e2c_variant)
+
     return Secp256k1PointVariant
 
 

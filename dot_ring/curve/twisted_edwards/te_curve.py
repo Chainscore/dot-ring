@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Final, Tuple
-from functools import lru_cache
+
 from dot_ring.curve.curve import Curve
 from dot_ring.curve.fast_math import map_to_curve_ell2_fast
 
@@ -24,8 +22,8 @@ class TECurve(Curve):
         CHALLENGE_LENGTH: Length of the challenge in bytes (default: 32 for 256-bit security)
     """
 
-    EdwardsA: Final[int]
-    EdwardsD: Final[int]
+    EdwardsA: int
+    EdwardsD: int
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
@@ -47,8 +45,8 @@ class TECurve(Curve):
             and all(x < self.PRIME_FIELD for x in (self.EdwardsA, self.EdwardsD))
         )
 
-    @lru_cache(maxsize=1024)
-    def calculate_j_k(self) -> Tuple[int, int]:
+    # @lru_cache(maxsize=1024)  # noqa: B019
+    def calculate_j_k(self) -> tuple[int, int]:
         """
         Calculate curve parameters J and K for Elligator 2.
 
@@ -64,7 +62,7 @@ class TECurve(Curve):
 
         return J, K
 
-    def map_to_curve_ell2(self, u: int) -> Tuple[int, int]:
+    def map_to_curve_ell2(self, u: int) -> tuple[int, int]:
         """
         Elligator 2 map to curve implementation.
 
@@ -77,8 +75,10 @@ class TECurve(Curve):
         J, K = self.calculate_j_k()
         Z = self.Z
         p = self.PRIME_FIELD
-        
-        return map_to_curve_ell2_fast(u, J, K, Z, p)
+
+        from typing import cast
+
+        return cast(tuple[int, int], map_to_curve_ell2_fast(u, J, K, Z, p))
 
     @property
     def curve_equation(self) -> str:

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, List
-
 import hashlib
+from dataclasses import dataclass
+from typing import Any, Final, Self, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
+
 from ..glv import GLV
-from ..twisted_edwards.te_curve import TECurve
 from ..twisted_edwards.te_affine_point import TEAffinePoint
+from ..twisted_edwards.te_curve import TECurve
 
 
 @dataclass(frozen=True)
@@ -119,7 +119,7 @@ Bandersnatch_TE_Curve: Final[TECurve] = TECurve(
 )
 
 
-class BandersnatchPoint(TEAffinePoint):
+class BandersnatchPoint(TEAffinePoint[TECurve]):
     """
     Point on the Bandersnatch curve.
 
@@ -127,8 +127,8 @@ class BandersnatchPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[TECurve] = Bandersnatch_TE_Curve
-    
+    curve: TECurve = Bandersnatch_TE_Curve
+
     def __mul__(self, scalar: int) -> Self:
         """
         GLV scalar multiplication using endomorphism.
@@ -143,50 +143,70 @@ class BandersnatchPoint(TEAffinePoint):
         k1, k2 = BandersnatchGLV.decompose_scalar(scalar % n, n)
         phi = BandersnatchGLV.compute_endomorphism(self)
 
-        return BandersnatchGLV.windowed_simultaneous_mult(k1, k2, self, phi, w=2)
+        return cast(
+            Self, BandersnatchGLV.windowed_simultaneous_mult(k1, k2, self, phi, w=2)
+        )
+
+    def __add__(self, other: Any) -> Self:
+        return cast(Self, super().__add__(other))
 
     @classmethod
-    def msm(cls, points: List[Self], scalars: List[int]) -> Self:
+    def msm(cls, points: list[Self], scalars: list[int]) -> Self:
         """
         Optimized multi-scalar multiplication using GLV.
         """
         if not points:
             return cls.identity()
-            
+
         # Normalize scalars to [0, ORDER) for GLV
         n = cls.curve.ORDER
         scalars = [s % n for s in scalars]
-        
+
         if len(points) == 2:
             # Size-2 MSM using GLV to split into size-4 MSM
             # k1*P1 + k2*P2 = (k1_1 + k1_2*lambda)*P1 + (k2_1 + k2_2*lambda)*P2
             #               = k1_1*P1 + k1_2*phi(P1) + k2_1*P2 + k2_2*phi(P2)
-            
+
             k1_1, k1_2 = BandersnatchGLV.decompose_scalar(scalars[0], n)
             k2_1, k2_2 = BandersnatchGLV.decompose_scalar(scalars[1], n)
-            
+
             phi_P1 = BandersnatchGLV.compute_endomorphism(points[0])
             phi_P2 = BandersnatchGLV.compute_endomorphism(points[1])
-            
-            return BandersnatchGLV.multi_scalar_mult_4(
-                k1_1, k1_2, k2_1, k2_2,
-                points[0], phi_P1, points[1], phi_P2
+
+            return cast(
+                Self,
+                BandersnatchGLV.multi_scalar_mult_4(
+                    k1_1, k1_2, k2_1, k2_2, points[0], phi_P1, points[1], phi_P2
+                ),
             )
-            
+
         if len(points) == 4:
             return BandersnatchGLV.multi_scalar_mult_4(
-                scalars[0], scalars[1], scalars[2], scalars[3],
-                points[0], points[1], points[2], points[3]
+                scalars[0],
+                scalars[1],
+                scalars[2],
+                scalars[3],
+                points[0],
+                points[1],
+                points[2],
+                points[3],
             )
-            
+
         if len(points) == 3:
             # Pad to 4 with identity and 0 scalar
             return BandersnatchGLV.multi_scalar_mult_4(
-                scalars[0], scalars[1], scalars[2], 0,
-                points[0], points[1], points[2], cls.identity()
+                scalars[0],
+                scalars[1],
+                scalars[2],
+                0,
+                points[0],
+                points[1],
+                points[2],
+                cls.identity(),
             )
-            
+
         return super().msm(points, scalars)
+
 
 Bandersnatch = CurveVariant(
     name="Bandersnatch",

@@ -1,10 +1,11 @@
 from __future__ import annotations
-import math
+
 import hashlib
-from dataclasses import dataclass
-from typing import TypeVar, Self, Any, Tuple
+from typing import Any, Self, TypeVar, cast
+
 from dot_ring.curve.e2c import E2C_Variant
-from ..point import CurvePoint, PointProtocol
+
+from ..point import CurvePoint
 from .te_curve import TECurve
 
 C = TypeVar("C", bound=TECurve)
@@ -58,14 +59,14 @@ class TEAffinePoint(CurvePoint[C]):
             bool: True if point satisfies curve equation
         """
         # ax² + y² = 1 + dx²y²
-        v, w = self.x, self.y
+        v, w = cast(int, self.x), cast(int, self.y)
         p = self.curve.PRIME_FIELD
 
         lhs = (self.curve.EdwardsA * pow(v, 2, p) + pow(w, 2, p)) % p
         rhs = (1 + self.curve.EdwardsD * pow(v, 2, p) * pow(w, 2, p)) % p
         return lhs == rhs
 
-    def __add__(self, other: PointProtocol[C]) -> Self:
+    def __add__(self, other: CurvePoint[C]) -> Self:
         """
         Add two points using Twisted Edwards addition formulas.
 
@@ -82,17 +83,20 @@ class TEAffinePoint(CurvePoint[C]):
             raise TypeError("Can only add TEAffinePoints")
 
         if self == other:
-            return self.double()
+            res = self.double()
+            return cast(Any, res)  # type: ignore
 
         if self == self.identity_point():
-            return other
+            return cast(Self, other)
 
         if other == self.identity_point():
             return self
 
         p = self.curve.PRIME_FIELD
-        x1, y1 = self.x, self.y
-        x2, y2 = other.x, other.y
+        if self.x is None or self.y is None or other.x is None or other.y is None:
+            raise ValueError("Unexpected identity point in addition")
+        x1, y1 = cast(int, self.x), cast(int, self.y)
+        x2, y2 = cast(int, other.x), cast(int, other.y)
 
         # Compute intermediate values
         x1y2 = (x1 * y2) % p
@@ -104,7 +108,7 @@ class TEAffinePoint(CurvePoint[C]):
         # Compute result coordinates
         x3 = ((x1y2 + x2y1) * pow(1 + dx1x2y1y2, -1, self.curve.PRIME_FIELD)) % p
         y3 = (
-            (y1y2 - self.curve.EdwardsA * x1x2) 
+            (y1y2 - self.curve.EdwardsA * x1x2)
             * pow(1 - dx1x2y1y2, -1, self.curve.PRIME_FIELD)
         ) % p
 
@@ -117,9 +121,9 @@ class TEAffinePoint(CurvePoint[C]):
         Returns:
             TEAffinePoint: Negated point
         """
-        return self.__class__(-self.x % self.curve.PRIME_FIELD, self.y)
+        return self.__class__(-cast(int, self.x) % self.curve.PRIME_FIELD, self.y)
 
-    def __sub__(self, other: PointProtocol[C]) -> Self:
+    def __sub__(self, other: CurvePoint[C]) -> Self:
         """
         Subtract two points.
 
@@ -129,7 +133,7 @@ class TEAffinePoint(CurvePoint[C]):
         Returns:
             TEAffinePoint: Result of subtraction
         """
-        return self + (-other)
+        return cast(Self, self + (-cast(Any, other)))
 
     def double(self) -> Self:
         """
@@ -138,7 +142,7 @@ class TEAffinePoint(CurvePoint[C]):
         Returns:
             TEAffinePoint: 2P
         """
-        x1, y1 = self.x, self.y
+        x1, y1 = cast(int, self.x), cast(int, self.y)
         p = self.curve.PRIME_FIELD
 
         # Check for identity point
@@ -172,8 +176,8 @@ class TEAffinePoint(CurvePoint[C]):
             TEAffinePoint: Scalar multiplication result
         """
         from .te_projective_point import TEProjectivePoint
-        
-        P_proj = TEProjectivePoint.from_affine(self)
+
+        P_proj: Any = TEProjectivePoint.from_affine(self)
         result = TEProjectivePoint.zero(self.curve)
         addend = P_proj
         scalar = scalar % self.curve.ORDER
@@ -184,8 +188,14 @@ class TEAffinePoint(CurvePoint[C]):
             addend = addend.double()
             scalar >>= 1
 
-        return result.to_affine(self.__class__)
-    
+        return cast(Self, result.to_affine(self.__class__))
+
+    def __rmul__(self, scalar: int) -> Self:
+        """
+        Support scalar multiplication where scalar is on the left (scalar * point).
+        """
+        return self.__mul__(scalar)
+
     @classmethod
     def identity_point(cls) -> Self:
         """
@@ -279,7 +289,7 @@ class TEAffinePoint(CurvePoint[C]):
             TEAffinePoint: Resulting curve point
         """
         ctr = 0
-        H = "INVALID"
+        H: Self | str = "INVALID"
         front = b"\x01"
         back = b"\x00"
         alpha_string = (
@@ -292,10 +302,10 @@ class TEAffinePoint(CurvePoint[C]):
             hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             hash_output = hashlib.sha512(hash_input).digest()
             H = cls.string_to_point(hash_output[:32])
-            if H != "INVALID" and cls.curve.COFACTOR > 1:
+            if isinstance(H, TEAffinePoint) and cls.curve.COFACTOR > 1:
                 H = H.clear_cofactor()
             ctr += 1
-        return H
+        return cast(Self, H)
 
     def clear_cofactor(self) -> Self:
         """
@@ -353,7 +363,7 @@ class TEAffinePoint(CurvePoint[C]):
         return cls(v, w)
 
     @classmethod
-    def _x_recover(cls, y: int) -> Tuple[int, int] | int | None:
+    def _x_recover(cls, y: int) -> int | tuple[int, int] | None:
         """ """
         p = cls.curve.PRIME_FIELD
         lhs = (1 - y * y) % p

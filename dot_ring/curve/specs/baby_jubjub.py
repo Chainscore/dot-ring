@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Final, Self
+
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..twisted_edwards.te_curve import TECurve
+
 from ..twisted_edwards.te_affine_point import TEAffinePoint
+from ..twisted_edwards.te_curve import TECurve
 
 
 @dataclass(frozen=True)
@@ -104,7 +106,9 @@ class BabyJubJubPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[TECurve] = BabyJubJub_TE_Curve
+    curve: TECurve = BabyJubJub_TE_Curve
 
 
-BabyJubJub = CurveVariant(name="BabyJubJub", curve=BabyJubJub_TE_Curve, point=BabyJubJubPoint)
+BabyJubJub = CurveVariant(
+    name="BabyJubJub", curve=BabyJubJub_TE_Curve, point=BabyJubJubPoint
+)

@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Final, TypeVar, Generic, Type, Optional, Tuple
-from ..curve import Curve
-from ..point import PointProtocol
 
 # Forward reference fix for circular imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from ..curve import Curve
 
 if TYPE_CHECKING:
     from .mg_affine_point import MGAffinePoint
 
-C = TypeVar('C', bound='MGCurve')
-P = TypeVar('P', bound='MGAffinePoint')
+C = TypeVar("C", bound="MGCurve")
+P = TypeVar("P", bound="MGAffinePoint")
 
 
 @dataclass(frozen=True)
@@ -25,12 +23,13 @@ class MGCurve(Curve):
     - A: coefficient of u² term
     - B: coefficient of v² term (typically 1 for most curves)
     """
-    A: Final[int]
-    B: Final[int]
 
-    def __post_init__(self):
+    A: int
+    B: int
+
+    def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
-        super().__post_init__() if hasattr(super(), '__post_init__') else None
+        super().__post_init__() if hasattr(super(), "__post_init__") else None
 
         # Validate that B is not zero (would make curve degenerate)
         if self.B % self.PRIME_FIELD == 0:
@@ -41,7 +40,7 @@ class MGCurve(Curve):
         if discriminant == 0:
             raise ValueError("Curve is singular: A² - 4 ≡ 0 (mod p)")
 
-    def is_on_curve(self, point: Tuple[int, int]) -> bool:
+    def is_on_curve(self, point: tuple[int, int]) -> bool:
         """
         Check if point (u, v) satisfies the Montgomery curve equation: Bv² = u³ + Au² + u
         """
@@ -55,18 +54,20 @@ class MGCurve(Curve):
         right = (u * u * u + self.A * u * u + u) % p
         return left == right
 
-    def point_at_infinity(self):
+    def point_at_infinity(self) -> MGAffinePoint:
         """Return the point at infinity for this curve."""
         # Import here to avoid circular dependency
         from .mg_affine_point import MGAffinePoint
+
         return MGAffinePoint(None, None, self)
 
-    def random_point(self, rng=None) -> 'MGAffinePoint':
+    def random_point(self, rng: Any = None) -> MGAffinePoint:
         """
         Generate a random point on the curve by trying random x-coordinates
         until we find one that gives a valid y-coordinate.
         """
         import secrets
+
         if rng is None:
             rng = secrets.SystemRandom()
 
@@ -100,14 +101,14 @@ class MGCurve(Curve):
 
         raise RuntimeError(f"Failed to find random point after {max_attempts} attempts")
 
-    def validate_point(self, point) -> bool:
+    def validate_point(self, point: Any) -> bool:
         """
         Validate that a point is properly constructed and on the curve.
         """
-        if hasattr(point, 'is_identity') and point.is_identity():
+        if hasattr(point, "is_identity") and point.is_identity():
             return True
 
-        if not hasattr(point, 'x') or not hasattr(point, 'y'):
+        if not hasattr(point, "x") or not hasattr(point, "y"):
             return False
 
         if point.x is None or point.y is None:
@@ -121,13 +122,15 @@ class MGCurve(Curve):
         # Check curve equation
         return self.is_on_curve((point.x, point.y))
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check if two curves are equal."""
         if not isinstance(other, MGCurve):
             return False
-        return (self.PRIME_FIELD == other.PRIME_FIELD and
-                self.A == other.A and
-                self.B == other.B)
+        return (
+            self.PRIME_FIELD == other.PRIME_FIELD
+            and self.A == other.A
+            and self.B == other.B
+        )
 
     def __hash__(self) -> int:
         """Hash for use as dictionary keys."""
@@ -139,5 +142,7 @@ class MGCurve(Curve):
 
     def __repr__(self) -> str:
         """Detailed string representation."""
-        return (f"MGCurve(PRIME_FIELD={self.PRIME_FIELD}, A={self.A}, B={self.B}, "
-                f"equation: {self.B}*v² = u³ + {self.A}*u² + u)")
+        return (
+            f"MGCurve(PRIME_FIELD={self.PRIME_FIELD}, A={self.A}, B={self.B}, "
+            f"equation: {self.B}*v² = u³ + {self.A}*u² + u)"
+        )

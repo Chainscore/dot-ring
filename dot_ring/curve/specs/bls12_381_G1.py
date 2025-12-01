@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, Any
-
 import hashlib
+from dataclasses import dataclass
+from typing import Any, Final, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..short_weierstrass.sw_curve import SWCurve
+
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
+from ..short_weierstrass.sw_curve import SWCurve
 
 
 @dataclass(frozen=True)
@@ -108,7 +108,9 @@ class BLS12_381_G1Curve(SWCurve):
             S_in_bytes=BLS12_381_G1Params.S_IN_BYTES,
             H_A=BLS12_381_G1Params.H_A,
             Requires_Isogeny=BLS12_381_G1Params.Requires_Isogeny,
-            Isogeny_Coeffs=BLS12_381_G1Params.Isogeny_Coeffs,
+            Isogeny_Coeffs=cast(
+                dict[str, list[int]] | None, BLS12_381_G1Params.Isogeny_Coeffs
+            ),
             UNCOMPRESSED=BLS12_381_G1Params.UNCOMPRESSED,
             ENDIAN=BLS12_381_G1Params.ENDIAN,
             POINT_LEN=BLS12_381_G1Params.POINT_LEN,
@@ -120,11 +122,13 @@ class BLS12_381_G1Curve(SWCurve):
 BLS12_381_G1_SW_Curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve()
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+def nu_variant(
+    e2c_variant: E2C_Variant = E2C_Variant.SSWU_NU,
+) -> type[BLS12_381_G1Point]:
     class BLS12_381_G1PointVariant(BLS12_381_G1Point):
         """Point on BLS12_381_G1 with custom E2C variant"""
-        curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve(e2c_variant)
 
+        curve: SWCurve = BLS12_381_G1Curve(e2c_variant)
 
     return BLS12_381_G1PointVariant
 
@@ -134,7 +138,7 @@ class BLS12_381_G1Point(SWAffinePoint):
     Affine point on BLS12-381 G1.
     """
 
-    curve: Final[BLS12_381_G1Curve] = BLS12_381_G1_SW_Curve
+    curve: SWCurve = BLS12_381_G1_SW_Curve
 
     @classmethod
     def map_to_curve_simple_swu(cls, u: int) -> BLS12_381_G1Point | Any:
@@ -149,9 +153,9 @@ class BLS12_381_G1Point(SWAffinePoint):
         # 8.  Else set x = x2 and y = sqrt(gx2)
         # 9.  If sgn0(u) != sgn0(y), set y = -y
         # 10. return (x, y)
-        Z = cls.curve.Z
-        A = cls.curve.WeierstrassA
-        B = cls.curve.WeierstrassB
+        Z = cast(int, cls.curve.Z)
+        A = cast(int, cls.curve.WeierstrassA)
+        B = cast(int, cls.curve.WeierstrassB)
         p = cls.curve.PRIME_FIELD
 
         if cls.curve.Requires_Isogeny:  # E' vals, used only for secp256k1 as its A=0
@@ -338,6 +342,7 @@ class BLS12_381_G1Point(SWAffinePoint):
             ) % p
             y = (yp * y_num * pow(y_den, -1, p)) % p
         return cls(x=x, y=y)
+
 
 BLS12_381_G1_NU = CurveVariant(
     name="BLS12_381_G1_NU",

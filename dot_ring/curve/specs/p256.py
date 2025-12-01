@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Final, Self
+
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..short_weierstrass.sw_curve import SWCurve
+
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
+from ..short_weierstrass.sw_curve import SWCurve
 
 
 @dataclass(frozen=True)
@@ -23,8 +25,12 @@ class P256Params:
     DST = b"QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters for y² = x³ - 3x + b
-    PRIME_FIELD: Final[int] = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
-    ORDER: Final[int] = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+    PRIME_FIELD: Final[
+        int
+    ] = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
+    ORDER: Final[
+        int
+    ] = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
     COFACTOR: Final[int] = 1
 
     # Generator point
@@ -115,10 +121,11 @@ class P256Curve(SWCurve):
         )
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> type[P256Point]:
     class P256PointVariant(P256Point):
         """Point on P256 with custom E2C variant"""
-        curve: Final[P256Curve] = P256Curve(e2c_variant)
+
+        curve: P256Curve = P256Curve(e2c_variant)
 
     return P256PointVariant
 
@@ -131,7 +138,7 @@ class P256Point(SWAffinePoint):
     """
 
     @classmethod
-    def identity_point(cls):
+    def identity_point(cls) -> None:
         """
         Get the identity point (0, 1) of the curve.
         Returns:
@@ -140,24 +147,7 @@ class P256Point(SWAffinePoint):
         # The identity point
         return None
 
-    @classmethod
-    def _x_recover(cls, y: int) -> int:
-        """
-        Recover x-coordinate from y-coordinate for P-256 curve.
 
-        This method explicitly calls the SWAffinePoint's _x_recover implementation.
-
-        Args:
-            y: y-coordinate
-
-        Returns:
-            int: Recovered x-coordinate
-
-        Raises:
-            ValueError: If x cannot be recovered
-        """
-        return SWAffinePoint._x_recover(cls, y)
-    
 P256_RO = CurveVariant(
     name="P256_RO",
     curve=P256Curve(e2c_variant=E2C_Variant.SSWU),

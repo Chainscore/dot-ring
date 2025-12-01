@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Optional
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..montgomery.mg_curve import MGCurve
+
 from ..montgomery.mg_affine_point import MGAffinePoint
+from ..montgomery.mg_curve import MGCurve
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ class Curve448Params:
     ENDIAN = "little"
     M: Final[int] = 1
     K: Final[int] = 224
-    S_in_bytes: Final = None
+    S_in_bytes: Final[int | None] = None
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
 
@@ -110,17 +111,13 @@ class Curve448Curve(MGCurve):
             CHALLENGE_LENGTH=Curve448Params.CHALLENGE_LENGTH,
         )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Skip parent validation since Curve448 parameters are known to be valid."""
         # Override the validation from the fixed MGCurve to avoid redundant checks
         pass
 
 
-# Main curve instance
-Curve448_MG_Curve: Final[Curve448Curve] = Curve448Curve()
-
-
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> type[MGAffinePoint]:
     """
     Factory function to create a Curve448Point class with a specific E2C variant.
 
@@ -132,28 +129,16 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
     Returns:
         A Curve448Point class configured with the specified variant
     """
-    # Create curve with the specified variant
-    curve = Curve448Curve(e2c_variant)
 
-    # Create and return a point class with this curve
     class Curve448PointVariant(MGAffinePoint):
         """Point on Curve448 with custom E2C variant"""
-        pass
 
-    # Set the curve as a class attribute
-    Curve448PointVariant.curve = curve
+        curve = Curve448Curve(e2c_variant)
+        pass
 
     return Curve448PointVariant
 
 
-class Curve448Point(MGAffinePoint):
-    """
-    Point on the Curve448 Montgomery curve.
-    """
-
-    curve: Final[Curve448Curve] = Curve448_MG_Curve
-    
-    
 Curve448_NU = CurveVariant(
     name="Curve448_NU",
     curve=Curve448Curve(e2c_variant=E2C_Variant.ELL2_NU),

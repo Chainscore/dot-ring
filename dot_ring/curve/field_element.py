@@ -7,8 +7,6 @@ in finite fields, particularly useful for cryptographic operations.
 
 from __future__ import annotations
 
-from typing import Union, Optional
-
 
 class FieldElement:
     """
@@ -31,7 +29,7 @@ class FieldElement:
         self.im = im % p
         self.p = p
 
-    def __add__(self, other: Union[FieldElement, int]) -> FieldElement:
+    def __add__(self, other: FieldElement | int) -> FieldElement:
         """Add two field elements or a field element and an integer."""
         if isinstance(other, FieldElement):
             if self.p != other.p:
@@ -41,23 +39,17 @@ class FieldElement:
             )
         return FieldElement((self.re + other) % self.p, self.im, self.p)
 
-    def __sub__(self, other: Union[FieldElement, int]) -> FieldElement:
+    def __sub__(self, other: FieldElement | int) -> FieldElement:
         """Subtract two field elements or a field element and an integer."""
         if isinstance(other, FieldElement):
             if self.p != other.p:
                 raise ValueError("Cannot subtract elements from different fields")
             return FieldElement(
-                (self.re - other.re) % self.p,
-                (self.im - other.im) % self.p,
-                self.p
+                (self.re - other.re) % self.p, (self.im - other.im) % self.p, self.p
             )
-        return FieldElement(
-            (self.re - other) % self.p,
-            self.im,
-            self.p
-        )
+        return FieldElement((self.re - other) % self.p, self.im, self.p)
 
-    def __mul__(self, other: Union[FieldElement, int]) -> FieldElement:
+    def __mul__(self, other: FieldElement | int) -> FieldElement:
         """Multiply two field elements or a field element and an integer."""
         if isinstance(other, FieldElement):
             if self.p != other.p:
@@ -70,7 +62,7 @@ class FieldElement:
             (self.re * other) % self.p, (self.im * other) % self.p, self.p
         )
 
-    def __truediv__(self, other: Union[FieldElement, int]) -> FieldElement:
+    def __truediv__(self, other: FieldElement | int) -> FieldElement:
         """Divide two field elements or a field element by an integer."""
         if isinstance(other, FieldElement):
             return self * other.inv()
@@ -137,7 +129,7 @@ class FieldElement:
             exponent = exponent // 2
         return result
 
-    def sqrt(self) -> Optional[FieldElement]:
+    def sqrt(self) -> FieldElement | None:
         if self.im == 0:
             # Fp case (Tonelli-Shanks, unchanged)
             a = self.re
@@ -201,6 +193,9 @@ class FieldElement:
             y = FieldElement(x1, 0, p).sqrt()
         else:
             return None  # No square root exists
+
+        if y is None:
+            return None
 
         # Step 5: compute imaginary part: x = a1 / (2*y)
         inv_2y = pow(2 * y.re, -1, p)

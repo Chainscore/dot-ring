@@ -1,7 +1,8 @@
 # phases.py
 from __future__ import annotations
 
-from typing import Any, List, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from dot_ring.ring_proof.transcript.serialize import serialize
 from dot_ring.ring_proof.transcript.transcript import Transcript
@@ -34,9 +35,9 @@ def phase2_eval_point(t: Transcript, C_q_commitment: Any) -> Any:
 
 def phase3_nu_vector(
     t: Transcript,
-    rel_poly_evals: List[int],
+    rel_poly_evals: list[int],
     agg_poly_eval: int,
-) -> List[int]:
+) -> list[int]:
     """Append evaluation bundle and linearisation eval, return 8 ν‑challenges."""
     t.add_serialized(b"register_evaluations", serialize(rel_poly_evals))
     t.add_serialized(b"shifted_linearization_evaluation", serialize(agg_poly_eval))

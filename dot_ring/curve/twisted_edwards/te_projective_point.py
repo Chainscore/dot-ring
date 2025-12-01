@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import TypeVar, Self, TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
 if TYPE_CHECKING:
-    from .te_curve import TECurve
-    from .te_affine_point import TEAffinePoint
     from ..point import CurvePoint
+    from .te_affine_point import TEAffinePoint
+    from .te_curve import TECurve
 
 C = TypeVar("C", bound="TECurve")
+
 
 @dataclass(slots=True)
 class TEProjectivePoint(Generic[C]):
@@ -15,40 +17,39 @@ class TEProjectivePoint(Generic[C]):
     Twisted Edwards Curve Point in Extended Projective Coordinates (X:Y:Z:T).
     x = X/Z, y = Y/Z, xy = T/Z
     """
+
     x: int
     y: int
     z: int
     t: int
     curve: C
-    
-    @classmethod
-    def from_point(
-        cls, point: CurvePoint
-    ) -> Self:
-        return cls(point.x, point.y, 1, (point.x * point.y) % point.curve.PRIME_FIELD, point.curve)
 
     @classmethod
-    def from_affine(cls, point: "TEAffinePoint") -> Self:
-        return cls(
-            point.x, 
-            point.y, 
-            1, 
-            (point.x * point.y) % point.curve.PRIME_FIELD, 
-            point.curve
-        )
+    def from_point(cls, point: CurvePoint) -> Self:
+        from typing import cast
 
-    def to_affine(self, point_cls: type["TEAffinePoint"] | None = None) -> "TEAffinePoint":
+        x, y = cast(int, point.x), cast(int, point.y)
+        return cls(x, y, 1, (x * y) % point.curve.PRIME_FIELD, point.curve)
+
+    @classmethod
+    def from_affine(cls, point: TEAffinePoint) -> Self:
+        from typing import cast
+
+        x, y = cast(int, point.x), cast(int, point.y)
+        return cls(x, y, 1, (x * y) % point.curve.PRIME_FIELD, point.curve)
+
+    def to_affine(self, point_cls: type[TEAffinePoint] | None = None) -> TEAffinePoint:
         from .te_affine_point import TEAffinePoint as BaseAffine
 
         target_cls = point_cls or BaseAffine
 
         # Ensure the target class has a curve reference
         if not hasattr(target_cls, "curve"):
-            setattr(target_cls, "curve", self.curve)
+            target_cls.curve = self.curve
 
         if self.z == 0:
             return target_cls(0, 1)
-        
+
         p = self.curve.PRIME_FIELD
         inv_z = pow(self.z, -1, p)
         x = (self.x * inv_z) % p
@@ -73,32 +74,32 @@ class TEProjectivePoint(Generic[C]):
         # Y3 = G * H
         # T3 = E * H
         # Z3 = F * G
-        
+
         p = self.curve.PRIME_FIELD
         a_coeff = self.curve.EdwardsA
-        
+
         # Compute squares
         A = (self.x * self.x) % p
         B = (self.y * self.y) % p
         z_sq = (self.z * self.z) % p
         C = (z_sq << 1) % p  # 2 * z^2 using bit shift
         D = (a_coeff * A) % p
-        
+
         # Compute E efficiently
         x_plus_y = (self.x + self.y) % p
         E = (x_plus_y * x_plus_y - A - B) % p
-        
+
         # Compute remaining terms
         G = (D + B) % p
         F = (G - C) % p
         H = (D - B) % p
-        
+
         # Final coordinates
         x3 = (E * F) % p
         y3 = (G * H) % p
         t3 = (E * H) % p
         z3 = (F * G) % p
-        
+
         return self.__class__(x3, y3, z3, t3, self.curve)
 
     def __add__(self, other: Self) -> Self:
@@ -114,24 +115,24 @@ class TEProjectivePoint(Generic[C]):
         # Y3 = G*H
         # T3 = E*H
         # Z3 = F*G
-        
+
         p = self.curve.PRIME_FIELD
         a_coeff = self.curve.EdwardsA
         d_coeff = self.curve.EdwardsD
-        
+
         A = (self.x * other.x) % p
         B = (self.y * other.y) % p
         C = (d_coeff * self.t * other.t) % p
         D = (self.z * other.z) % p
-        
+
         E = ((self.x + self.y) * (other.x + other.y) - A - B) % p
         F = (D - C) % p
         G = (D + C) % p
         H = (B - a_coeff * A) % p
-        
+
         x3 = (E * F) % p
         y3 = (G * H) % p
         t3 = (E * H) % p
         z3 = (F * G) % p
-        
+
         return self.__class__(x3, y3, z3, t3, self.curve)

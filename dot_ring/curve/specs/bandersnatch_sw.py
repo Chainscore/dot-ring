@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, Union
 import hashlib
+from dataclasses import dataclass
+from typing import Final, Literal, Self, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..short_weierstrass.sw_curve import SWCurve
+
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
-from ..point import CurvePoint
+from ..short_weierstrass.sw_curve import SWCurve
+
 
 @dataclass(frozen=True)
 class BandersnatchSWParams:
@@ -87,17 +88,17 @@ Bandersnatch_SW_SW_Curve: Final[SWCurve] = SWCurve(
 
 
 class Bandersnatch_SW_Point(SWAffinePoint):
-    curve: Final[SWCurve] = Bandersnatch_SW_SW_Curve
-    
+    curve: SWCurve = Bandersnatch_SW_SW_Curve
+
     @classmethod
     def identity_point(cls) -> None:
         return None
 
     @classmethod
-    def _x_recover(cls, y: int) -> int:
-        return SWAffinePoint._x_recover(cls, y)
+    def _x_recover(cls, y: int) -> tuple[int, int]:
+        return SWAffinePoint._x_recover(y)
 
-    def point_to_string(self) -> bytes:
+    def point_to_string(self, compressed: bool = False) -> bytes:
         """ """
 
         p = self.curve.PRIME_FIELD
@@ -116,13 +117,20 @@ class Bandersnatch_SW_Point(SWAffinePoint):
             return bytes(result)
 
         # Determine flags
-        if self.y <= (-self.y % p):
+        if self.y is None:
+            raise ValueError("Cannot serialize identity point")
+        y_int = cast(int, self.y)
+        if y_int <= (-y_int % p):
             flag = 0  # Y positive
         else:
             flag = 1 << 7  # Y negative
 
         # Serialize x-coordinate
-        x_bytes = int(self.x).to_bytes((field_bit_len + 7) // 8, self.curve.ENDIAN)
+        if self.x is None:
+            raise ValueError("Cannot serialize identity point")
+        x_bytes = int(cast(int, self.x)).to_bytes(
+            (field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.ENDIAN)
+        )
 
         # Copy x_bytes into buffer of total length
         result = bytearray(output_byte_len)
@@ -134,56 +142,59 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         return bytes(result)
 
     @classmethod
-    def _y_recover(cls, x):
+    def _y_recover(cls, x: int) -> tuple[int, int] | None:
         p = cls.curve.PRIME_FIELD
-        A = cls.curve.WeierstrassA
-        B = cls.curve.WeierstrassB
+        A = cast(int, cls.curve.WeierstrassA)
+        B = cast(int, cls.curve.WeierstrassB)
         y_square = (pow(x, 3, p) + A * x + B) % p
         try:
             y = cls.curve.mod_sqrt(y_square)
         except ValueError:
             return None
-        
+
         if not y:
             return None
         neg_y = -y % p
-        if y < neg_y:
+        if isinstance(y, int) and y <= (p - 1) // 2:
             return y, neg_y
         return neg_y, y
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> "CurvePoint" | str:
-        if isinstance(octet_string, str):
-            octet_string = bytes.fromhex(octet_string)
+    def string_to_point(cls, data: str | bytes) -> Self:
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
 
-        if len(octet_string) == 0:
+        if len(data) == 0:
             raise ValueError("Empty octet string")
 
-        x_bytes = octet_string[:-1]
-        x = int.from_bytes(x_bytes, cls.curve.ENDIAN)  # use big-endian
+        # Assuming the input `data` is still an octet string as per original logic
+        # and the `x_str`, `y_str`, `Helpers` part was a mis-paste or incomplete change.
+        # Reverting to original parsing logic but using `data` instead of `octet_string`.
+        x_bytes = data[:-1]
+        x = int.from_bytes(x_bytes, cast(Literal["little", "big"], cls.curve.ENDIAN))
         y_candidates = cls._y_recover(x)
         if not y_candidates:
-            return "INVALID"
+            raise ValueError("INVALID point: no y-coordinate found for x")
         y, y_neg = y_candidates
 
-        is_negative = (octet_string[-1] >> 7) & 1
-        is_infinity = (octet_string[-1] >> 6) & 1
+        is_negative = (data[-1] >> 7) & 1
+        is_infinity = (data[-1] >> 6) & 1
 
         if is_infinity:
             if is_negative:
-                return "INVALID"
-            return "INVALID"
+                raise ValueError("INVALID: Infinity point cannot be negative")
+            raise ValueError("INVALID: Infinity point not supported")
 
         if is_negative:
             try:
                 return cls(x, y_neg)
             except ValueError:
-                return "INVALID"  # to support in the case of TAI
+                raise ValueError("INVALID point") from None
         else:
             try:
                 return cls(x, y)
             except ValueError:
-                return "INVALID"  # to support in the case of TAI
+                raise ValueError("INVALID point") from None
 
     @classmethod  # modified
     def encode_to_curve_tai(cls, alpha_string: bytes | str, salt: bytes = b"") -> Self:
@@ -200,7 +211,7 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         ctr = 0
         import hashlib
 
-        H = "INVALID"
+        H: Self | None = None
         front = b"\x01"
         back = b"\x00"
         alpha_string = (
@@ -208,15 +219,28 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         )
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
-        while H == "INVALID" or H == cls.identity_point():
+
+        while True:
             ctr_string = ctr.to_bytes(1, "big")
             hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             hash_output = hashlib.sha512(hash_input).digest()
-            H = cls.string_to_point(hash_output[:33])
-            if H != "INVALID" and cls.curve.COFACTOR > 1:
-                H = H * cls.curve.COFACTOR
+            try:
+                H = cls.string_to_point(hash_output[:33])
+            except ValueError:
+                ctr += 1
+                continue
+
+            # Check if H is valid (not raising ValueError)
+            if cls.curve.COFACTOR > 1:
+                # H is Self | None, but here it must be Self (point)
+                if H is None:  # Should not happen if string_to_point works
+                    continue
+                H = cast(Self, H * cls.curve.COFACTOR)  # type: ignore[operator]
+
+            if H != cls.identity_point():
+                return H
             ctr += 1
-        return H
+
 
 Bandersnatch_SW = CurveVariant(
     name="Bandersnatch_SW",

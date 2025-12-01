@@ -1,33 +1,39 @@
-import pytest
 import random
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
-from dot_ring.curve.specs.jubjub import JubJub
+
+import pytest
+
 from dot_ring.curve.specs.baby_jubjub import BabyJubJub
+from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1_RO
+from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2_RO
+from dot_ring.curve.specs.curve448 import Curve448_RO
+from dot_ring.curve.specs.curve25519 import Curve25519_RO
 from dot_ring.curve.specs.ed448 import Ed448_RO
 from dot_ring.curve.specs.ed25519 import Ed25519_RO
+from dot_ring.curve.specs.jubjub import JubJub
 from dot_ring.curve.specs.p256 import P256_RO
 from dot_ring.curve.specs.p384 import P384_RO
 from dot_ring.curve.specs.p521 import P521_RO
-from dot_ring.curve.specs.curve448 import Curve448_RO
-from dot_ring.curve.specs.curve25519 import Curve25519_RO
-from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1_RO
-from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2_RO
 
-#PROPERTY-BASED TESTS; General mathematical group properties
-@pytest.mark.parametrize("PointClass, CurveClass", [
-    (Bandersnatch.point, Bandersnatch.curve),
-    (JubJub.point, JubJub.curve),
-    (BabyJubJub.point, BabyJubJub.curve),
-    (Ed448_RO.point, Ed448_RO.curve),
-    (Ed25519_RO.point, Ed25519_RO.curve),
-    (Curve448_RO.point, Curve448_RO.curve),
-    (Curve25519_RO.point, Curve25519_RO.curve),
-    (P256_RO.point, P256_RO.curve),
-    (P384_RO.point, P384_RO.curve),
-    (P521_RO.point, P521_RO.curve),
-    (BLS12_381_G1_RO.point, BLS12_381_G1_RO.curve),
-    (BLS12_381_G2_RO.point, BLS12_381_G2_RO.curve),
-])
+
+# PROPERTY-BASED TESTS; General mathematical group properties
+@pytest.mark.parametrize(
+    "PointClass, CurveClass",
+    [
+        (Bandersnatch.point, Bandersnatch.curve),
+        (JubJub.point, JubJub.curve),
+        (BabyJubJub.point, BabyJubJub.curve),
+        (Ed448_RO.point, Ed448_RO.curve),
+        (Ed25519_RO.point, Ed25519_RO.curve),
+        (Curve448_RO.point, Curve448_RO.curve),
+        (Curve25519_RO.point, Curve25519_RO.curve),
+        (P256_RO.point, P256_RO.curve),
+        (P384_RO.point, P384_RO.curve),
+        (P521_RO.point, P521_RO.curve),
+        (BLS12_381_G1_RO.point, BLS12_381_G1_RO.curve),
+        (BLS12_381_G2_RO.point, BLS12_381_G2_RO.curve),
+    ],
+)
 def test_curve_property_based(PointClass, CurveClass):
     """
     Property-based tests for fundamental group operations:
@@ -49,21 +55,21 @@ def test_curve_property_based(PointClass, CurveClass):
     Q = Generator * b
     R = Generator * c
 
-    #Commutativity
+    # Commutativity
     assert (P + Q) == (Q + P)
 
-    #Associativity
+    # Associativity
     assert ((P + Q) + R) == (P + (Q + R))
 
-    #Distributivity
+    # Distributivity
     lhs = Generator * ((a + b) % order)
     rhs = (Generator * a) + (Generator * b)
     assert lhs == rhs
 
-    #Scalar wrap-around
+    # Scalar wrap-around
     assert (Generator * order).is_identity()
 
-    #Negation
+    # Negation
     assert (P + (-P)).is_identity()
 
 

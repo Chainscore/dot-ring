@@ -1,9 +1,11 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import Dict, Generic, List, Optional, Protocol, Tuple, Type, TypeVar
-import hmac, hashlib
 
-from ..curve.curve import Curve, CurveVariant
+import hashlib
+import hmac
+from abc import abstractmethod
+from typing import Any, ClassVar, Generic, Literal, Protocol, Self, TypeVar, cast
+
+from ..curve.curve import CurveVariant
 from ..curve.point import CurvePoint, Point
 from ..ring_proof.helpers import Helpers
 
@@ -15,12 +17,12 @@ class VRFProtocol(Protocol[C, P]):
     """Protocol defining the interface for VRF implementations."""
 
     curve: C
-    point_type: Type[P]
+    point_type: type[P]
 
     @abstractmethod
     def proof(
         self, alpha: bytes, secret_key: int, additional_data: bytes
-    ) -> Tuple[P, Tuple[int, int]]:
+    ) -> tuple[P, tuple[int, int]]:
         """Generate VRF proof."""
         ...
 
@@ -31,44 +33,44 @@ class VRFProtocol(Protocol[C, P]):
         input_point: P,
         additional_data: bytes,
         output_point: P,
-        proof: Tuple[int, int],
+        proof: tuple[int, int],
     ) -> bool:
         """Verify VRF proof."""
         ...
 
 
-class VRF:
+class VRF(Generic[C]):
     """
     Base VRF (Verifiable Random Function) implementation.
 
     This class provides the core functionality for VRF operations,
     following the IETF specification.
-    
+
     Usage with subscript syntax:
         >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
         >>> from dot_ring.vrf.ietf.ietf import IETF_VRF
         >>> proof = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     """
 
-    cv: CurveVariant
-    
-    def __class_getitem__(cls, curve_variant: CurveVariant):
+    cv: ClassVar[CurveVariant]
+
+    def __class_getitem__(cls, curve_variant: CurveVariant | Any) -> type[Self] | Any:
         """
         Create a specialized VRF class for a specific curve variant.
-        
+
         Args:
             curve_variant: The CurveVariant to specialize for
-            
+
         Returns:
-            A new class with cv set to the curve variant
+            A new class with cv set to the curve variant, or cls if generic
         """
+        if not isinstance(curve_variant, CurveVariant):
+            return cls
         new_class = type(
-            f"{cls.__name__}[{curve_variant.name}]",
-            (cls,),
-            {"cv": curve_variant}
+            f"{cls.__name__}[{curve_variant.name}]", (cls,), {"cv": curve_variant}
         )
         return new_class
-    
+
     @classmethod
     def generate_nonce(cls, secret_key: int, input_point: CurvePoint) -> int:
         """
@@ -84,21 +86,32 @@ class VRF:
         # Hash secret key (little-endian)
         scalr_len = (cls.cv.curve.ORDER.bit_length() + 7) // 8
         sk_encoded = Helpers.int_to_str(
-            secret_key % cls.cv.curve.ORDER, cls.cv.curve.ENDIAN, scalr_len
+            secret_key % cls.cv.curve.ORDER,
+            cast(Literal["little", "big"], cls.cv.curve.ENDIAN),
+            scalr_len,
         )
         hash_len = 2 * scalr_len
         hashed_sk = cls.cv.curve.hash(sk_encoded, hash_len)
         sk_hash = hashed_sk[scalr_len:hash_len]
+        # sk_hash_int was unused
+        # sk_hash_int = Helpers.str_to_int(sk_hash, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
         # Concatenate with input point encoding
-        point_octet = input_point.point_to_string()
-        data = sk_hash + point_octet
+        if isinstance(input_point, int):
+            raise ValueError("Input point must be a CurvePoint")
+        input_point_octet = input_point.point_to_string()
+        data = sk_hash + input_point_octet
         # Generate final nonce
         nonce_hash = cls.cv.curve.hash(data, hash_len)
-        nonce = Helpers.str_to_int(nonce_hash, cls.cv.curve.ENDIAN)
-        return nonce % cls.cv.curve.ORDER
+        nonce = Helpers.str_to_int(
+            nonce_hash, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
+
+        # Calculate k = nonce % order
+        k = nonce % cls.cv.curve.ORDER
+        return k
 
     @classmethod
-    def challenge(cls, points: List[Point], additional_data: bytes) -> int:
+    def challenge(cls, points: list[CurvePoint], additional_data: bytes) -> int:
         """
         Generate VRF challenge according to RFC 9381.
 
@@ -133,8 +146,8 @@ class VRF:
 
     @classmethod
     def ecvrf_nonce_rfc6979(
-        cls, secret_scalar: int, h_string: bytes, hash_func="sha256"
-    ):
+        cls, secret_scalar: int, h_string: bytes, hash_func: str = "sha256"
+    ) -> int:
         """
         nonce generation as per rfc_6979
         Deterministically derives a nonce from secret scalar and input bytes.
@@ -166,14 +179,14 @@ class VRF:
         return k
 
     @classmethod
-    def ecvrf_decode_proof(cls, pi_string: bytes | str) -> Tuple[Point, int, int]:
+    def ecvrf_decode_proof(cls, pi_string: bytes | str) -> tuple[CurvePoint, int, int]:
         """Decode VRF proof.
 
         Args:
             pi_string: VRF proof
 
         Returns:
-            Tuple[Point, int, int]: (gamma, C, S)
+            Tuple[CurvePoint, int, int]: (gamma, C, S)
         """
 
         if not isinstance(pi_string, bytes):
@@ -203,8 +216,14 @@ class VRF:
 
         # Convert to appropriate types]
         gamma = cls.cv.point.string_to_point(gamma_string)
-        C = Helpers.b_endian_2_int(c_string) % cls.cv.curve.ORDER
-        S = Helpers.b_endian_2_int(s_string) % cls.cv.curve.ORDER
+        if isinstance(gamma, str):
+            raise ValueError("Invalid gamma point")
+        C = Helpers.str_to_int(
+            c_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
+        S = Helpers.str_to_int(
+            s_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
 
         if S >= cls.cv.curve.ORDER:
             raise ValueError("Response scalar S is not less than the curve order")
@@ -227,7 +246,7 @@ class VRF:
         return cls.proof_to_hash(gamma)
 
     @classmethod
-    def proof_to_hash(cls, gamma: Point, mul_cofactor: bool = False) -> bytes:
+    def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
         """Convert VRF proof to hash.
 
         Args:
@@ -255,11 +274,14 @@ class VRF:
     @classmethod
     def get_public_key(cls, secret_key: bytes) -> bytes:
         """Take the Secret_Key and return Public Key"""
-        secret_key = (
-            Helpers.str_to_int(secret_key, cls.cv.curve.ENDIAN) % cls.cv.curve.ORDER
+        secret_key_int = (
+            Helpers.str_to_int(
+                secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+            )
+            % cls.cv.curve.ORDER
         )
         # Create generator point
         generator = cls.cv.point.generator_point()
-        public_key: CurvePoint = generator * secret_key
+        public_key: CurvePoint = cast(Any, generator) * secret_key_int
         p_k = public_key.point_to_string()
         return p_k

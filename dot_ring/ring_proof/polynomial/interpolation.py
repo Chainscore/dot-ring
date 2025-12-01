@@ -2,22 +2,22 @@ from dot_ring.ring_proof.constants import SIZE
 from dot_ring.ring_proof.polynomial.fft import _fft_in_place
 
 
-def is_power_of_two(n):
+def is_power_of_two(n: int) -> bool:
     # is n==2**x
-    return n and (n & (n - 1)) == 0
+    return bool(n and (n & (n - 1)) == 0)
 
 
-def modinv(a, p):
+def modinv(a: int, p: int) -> int:
     # find x such that a*x= 1 mod p
     return pow(a, -1, p)
 
 
 # In general fft
-def fft(a, omega, p):  # coeffs to evaluation points
+def fft(a: list[int], omega: int, p: int) -> list[int]:  # coeffs to evaluation points
     n = len(a)
     if n == 1:
         return a
-    
+
     # Use optimized in-place FFT
     coeffs = list(a)
     _fft_in_place(coeffs, omega, p)
@@ -25,8 +25,8 @@ def fft(a, omega, p):  # coeffs to evaluation points
 
 
 def poly_interpolate_fft(
-    a, omega, p
-):  # funcs like inverse_fft from evals to poly coeffs
+    a: list[int], omega: int, p: int
+) -> list[int]:  # funcs like inverse_fft from evals to poly coeffs
     n = len(a)
     N = next_power_of_two(n)
     omega_2048 = (
@@ -41,11 +41,11 @@ def poly_interpolate_fft(
     return [(val * n_inv) % p for val in y]
 
 
-def next_power_of_two(n):
+def next_power_of_two(n: int) -> int:
     return 1 << (n - 1).bit_length()
 
 
-def poly_mul_fft(a, b, prime):
+def poly_mul_fft(a: list[int], b: list[int], prime: int) -> list[int]:
     target_len = 2048
     N = next_power_of_two(target_len)
     omega = (
@@ -66,7 +66,7 @@ def poly_mul_fft(a, b, prime):
     B_eval = fft(B, omega_N, prime)
 
     # Multiply evaluations
-    C_eval = [(ae * be) % prime for ae, be in zip(A_eval, B_eval)]
+    C_eval = [(ae * be) % prime for ae, be in zip(A_eval, B_eval, strict=False)]
 
     # Inverse FFT to get result
     C = poly_interpolate_fft(C_eval, omega_N, prime)

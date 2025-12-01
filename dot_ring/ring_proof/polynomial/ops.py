@@ -1,15 +1,19 @@
-from dot_ring.ring_proof.constants import S_PRIME, D_512, D_2048, OMEGA, OMEGA_2048
+from collections.abc import Sequence
+
+from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA, OMEGA_2048
 from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
 
 
-def mod_inverse(val, prime):
+def mod_inverse(val: int, prime: int) -> int:
     """Find the modular multiplicative inverse of a under modulo m."""
     if pow(val, prime - 1, prime) != 1:
         raise ValueError("No inverse exists")
     return pow(val, prime - 2, prime)
 
 
-def poly_add(poly1, poly2, prime):
+def poly_add(
+    poly1: list | Sequence[int], poly2: list | Sequence[int], prime: int
+) -> list[int]:
     """Add two polynomials in a prime field."""
     # Make them the same length
     result_len = max(len(poly1), len(poly2))
@@ -22,7 +26,7 @@ def poly_add(poly1, poly2, prime):
     return result
 
 
-def poly_subtract(poly1, poly2, prime):
+def poly_subtract(poly1: list[int], poly2: list[int], prime: int) -> list[int]:
     """Subtract poly2 from poly1 in a prime field."""
     # Make them the same length
     result_len = max(len(poly1), len(poly2))
@@ -38,9 +42,10 @@ def poly_subtract(poly1, poly2, prime):
 
 GENERATOR = 5
 
-_root_of_unity_cache = {}
+_root_of_unity_cache: dict[tuple[int, int], int] = {}
 
-def get_root_of_unity(n, prime):
+
+def get_root_of_unity(n: int, prime: int) -> int:
     """Get n-th primitive root of unity."""
     key = (n, prime)
     if key in _root_of_unity_cache:
@@ -54,11 +59,11 @@ def get_root_of_unity(n, prime):
     return root
 
 
-#(On^2)
-def poly_multiply(poly1, poly2, prime):
+# (On^2)
+def poly_multiply(poly1: list[int], poly2: list[int], prime: int) -> list[int]:
     """Multiply two polynomials in a prime field."""
     result_len = len(poly1) + len(poly2) - 1
-    
+
     # Use FFT if polynomials are large enough
     # Threshold chosen empirically - FFT overhead is not worth it for very small polys
     if result_len > 64:
@@ -66,17 +71,17 @@ def poly_multiply(poly1, poly2, prime):
         domain_size = 1
         while domain_size < result_len:
             domain_size *= 2
-            
+
         # We can support up to 2^32
         omega = get_root_of_unity(domain_size, prime)
-        
+
         evals1 = evaluate_poly_fft(poly1, domain_size, omega, prime)
         evals2 = evaluate_poly_fft(poly2, domain_size, omega, prime)
-        
-        evals_prod = [(e1 * e2) % prime for e1, e2 in zip(evals1, evals2)]
-        
+
+        evals_prod = [(e1 * e2) % prime for e1, e2 in zip(evals1, evals2, strict=False)]
+
         coeffs = inverse_fft(evals_prod, omega, prime)
-        
+
         # Truncate to expected length (higher terms should be 0)
         return coeffs[:result_len]
 
@@ -87,7 +92,7 @@ def poly_multiply(poly1, poly2, prime):
     return result
 
 
-def poly_division_general(coeffs, domain_size):
+def poly_division_general(coeffs: list[int], domain_size: int) -> list[int]:
     """
     Divide polynomial f(x) by vanishing polynomial Z_H(x) = x^domain_size - 1
 
@@ -104,7 +109,7 @@ def poly_division_general(coeffs, domain_size):
 
     # Case 1: degree(f) < domain_size -> quotient = 0, remainder = f
     if deg_f < n:
-        return [0], coeffs[:]
+        return [0]
 
     # Step 1️: initial quotient is the higher-degree coefficients
     quotient = coeffs[n:].copy()
@@ -117,102 +122,108 @@ def poly_division_general(coeffs, domain_size):
             if src_index < deg_f:
                 quotient[j] += coeffs[src_index]
 
-    #trim trailing zeros for cleaner output
+    # trim trailing zeros for cleaner output
     while quotient and quotient[-1] == 0:
         quotient.pop()
     return quotient
 
 
-def poly_scalar(poly, scalar, prime):
+def poly_scalar(poly: list | Sequence[int], scalar: int, prime: int) -> list[int]:
     """Multiply a polynomial by a scalar in a prime field."""
     result = [(coef * scalar) % prime for coef in poly]
     return result
 
 
-def poly_evaluate_single(poly: list, x: int, prime: int):
-    result=0
+def poly_evaluate_single(poly: list | Sequence[int], x: int, prime: int) -> int:
+    result = 0
     for coef in reversed(poly):
         result = (result * x + coef) % prime
     return result
 
 
-def poly_evaluate(poly: list, xs: list | int, prime: int):
+def poly_evaluate(
+    poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int
+) -> list[int] | int:
     """Evaluate polynomial at points xs.
-    
+
     Uses FFT when xs is one of the predefined evaluation domains (D_512, D_2048).
     Falls back to Horner evaluation for arbitrary points.
-    
+
     Args:
         poly: Polynomial coefficients (lowest degree first)
         xs: Either a list of evaluation points or a single point
         prime: Field modulus
-        
+
     Returns:
         List of evaluations (or single value if xs is a single point)
     """
     # Handle single point evaluation
     if isinstance(xs, int):
         return poly_evaluate_single(poly, xs, prime)
-    
+
     # Check if xs is one of the FFT-friendly domains
     # Compare by identity first (fast path), then by equality
     if xs is D_2048 or (len(xs) == 2048 and xs == D_2048):
         # Use FFT for D_2048
-        return evaluate_poly_fft(poly, 2048, OMEGA_2048, prime, coset_offset=1)
+        return evaluate_poly_fft(list(poly), 2048, OMEGA_2048, prime, coset_offset=1)
     elif xs is D_512 or (len(xs) == 512 and xs == D_512):
         # Use FFT for D_512
-        return evaluate_poly_fft(poly, 512, OMEGA, prime, coset_offset=1)
+        return evaluate_poly_fft(list(poly), 512, OMEGA, prime, coset_offset=1)
     else:
         # Fall back to Horner evaluation for arbitrary points
         results = [poly_evaluate_single(poly, x, prime) for x in xs]
         return results
 
 
-def poly_mul_linear(poly, a, b, prime):
+def poly_mul_linear(poly: list[int], a: int, b: int, prime: int) -> list[int]:
     """Multiply poly by (ax + b) in O(n) time."""
     # result = poly * (ax + b) = a * (poly * x) + b * poly
     # poly * x is [0] + poly
     # result[i] = a * poly[i-1] + b * poly[i]
-    
+
     n = len(poly)
     result = [0] * (n + 1)
-    
+
     # Handle first element (i=0): result[0] = b * poly[0]
     result[0] = (b * poly[0]) % prime
-    
+
     for i in range(1, n):
-        result[i] = (a * poly[i-1] + b * poly[i]) % prime
-        
+        result[i] = (a * poly[i - 1] + b * poly[i]) % prime
+
     # Handle last element (i=n): result[n] = a * poly[n-1]
-    result[n] = (a * poly[n-1]) % prime
-    
+    result[n] = (a * poly[n - 1]) % prime
+
     return result
 
 
-def lagrange_basis_polynomial(x_coords, i, prime: int):
+def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[int]:
     """
     Compute the i-th Lagrange basis polynomial.
 
     L_i(x) = (x - x_j) / (x_i - x_j)
     """
     # Optimization for roots of unity domains
-    if x_coords is D_512 or (len(x_coords) == 512 and x_coords == D_512) or \
-       x_coords is D_2048 or (len(x_coords) == 2048 and x_coords == D_2048):
+    if (
+        x_coords is D_512
+        or (len(x_coords) == 512 and x_coords == D_512)
+        or x_coords is D_2048
+        or (len(x_coords) == 2048 and x_coords == D_2048)
+    ):
         n = len(x_coords)
         x_i = x_coords[i]
-        
+
         # L_i(x) = 1/n * sum_{j=0}^{n-1} (x_i^{-j}) x^j
         # coeff[j] = 1/n * (x_i^{-1})^j
-        
+
         inv_n = pow(n, -1, prime)
         inv_xi = pow(x_i, -1, prime)
-        
+
         coeffs = [0] * n
         current = inv_n
         for j in range(n):
             coeffs[j] = current
             current = (current * inv_xi) % prime
-            
+
         return coeffs
 
     n = len(x_coords)
@@ -224,7 +235,7 @@ def lagrange_basis_polynomial(x_coords, i, prime: int):
             # Multiply numerator by (x - x_j)
             # term = [(-x_coords[j]) % prime, 1]
             # numerator = poly_multiply(numerator, term, prime)
-            
+
             # Use optimized linear multiplication: multiply by (1*x - x_j)
             numerator = poly_mul_linear(numerator, 1, (-x_coords[j]) % prime, prime)
 
@@ -241,56 +252,68 @@ def lagrange_basis_polynomial(x_coords, i, prime: int):
     return basis_poly
 
 
-#vector subtraction
-def vect_sub(a,b, prime):
+# vector subtraction
+def vect_sub(
+    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
+) -> list[int]:
     if isinstance(a, int) and isinstance(b, list):
-        n=len(b)
-        a=[a]*n
-        result=[(i-j)%prime for i,j in zip(a,b)]
+        n = len(b)
+        a_list = [a] * n
+        result = [(i - j) % prime for i, j in zip(a_list, b, strict=False)]
         return result
-    elif isinstance(a,list) and isinstance(b, int):
-        n=len(a)
-        b=[b]*n
-        result= [(i-j)% prime for i, j in zip(a,b)]
+    elif isinstance(a, list) and isinstance(b, int):
+        n = len(a)
+        b_list = [b] * n
+        result = [(i - j) % prime for i, j in zip(a, b_list, strict=False)]
         return result
     else:
-        result=[(i-j)%prime for i, j in zip(a,b)]
+        # Assume both are lists/sequences
+        result = [(i - j) % prime for i, j in zip(a, b, strict=False)]  # type: ignore
         return result
 
-#vector addition
-def vect_add(a, b, prime):
+
+# vector addition
+def vect_add(
+    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
+) -> list[int]:
     if isinstance(a, int) and isinstance(b, list):
-        n=len(b)
-        a=[a]*n
-        result=[(i+j)%prime for i,j in zip(a,b)]
+        n = len(b)
+        a_list = [a] * n
+        result = [(i + j) % prime for i, j in zip(a_list, b, strict=False)]
         return result
-    elif isinstance(a,list) and isinstance(b, int):
-        n=len(a)
-        b=[b]*n
-        result= [(i+j)% prime for i, j in zip(a,b)]
+    elif isinstance(a, list) and isinstance(b, int):
+        n = len(a)
+        b_list = [b] * n
+        result = [(i + j) % prime for i, j in zip(a, b_list, strict=False)]
         return result
     else:
-        result=[(i+j)%prime for i, j in zip(a,b)]
+        # Assume both are lists/sequences
+        result = [(i + j) % prime for i, j in zip(a, b, strict=False)]  # type: ignore
         return result
 
 
-#vector multiplication
-def vect_mul(a, b, prime):
+# vector multiplication
+def vect_mul(
+    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
+) -> list[int]:
     if isinstance(a, int) and isinstance(b, list):
-        n=len(b)
-        a=[a]*n
-        result=[(i*j)%prime for i,j in zip(a,b)]
+        n = len(b)
+        a_list = [a] * n
+        result = [(i * j) % prime for i, j in zip(a_list, b, strict=False)]
         return result
-    elif isinstance(a,list) and isinstance(b, int):
-        n=len(a)
-        b=[b]*n
-        result= [(i*j)% prime for i, j in zip(a,b)]
+    elif isinstance(a, list) and isinstance(b, int):
+        n = len(a)
+        b_list = [b] * n
+        result = [(i * j) % prime for i, j in zip(a, b_list, strict=False)]
         return result
     else:
-        result=[(i*j)%prime for i, j in zip(a,b)]
+        # Assume both are lists/sequences
+        result = [(i * j) % prime for i, j in zip(a, b, strict=False)]  # type: ignore
         return result
 
 
-def vect_scalar_mul(vec, scalar, mod=None):
+def vect_scalar_mul(
+    vec: list[int] | Sequence[int], scalar: int, mod: int | None = None
+) -> list[int]:
     """Multiply each element in the vector by the scalar"""
     return [(x * scalar) % mod if mod else x * scalar for x in vec]

@@ -1,13 +1,11 @@
-
-import time
-from typing import List, Tuple
 import py_ecc.optimized_bls12_381 as bls
 from py_ecc.bls import point_compression
-from dot_ring import blst
 from py_ecc.optimized_bls12_381 import FQ
 
+from dot_ring import blst
+
 Scalar = int
-CoeffVector = List[Scalar]
+CoeffVector = list[Scalar]
 
 
 def synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
@@ -23,14 +21,14 @@ def synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
     return q
 
 
-def g1_to_blst(p) -> blst.P1:
+def g1_to_blst(p: tuple) -> blst.P1:
     """Convert py_ecc G1 point (Jacobian tuple) to blst.P1"""
     compressed_int = point_compression.compress_G1(p)
     compressed_bytes = compressed_int.to_bytes(48, "big")
     return blst.P1(blst.P1_Affine(compressed_bytes))
 
 
-def g2_to_blst(p) -> blst.P2:
+def g2_to_blst(p: tuple) -> blst.P2:
     """Convert py_ecc G2 point to blst.P2"""
     z1, z2 = point_compression.compress_G2(p)
     b1 = z1.to_bytes(48, "big")
@@ -38,7 +36,7 @@ def g2_to_blst(p) -> blst.P2:
     return blst.P2(blst.P2_Affine(b1 + b2))
 
 
-def blst_p1_to_fq_tuple(blst_point: blst.P1) -> Tuple[FQ, FQ, FQ]:
+def blst_p1_to_fq_tuple(blst_point: blst.P1) -> tuple[FQ, FQ, FQ]:
     """Convert blst.P1 point back to (FQ, FQ, FQ) tuple in Jacobian coordinates"""
     point_bytes = blst_point.serialize()
     x_bytes = point_bytes[:48]
@@ -46,4 +44,3 @@ def blst_p1_to_fq_tuple(blst_point: blst.P1) -> Tuple[FQ, FQ, FQ]:
     x_int = int.from_bytes(x_bytes, "big")
     y_int = int.from_bytes(y_bytes, "big")
     return (FQ(x_int), FQ(y_int), FQ(1))
-

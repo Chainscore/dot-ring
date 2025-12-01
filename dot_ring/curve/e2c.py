@@ -7,6 +7,7 @@ class E2C_Variant(Enum):
     Args:
         Enum (str): Base class for string enums
     """
+
     TAI = "TryAndIncrement"
     # TE Curves
     ELL2 = "Hash2Suite_Elligator2_RO_"  # RO (Random Oracle) variant for Elligator2

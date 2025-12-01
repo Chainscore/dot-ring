@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Final, Self
+
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..twisted_edwards.te_curve import TECurve
+
 from ..twisted_edwards.te_affine_point import TEAffinePoint
+from ..twisted_edwards.te_curve import TECurve
 
 
 @dataclass(frozen=True)
@@ -70,29 +72,29 @@ class JubJubParams:
 
 JubJub_TE_Curve: Final[TECurve] = TECurve(
     PRIME_FIELD=JubJubParams.PRIME_FIELD,
-            ORDER=JubJubParams.ORDER,
-            GENERATOR_X=JubJubParams.GENERATOR_X,
-            GENERATOR_Y=JubJubParams.GENERATOR_Y,
-            COFACTOR=JubJubParams.COFACTOR,
-            Z=JubJubParams.Z,
-            EdwardsA=JubJubParams.EDWARDS_A,
-            EdwardsD=JubJubParams.EDWARDS_D,
-            SUITE_STRING=JubJubParams.SUITE_STRING,
-            DST=JubJubParams.DST,
-            E2C=E2C_Variant.TAI,
-            BBx=JubJubParams.BBx,
-            BBy=JubJubParams.BBy,
-            M=JubJubParams.M,
-            K=JubJubParams.K,
-            L=JubJubParams.L,
-            S_in_bytes=JubJubParams.S_in_bytes,
-            H_A=JubJubParams.H_A,
-            Requires_Isogeny=JubJubParams.Requires_Isogeny,
-            Isogeny_Coeffs=JubJubParams.Isogeny_Coeffs,
-            UNCOMPRESSED=JubJubParams.UNCOMPRESSED,
-            ENDIAN=JubJubParams.ENDIAN,
-            POINT_LEN=JubJubParams.POINT_LEN,
-            CHALLENGE_LENGTH=JubJubParams.CHALLENGE_LENGTH,
+    ORDER=JubJubParams.ORDER,
+    GENERATOR_X=JubJubParams.GENERATOR_X,
+    GENERATOR_Y=JubJubParams.GENERATOR_Y,
+    COFACTOR=JubJubParams.COFACTOR,
+    Z=JubJubParams.Z,
+    EdwardsA=JubJubParams.EDWARDS_A,
+    EdwardsD=JubJubParams.EDWARDS_D,
+    SUITE_STRING=JubJubParams.SUITE_STRING,
+    DST=JubJubParams.DST,
+    E2C=E2C_Variant.TAI,
+    BBx=JubJubParams.BBx,
+    BBy=JubJubParams.BBy,
+    M=JubJubParams.M,
+    K=JubJubParams.K,
+    L=JubJubParams.L,
+    S_in_bytes=JubJubParams.S_in_bytes,
+    H_A=JubJubParams.H_A,
+    Requires_Isogeny=JubJubParams.Requires_Isogeny,
+    Isogeny_Coeffs=JubJubParams.Isogeny_Coeffs,
+    UNCOMPRESSED=JubJubParams.UNCOMPRESSED,
+    ENDIAN=JubJubParams.ENDIAN,
+    POINT_LEN=JubJubParams.POINT_LEN,
+    CHALLENGE_LENGTH=JubJubParams.CHALLENGE_LENGTH,
 )
 
 
@@ -104,7 +106,7 @@ class JubJubPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[TECurve] = JubJub_TE_Curve
-    
-    
+    curve: TECurve = JubJub_TE_Curve
+
+
 JubJub = CurveVariant(name="JubJub", curve=JubJub_TE_Curve, point=JubJubPoint)

@@ -1,14 +1,15 @@
 import os
+import shutil
+import site
 import subprocess
 import sys
-import shutil
 from pathlib import Path
-import site
 
-def install_blst():
+
+def install_blst() -> None:
     root_dir = Path(__file__).parent.parent
     blst_dir = root_dir / ".blst"
-    
+
     # 1. Clone blst if not exists or is invalid
     should_clone = False
     if not blst_dir.exists():
@@ -24,12 +25,14 @@ def install_blst():
 
     if should_clone:
         print("Cloning blst...")
-        subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
+        subprocess.check_call(
+            ["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)]
+        )
 
     # 2. Build python bindings
     print("Building blst python bindings...")
     bindings_dir = blst_dir / "bindings" / "python"
-    
+
     # Ensure run.me is executable
     run_me = bindings_dir / "run.me"
     if run_me.exists():
@@ -42,15 +45,20 @@ def install_blst():
     # 3. Install into current python environment
     # We try to find the site-packages directory of the current environment
     site_packages = None
-    
+
     # Check if we are in a virtual environment
     if sys.prefix != sys.base_prefix:
         # We are in a venv
-        if os.name == 'posix':
-            site_packages = Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
-        elif os.name == 'nt':
+        if os.name == "posix":
+            site_packages = (
+                Path(sys.prefix)
+                / "lib"
+                / f"python{sys.version_info.major}.{sys.version_info.minor}"
+                / "site-packages"
+            )
+        elif os.name == "nt":
             site_packages = Path(sys.prefix) / "Lib" / "site-packages"
-    
+
     # Fallback if not found or not in venv (though we recommend venv)
     if not site_packages or not site_packages.exists():
         # Try to find a user site-packages or system one that is writable
@@ -68,14 +76,14 @@ def install_blst():
         sys.exit(1)
 
     print(f"Installing blst to {site_packages}...")
-    
+
     # Copy blst.py
     if (bindings_dir / "blst.py").exists():
         shutil.copy(bindings_dir / "blst.py", site_packages / "blst.py")
     else:
         print("Error: blst.py not found.")
         sys.exit(1)
-    
+
     # Copy shared library
     # Extensions can be .so, .dylib, .dll
     extensions = ["*.so", "*.dylib", "*.dll"]
@@ -85,26 +93,30 @@ def install_blst():
             print(f"Copying {file.name}...")
             shutil.copy(file, site_packages / file.name)
             copied = True
-    
+
     if not copied:
         print("Warning: No shared library (.so, .dylib, .dll) found to copy.")
     else:
         print("blst installed successfully.")
 
-def build_cython_extensions():
+
+def build_cython_extensions() -> None:
     print("Building Cython extensions...")
     root_dir = Path(__file__).parent.parent
     # Prefer script in scripts/ if present, fallback to repository root
     setup_script = root_dir / "scripts" / "setup_cython.py"
     if not setup_script.exists():
         setup_script = root_dir / "setup_cython.py"
-    
+
     if not setup_script.exists():
         print("Error: setup_cython.py not found in scripts/ or root.")
         sys.exit(1)
 
-    subprocess.check_call([sys.executable, str(setup_script), "build_ext", "--inplace"], cwd=root_dir)
+    subprocess.check_call(
+        [sys.executable, str(setup_script), "build_ext", "--inplace"], cwd=root_dir
+    )
     print("Cython extensions built successfully.")
+
 
 if __name__ == "__main__":
     install_blst()

@@ -1,19 +1,22 @@
-from typing import Tuple
+from typing import Any, Literal, TypeVar, cast
+
 from py_ecc.bls import point_compression
 from py_ecc.optimized_bls12_381 import FQ, FQ2, is_on_curve
 
 
 class Helpers:
     @staticmethod
-    def knocker_delta(i, j):
+    def knocker_delta(i: int, j: int) -> int:
         """ "
         input:i,j
         output: return 1 if i==j 0 otherwise
         """
         return 1 if i == j else 0
 
+    T = TypeVar("T")
+
     @staticmethod
-    def unzip(points):
+    def unzip(points: list[tuple[T, T]]) -> tuple[list[T], list[T]]:
         """ "
         input:Gets a list of points as input
         output:Splits the points into x,y co-ordinates
@@ -24,7 +27,7 @@ class Helpers:
 
     @staticmethod
     # bls point to string
-    def bls_g1_compress(bls_point):
+    def bls_g1_compress(bls_point: tuple) -> str:
         if len(bls_point) == 2:
             point = (FQ(bls_point[0]), FQ(bls_point[1]), FQ(1))
         else:
@@ -33,10 +36,10 @@ class Helpers:
         # Compress the point
         compressed = point_compression.compress_G1(point)
         hex_rep = compressed.to_bytes(48, "big").hex()
-        return hex_rep
+        return str(hex_rep)
 
     @staticmethod
-    def bls_g1_decompress(byte_array: bytes | str) -> Tuple[FQ, FQ, FQ]:
+    def bls_g1_decompress(byte_array: bytes | str) -> tuple[FQ, FQ, FQ]:
         """
         Decompress a BLS G1 point from its byte representation.
 
@@ -49,6 +52,7 @@ class Helpers:
         # Fast path: use BLST directly if available
         try:
             from dot_ring import blst
+
             if isinstance(byte_array, str):
                 byte_array = bytes.fromhex(byte_array)
             p1_affine = blst.P1_Affine(byte_array)
@@ -66,59 +70,69 @@ class Helpers:
                 dcp_scalar = int(byte_array, 16)
             decompressed = point_compression.decompress_G1(dcp_scalar)
             assert is_on_curve(decompressed, 4), "INVALID POINT"
-            return decompressed
+            return cast(tuple[FQ, FQ, FQ], decompressed)
 
     @staticmethod
-    def bls_g2_compress(g2_point):
+    def bls_g2_compress(g2_point: tuple) -> str:
         if len(g2_point) == 3:
             x, y, z = g2_point
-            point = (FQ2([x.coeffs[0], x.coeffs[1]]) if hasattr(x, 'coeffs') else x, 
-                    FQ2([y.coeffs[0], y.coeffs[1]]) if hasattr(y, 'coeffs') else y, 
-                    FQ2([z.coeffs[0], z.coeffs[1]]) if hasattr(z, 'coeffs') else z)
+            point = (
+                FQ2([x.coeffs[0], x.coeffs[1]]) if hasattr(x, "coeffs") else x,
+                FQ2([y.coeffs[0], y.coeffs[1]]) if hasattr(y, "coeffs") else y,
+                FQ2([z.coeffs[0], z.coeffs[1]]) if hasattr(z, "coeffs") else z,
+            )
         else:
             x, y = g2_point
-            point = (FQ2([x.coeffs[0], x.coeffs[1]]) if hasattr(x, 'coeffs') else x, 
-                    FQ2([y.coeffs[0], y.coeffs[1]]) if hasattr(y, 'coeffs') else y, 
-                    FQ2([1, 0]))
-        
+            point = (
+                FQ2([x.coeffs[0], x.coeffs[1]]) if hasattr(x, "coeffs") else x,
+                FQ2([y.coeffs[0], y.coeffs[1]]) if hasattr(y, "coeffs") else y,
+                FQ2([1, 0]),
+            )
+
+        # compress the point
         # compress the point
         compressed = point_compression.compress_G2(point)
-        return compressed[0].to_bytes(48, 'big').hex() + compressed[1].to_bytes(48, 'big').hex()
+        return str(
+            compressed[0].to_bytes(48, "big").hex()
+            + compressed[1].to_bytes(48, "big").hex()
+        )
 
     @staticmethod
     # for fiat_shamir
-    def to_int(tup):
+    def to_int(tup: tuple) -> tuple[int, int]:
         x, y = tup
         res = int(x), int(y)
         return res
 
     @staticmethod
     # int to hex_string
-    def to_bytes(val):
+    def to_bytes(val: int) -> str:
         res = val.to_bytes(32, "little")
         return res.hex()
 
     @staticmethod
-    def altered_points(g2_points):
+    def altered_points(g2_points: Any) -> list:
         res = [(b, a) for pair in g2_points for point in pair for a, b in [point]]
         return res
 
     @staticmethod
-    def to_scalar_int(string) -> int:
+    def to_scalar_int(string: str | bytes) -> int:
         if isinstance(string, bytes):
             return int.from_bytes(string, "little")
         byts = bytes.fromhex(string)
         return int.from_bytes(byts, "little")
 
     @staticmethod
-    def bls_projective_2_affine(points_3d):
+    def bls_projective_2_affine(
+        points_3d: list[tuple[Any, Any, Any]]
+    ) -> list[tuple[Any, Any]]:
         """
         Convert a list of 3D coordinate points to 2D by removing the z-coordinate.
         """
         return [(x, y) for x, y, z in points_3d]
 
     @staticmethod
-    def to_fq(point):
+    def to_fq(point: tuple[int, int, int]) -> tuple[FQ, FQ, FQ]:
         """convert a int type point cords to FQ type"""
         x, y, z = point
         res = (FQ(x), FQ(y), FQ(z))
@@ -131,13 +145,15 @@ class Helpers:
         return int.from_bytes(byte_array, "little")
 
     @staticmethod
-    def str_to_int(byte_array: bytes, order: str) -> int:
+    def str_to_int(byte_array: bytes, order: Literal["little", "big"]) -> int:
         if isinstance(byte_array, str):
             return int.from_bytes(bytes.fromhex(byte_array), order)
         return int.from_bytes(byte_array, order)
 
     @staticmethod
-    def int_to_str(val: int, order: str, n_bytes: int = 32):
+    def int_to_str(
+        val: int, order: Literal["little", "big"], n_bytes: int = 32
+    ) -> bytes:
         return val.to_bytes(n_bytes, order)
 
     @staticmethod

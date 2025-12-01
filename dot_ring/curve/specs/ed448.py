@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, Tuple, Union
 import hashlib
+from dataclasses import dataclass
+from typing import Final, Self
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..twisted_edwards.te_curve import TECurve
+
 from ..twisted_edwards.te_affine_point import TEAffinePoint
+from ..twisted_edwards.te_curve import TECurve
 
 
 @dataclass(frozen=True)
@@ -36,14 +37,11 @@ class Ed448Params:
     #     3
     # )
     # GENERATOR_Y: Final[int] = (
-    #     608248142315725548579089613027470755631970544493249636720114649005312536082174920317165848102547021453544566006733948867319461398184873
-    # )
+    #     60824814231572554857908961302747
     GENERATOR_X: Final[
         int
-    ] = 224580040295924300187604334099896036246789641632564134246125461686950415467406032909029192869357953282578032075146446173674602635247710
-    GENERATOR_Y: Final[
-        int
-    ] = 298819210078481492676017930443930673437544040154080242095928241372331506189835876003536878655418784733982303233503462500531545062832660
+    ] = 117812161263436946737282484343310064665180535357016373416879082147939404277809514858788439644911793978499419995990477371552926308078495
+    GENERATOR_Y: Final[int] = 19
 
     # Twisted Edwards parameters: ax² + y² = 1 + dx²y² (mod p)
     # From RFC 8032: Ed448 uses a = 1 and d = -39081
@@ -55,9 +53,9 @@ class Ed448Params:
     L: Final[int] = 84
     H_A = hashlib.shake_256
     ENDIAN = "little"
-    M: [Final] = 1
-    K: [Final] = 224
-    S_in_bytes: [Final] = 0
+    M: Final[int] = 1
+    K: Final[int] = 224
+    S_in_bytes: Final[int] = 0
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
 
@@ -67,12 +65,10 @@ class Ed448Params:
     # Independent blinding base for Pedersen VRF
     # Generated using a deterministic method from a different seed point
     # These should be cryptographically independent from the generator
-    BBx: Final[
-        int
-    ] = GENERATOR_X  # 0x5f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05f
-    BBy: Final[
-        int
-    ] = GENERATOR_Y  # 0x793f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa16
+    BBx: Final[int] = GENERATOR_X
+    BBy: Final[int] = GENERATOR_Y
+    ELL2_C1 = 0x570470F1767EA6DE324A3D3A46412AE1AF72AB66511433B80E18B00938E2626A82BC70CC05F  # noqa: E501
+    ELL2_C2 = 0x3736CA3984087789C1E05A0C2D73AD3FF1CE67C39C4FDBD132C4ED7C8AD9808795BF230FA16  # noqa: E501
     UNCOMPRESSED = True
     POINT_LEN: Final[int] = (PRIME_FIELD.bit_length() + 7) // 8
 
@@ -151,8 +147,7 @@ class Ed448Curve(TECurve):
 
         return left == right
 
-    @classmethod
-    def calculate_j_k(cls) -> Tuple[int, int]:
+    def calculate_j_k(self) -> tuple[int, int]:
         """
         Calculate curve parameters J and K for Elligator 2.
 
@@ -184,7 +179,7 @@ class Ed448Point(TEAffinePoint):
         return cls(Ed448Params.BBx, Ed448Params.BBy)
 
     @classmethod
-    def map_to_curve(cls, u: int):
+    def map_to_curve(cls, u: int) -> Self:
         # Use a different mapping specifically for Ed25519
         s, t = cls.curve.map_to_curve_ell2(u)
         return cls.mont_to_ed448(s, t)
@@ -228,10 +223,11 @@ class Ed448Point(TEAffinePoint):
         return cls(x, y)
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU):
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2_NU) -> type[Ed448Point]:
     class Ed448PointVariant(Ed448Point):
         """Point on Ed448 with custom E2C variant"""
-        curve: Final[Ed448Curve] = Ed448Curve(e2c_variant)
+
+        curve: TECurve = Ed448Curve(e2c_variant)
 
     return Ed448PointVariant
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Final, Self
+
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..short_weierstrass.sw_curve import SWCurve
+
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
+from ..short_weierstrass.sw_curve import SWCurve
 
 
 @dataclass(frozen=True)
@@ -52,8 +54,8 @@ class P521Params:
     # expand_message: Final[str] = "XMD"
     H_A = hashlib.sha512
     ENDIAN = "little"
-    L: [int] = 98
-    S_in_bytes: [Final] = 128  # 64 128 136 72
+    L: Final[int] = 98
+    S_in_bytes: Final[int] = 128  # 64 128 136 72
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 32  # 256 bits for P-521
     Requires_Isogeny: Final[bool] = False
@@ -61,10 +63,12 @@ class P521Params:
     # These are arbitrary points on the curve for blinding
     BBx: Final[
         int
-    ] = 0x00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66  # 0x01C9B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC012345678901234567890123456789012345678901234567890123456789012345678
+    ] = 0x00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66  # noqa: E501
+    ELL2_C1 = 0x01C9B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC012345678901234567890123456789012345678901234567890123456789012345678  # noqa: E501
     BBy: Final[
         int
-    ] = 0x011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650  # 0x02D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38945678901234567890123456789012345678901234567890123456789012345678901
+    ] = 0x011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650  # noqa: E501
+    ELL2_C2 = 0x02D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38945678901234567890123456789012345678901234567890123456789012345678901  # noqa: E501
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 67
@@ -116,10 +120,11 @@ class P521Curve(SWCurve):
         )
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU) -> type[SWAffinePoint]:
     class P521PointVariant(SWAffinePoint):
         """Point on P521 with custom E2C variant"""
-        curve: Final[P521Curve] = P521Curve(e2c_variant)
+
+        curve: P521Curve = P521Curve(e2c_variant)
 
     return P521PointVariant
 

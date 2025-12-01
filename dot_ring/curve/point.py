@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, Protocol, Self, ClassVar, Union, TYPE_CHECKING, TypeVar, Generic
-import hashlib
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    Literal,
+    Protocol,
+    Self,
+    TypeVar,
+    cast,
+)
 
 if TYPE_CHECKING:
     from dot_ring.curve.curve import Curve
@@ -25,17 +35,21 @@ class PointProtocol(Protocol[C]):
     y: int
     curve: C
 
-    def __add__(self, other: "PointProtocol[C]") -> "PointProtocol[C]":
+    def __add__(self, other: PointProtocol[C]) -> PointProtocol[C]:
         ...
 
-    def __mul__(self, scalar: int) -> "PointProtocol[C]":
+    def __mul__(self, scalar: int) -> PointProtocol[C]:
+        ...
+
+    def __rmul__(self, scalar: int) -> PointProtocol[C]:
         ...
 
     def is_on_curve(self) -> bool:
         ...
-    
+
     def is_identity(self) -> bool:
         ...
+
 
 class CurvePoint(Generic[C]):
     """
@@ -50,11 +64,16 @@ class CurvePoint(Generic[C]):
         curve: The curve this point belongs to
     """
 
-    x: int
-    y: int
+    x: int | tuple[int, int] | None
+    y: int | tuple[int, int] | None
     curve: C
-    
-    def __init__(self, x: int, y: int, curve: Optional[C] = None) -> None:
+
+    def __init__(
+        self,
+        x: int | tuple[int, int] | None,
+        y: int | tuple[int, int] | None,
+        curve: C | None = None,
+    ) -> None:
         self.x = x
         self.y = y
         if curve is not None:
@@ -65,15 +84,23 @@ class CurvePoint(Generic[C]):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, CurvePoint):
             return NotImplemented
-        return (
-            self.x == other.x
-            and self.y == other.y
-            and self.curve is other.curve
-        )
+        return self.x == other.x and self.y == other.y and self.curve is other.curve
+
+    def __add__(self, other: Self) -> Self:
+        raise NotImplementedError
+
+    def __sub__(self, other: Self) -> Self:
+        raise NotImplementedError
+
+    def __mul__(self, scalar: int) -> Self:
+        raise NotImplementedError
+
+    def __rmul__(self, scalar: int) -> Self:
+        return self.__mul__(scalar)
 
     # Class constants
     ENCODING_LENGTH: ClassVar[int] = 32
-    
+
     def __post_init__(self) -> None:
         """Validate point after initialization."""
         if not self._validate_coordinates():
@@ -91,12 +118,12 @@ class CurvePoint(Generic[C]):
         if self.is_identity():
             return True
         return (
-            0 <= self.x < self.curve.PRIME_FIELD
-            and 0 <= self.y < self.curve.PRIME_FIELD
+            0 <= cast(int, self.x) < self.curve.PRIME_FIELD
+            and 0 <= cast(int, self.y) < self.curve.PRIME_FIELD
         )
-    
+
     @classmethod
-    def msm(cls, points: List[Self], scalars: List[int]) -> Self:
+    def msm(cls, points: list[Self], scalars: list[int]) -> Self:
         """
         Compute sum(P_i * s_i) for pairs (P_i, s_i).
         Default implementation uses naive summation.
@@ -104,14 +131,14 @@ class CurvePoint(Generic[C]):
         """
         if len(points) != len(scalars):
             raise ValueError("Points and scalars must have same length")
-        
+
         if not points:
             return cls.identity()
-            
+
         result = cls.identity()
-        for point, scalar in zip(points, scalars):
+        for point, scalar in zip(points, scalars, strict=False):
             result = result + (point * scalar)
-            
+
         return result
 
     @classmethod
@@ -147,6 +174,17 @@ class CurvePoint(Generic[C]):
         """
         raise NotImplementedError("Must be implemented by subclass")
 
+    @classmethod
+    @abstractmethod
+    def identity(cls) -> Self:
+        """
+        Get the identity element.
+
+        Returns:
+            Self: Identity element
+        """
+        raise NotImplementedError("Must be implemented by subclass")
+
     def point_to_string(self) -> bytes:
         """
         Convert elliptic curve point (x, y) to compressed octet string.
@@ -165,15 +203,19 @@ class CurvePoint(Generic[C]):
 
         p = self.curve.PRIME_FIELD
         n_bytes = (p.bit_length() + 7) // 8
-        y_bytes = bytearray(self.y.to_bytes(n_bytes, self.curve.ENDIAN))
+        y_bytes = bytearray(
+            cast(int, self.y).to_bytes(
+                n_bytes, cast(Literal["little", "big"], self.curve.ENDIAN)
+            )
+        )
 
         # Compute x sign bit
-        x_sign_bit = 1 if self.x > (-self.x % p) else 0
+        x_sign_bit = 1 if cast(int, self.x) > (-cast(int, self.x) % p) else 0
         y_bytes[-1] |= x_sign_bit << 7
         return bytes(y_bytes)
 
     @classmethod
-    def string_to_point(cls, octet_string: Union[str, bytes]) -> Self | str:
+    def string_to_point(cls, octet_string: str | bytes) -> Self | str:
         """
         Convert compressed octet string back to point.
         Args:
@@ -201,7 +243,10 @@ class CurvePoint(Generic[C]):
         if x_candidates is None:
             return "INVALID"
 
-        x, neg_x = x_candidates
+        if isinstance(x_candidates, int):
+            x, neg_x = x_candidates, (-x_candidates) % cls.curve.PRIME_FIELD
+        else:
+            x, neg_x = x_candidates
 
         # Pick x using x_sign_bit
         chosen_x = neg_x if x_sign_bit else x
@@ -214,22 +259,26 @@ class CurvePoint(Generic[C]):
         p = self.curve.PRIME_FIELD
         byte_length = (p.bit_length() + 7) // 8
         endian = self.curve.ENDIAN
-        if endian != 'little' and endian != 'big':
-             raise ValueError("Invalid endianness")
+        if endian != "little" and endian != "big":
+            raise ValueError("Invalid endianness")
         # Encode u and v coordinates as little-endian bytes
-        x_bytes = self.x.to_bytes(byte_length, endian)
-        y_bytes = self.y.to_bytes(byte_length, endian)
+        x_bytes = cast(int, self.x).to_bytes(
+            byte_length, cast(Literal["little", "big"], endian)
+        )
+        y_bytes = cast(int, self.y).to_bytes(
+            byte_length, cast(Literal["little", "big"], endian)
+        )
         return x_bytes + y_bytes
 
     @classmethod
-    def uncompressed_s2p(cls, octet_string: Union[str, bytes]) -> Self:
+    def uncompressed_s2p(cls, octet_string: str | bytes) -> Self:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
         p = cls.curve.PRIME_FIELD
         byte_length = (p.bit_length() + 7) // 8
         endian = cls.curve.ENDIAN
-        if endian != 'little' and endian != 'big':
-             raise ValueError("Invalid endianness")
+        if endian != "little" and endian != "big":
+            raise ValueError("Invalid endianness")
         # Split into u and v coordinates
         x_bytes = octet_string[:byte_length]
         y_bytes = octet_string[byte_length:]
@@ -243,7 +292,7 @@ class CurvePoint(Generic[C]):
         return point
 
     @classmethod
-    def _x_recover(cls, y: int) -> int:
+    def _x_recover(cls, y: int) -> int | tuple[int, int] | None:
         """
         Recover x-coordinate from y.
 
@@ -251,7 +300,7 @@ class CurvePoint(Generic[C]):
             y: y-coordinate
 
         Returns:
-            int: Recovered x-coordinate
+            int | tuple[int, int] | None: Recovered x-coordinate
 
         Raises:
             ValueError: If x cannot be recovered
@@ -287,7 +336,7 @@ class CurvePoint(Generic[C]):
             TEAffinePoint: Resulting curve point
         """
         ctr = 0
-        H = "INVALID"
+        H: Self | str = "INVALID"
         front = b"\x01"
         back = b"\x00"
         alpha_string = (
@@ -295,7 +344,7 @@ class CurvePoint(Generic[C]):
         )
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
-        while H == "INVALID" or H == cls.identity_point():
+        while H == "INVALID" or H == cast(Any, cls).identity_point():
             ctr_string = ctr.to_bytes(1, "big")
             hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             if cls.__name__ == "P256PointVariant":
@@ -305,9 +354,32 @@ class CurvePoint(Generic[C]):
                 hash_output = hashlib.sha512(hash_input).digest()
                 H = cls.string_to_point(hash_output[:32])
             if H != "INVALID" and cls.curve.COFACTOR > 1:
-                H = H.clear_cofactor()
+                H = cast(Any, H).clear_cofactor()
             ctr += 1
-        return H
+        return cast(Self, H)
 
-    def __hash__(self):
-        return (self.x + self.y) % self.curve.ORDER
+    def __hash__(self) -> int:
+        if self.x is None or self.y is None:
+            return 0
+
+        x_val = 0
+        if isinstance(self.x, int):
+            x_val = self.x
+        elif isinstance(self.x, tuple):
+            x_val = sum(self.x)
+        elif hasattr(self.x, "re"):  # FieldElement
+            x_val = cast(Any, self.x).re + cast(Any, self.x).im
+        elif hasattr(self.x, "coeffs"):  # FQ2 or similar
+            x_val = sum(cast(Any, self.x).coeffs)
+
+        y_val = 0
+        if isinstance(self.y, int):
+            y_val = self.y
+        elif isinstance(self.y, tuple):
+            y_val = sum(self.y)
+        elif hasattr(self.y, "re"):  # FieldElement
+            y_val = cast(Any, self.y).re + cast(Any, self.y).im
+        elif hasattr(self.y, "coeffs"):  # FQ2 or similar
+            y_val = sum(cast(Any, self.y).coeffs)
+
+        return (x_val + y_val) % self.curve.ORDER
