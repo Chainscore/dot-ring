@@ -10,7 +10,9 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Load test vectors
-        test_vectors_path = os.path.join(os.path.dirname(__file__), "../vectors/h2c", "bls12_381_G2_ro.json")
+        test_vectors_path = os.path.join(
+            os.path.dirname(__file__), "../vectors/h2c", "bls12_381_G2_ro.json"
+        )
         with open(test_vectors_path) as f:
             cls.test_vectors = json.load(f)
 
@@ -47,7 +49,9 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
                 )
 
                 # Encode message to curve
-                result = BLS12_381_G2_RO.point.encode_to_curve(msg.encode("utf-8"), b"", True)
+                result = BLS12_381_G2_RO.point.encode_to_curve(
+                    msg.encode("utf-8"), b"", True
+                )
 
                 # Extract computed values
                 computed_P = result["R"]
@@ -83,12 +87,28 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
 
                 # Assert Q0 matches
                 # computed_Q0.x is a tuple (re, im), expected_Q0_x is FieldElement
-                self.assertEqual(computed_Q0.x, (expected_Q0_x.re, expected_Q0_x.im), "Q0.x does not match")
-                self.assertEqual(computed_Q0.y, (expected_Q0_y.re, expected_Q0_y.im), "Q0.y does not match")
+                self.assertEqual(
+                    computed_Q0.x,
+                    (expected_Q0_x.re, expected_Q0_x.im),
+                    "Q0.x does not match",
+                )
+                self.assertEqual(
+                    computed_Q0.y,
+                    (expected_Q0_y.re, expected_Q0_y.im),
+                    "Q0.y does not match",
+                )
 
                 # Assert Q1 matches
-                self.assertEqual(computed_Q1.x, (expected_Q1_x.re, expected_Q1_x.im), "Q1.x does not match")
-                self.assertEqual(computed_Q1.y, (expected_Q1_y.re, expected_Q1_y.im), "Q1.y does not match")
+                self.assertEqual(
+                    computed_Q1.x,
+                    (expected_Q1_x.re, expected_Q1_x.im),
+                    "Q1.x does not match",
+                )
+                self.assertEqual(
+                    computed_Q1.y,
+                    (expected_Q1_y.re, expected_Q1_y.im),
+                    "Q1.y does not match",
+                )
 
                 # Create sample.py P point
                 expected_P_x = (

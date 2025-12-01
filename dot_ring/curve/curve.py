@@ -104,7 +104,10 @@ class Curve:
         else:
             # Original scalar field validation
             if isinstance(self.GENERATOR_X, int) and isinstance(self.GENERATOR_Y, int):
-                if not (0 <= self.GENERATOR_X < self.PRIME_FIELD and 0 <= self.GENERATOR_Y < self.PRIME_FIELD):
+                if not (
+                    0 <= self.GENERATOR_X < self.PRIME_FIELD
+                    and 0 <= self.GENERATOR_Y < self.PRIME_FIELD
+                ):
                     return False
             else:
                 return False
@@ -112,7 +115,12 @@ class Curve:
             # if not self.is_on_curve(self.GENERATOR_X, self.GENERATOR_Y): #already given in point class
             #     return False
 
-        return self.PRIME_FIELD > 2 and self.ORDER > 2 and self.COFACTOR > 0 and self.PRIME_FIELD != self.ORDER
+        return (
+            self.PRIME_FIELD > 2
+            and self.ORDER > 2
+            and self.COFACTOR > 0
+            and self.PRIME_FIELD != self.ORDER
+        )
 
     def hash_to_field(self, msg: bytes, count: int) -> list[int]:
         """
@@ -164,11 +172,15 @@ class Curve:
         b_in_bytes = self.H_A().digest_size
         ell = math.ceil(len_in_bytes / b_in_bytes)
 
-        if (ell > 255 and self.PRIME_FIELD.bit_length() < 384) or len_in_bytes > 65535 or len(self.DST) > 255:
+        if (
+            (ell > 255 and self.PRIME_FIELD.bit_length() < 384)
+            or len_in_bytes > 65535
+            or len(self.DST) > 255
+        ):
             # Relax ell check for large curves like P-521 where len_in_bytes might be large
             # But strictly, RFC 9380 says ell <= 255.
             # If len_in_bytes is huge, maybe we should just allow it if the curve is large?
-            # However, 26596 bytes is suspiciously large. 
+            # However, 26596 bytes is suspiciously large.
             # Let's just relax the check if it's P521 (521 bits).
             # But wait, 26596 bytes is way more than needed for P521 (approx 132 bytes).
             # The issue might be how len_in_bytes is calculated.
@@ -182,18 +194,20 @@ class Curve:
             pass
 
         if ell > 255 and len_in_bytes < 65535:
-             # If len_in_bytes is within u16 range but ell > 255, it means b_in_bytes is small.
-             # For SHA-512, b=64. 255*64 = 16320.
-             # If len_in_bytes > 16320, ell > 255.
-             # P521 might need more than 16320 bytes? No.
-             pass
-        
+            # If len_in_bytes is within u16 range but ell > 255, it means b_in_bytes is small.
+            # For SHA-512, b=64. 255*64 = 16320.
+            # If len_in_bytes > 16320, ell > 255.
+            # P521 might need more than 16320 bytes? No.
+            pass
+
         if ell > 255 or len_in_bytes > 65535 or len(self.DST) > 255:
-             # We will relax this check for now to unblock P521 if it really needs it, 
-             # but 26KB seems wrong.
-             # Let's assume the user knows what they are doing if they request such length.
-             # But XMD structure relies on 1 byte for 'i' in loop. So ell cannot exceed 255.
-             raise ValueError(f"Invalid input size parameters: ell={ell}, len={len_in_bytes}, dst_len={len(self.DST)}")
+            # We will relax this check for now to unblock P521 if it really needs it,
+            # but 26KB seems wrong.
+            # Let's assume the user knows what they are doing if they request such length.
+            # But XMD structure relies on 1 byte for 'i' in loop. So ell cannot exceed 255.
+            raise ValueError(
+                f"Invalid input size parameters: ell={ell}, len={len_in_bytes}, dst_len={len(self.DST)}"
+            )
 
         DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
         Z_pad = self.I2OSP(0, cast(int, self.S_in_bytes))
@@ -208,7 +222,9 @@ class Curve:
 
         b_values = [b_1]
         for i in range(2, ell + 1):
-            b_i = self.H_A(self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime).digest()
+            b_i = self.H_A(
+                self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime
+            ).digest()
             b_values.append(b_i)
 
         uniform_bytes = b"".join(b_values)

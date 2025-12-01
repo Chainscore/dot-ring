@@ -9,7 +9,9 @@ HERE = os.path.dirname(__file__)
 
 
 def test_ring_proof():
-    file_path = os.path.join(HERE, "../vectors", "dot-ring/bandersnatch_sha-512_ell2_ring.json")
+    file_path = os.path.join(
+        HERE, "../vectors", "dot-ring/bandersnatch_sha-512_ell2_ring.json"
+    )
     with open(file_path) as f:
         data = json.load(f)
     for index in range(len(data)):
@@ -24,7 +26,9 @@ def test_ring_proof():
         start_time = time.time()
         ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
         ring_time = time.time()
-        print(f"\nTime taken for Ring Root Construction: \t\t {ring_time - start_time} seconds")
+        print(
+            f"\nTime taken for Ring Root Construction: \t\t {ring_time - start_time} seconds"
+        )
 
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
         ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
@@ -32,7 +36,9 @@ def test_ring_proof():
         proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
 
         end_time = time.time()
-        print(f"Time taken for Ring VRF Proof Generation: \t {end_time - ring_time} seconds")
+        print(
+            f"Time taken for Ring VRF Proof Generation: \t {end_time - ring_time} seconds"
+        )
 
         assert p_k.hex() == item["pk"], "Invalid Public Key"
         assert ring_root.to_bytes().hex() == item["ring_pks_com"], "Invalid Ring Root"
@@ -48,7 +54,11 @@ def test_ring_proof():
         ), "Unexpected Proof"
         start = time.time()
         assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
-        print("Time taken for Ring VRF Proof Verification: \t ", time.time() - start, " seconds")
+        print(
+            "Time taken for Ring VRF Proof Verification: \t ",
+            time.time() - start,
+            " seconds",
+        )
         assert proof_rt.to_bytes() == proof_bytes
         assert proof_rt.verify(alpha, ad, ring_root)
 

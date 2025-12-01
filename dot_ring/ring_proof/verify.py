@@ -33,7 +33,9 @@ def blst_msm(points: list, scalars: list) -> Any:
     return blst.P1_Affines.mult_pippenger(memory, scalars)
 
 
-def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime: int) -> int:
+def lagrange_at_zeta(
+    domain_size: int, index: int, zeta: int, omega: int, prime: int
+) -> int:
     """
     Compute L_i(zeta) using closed-form formula for roots of unity domain.
 
@@ -66,7 +68,16 @@ def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime:
 
 
 class Verify:
-    def __init__(self, proof: tuple, vk: dict, fixed_cols: list, rl_to_proove: tuple, rps: tuple, seed_point: tuple, Domain: list) -> None:
+    def __init__(
+        self,
+        proof: tuple,
+        vk: dict,
+        fixed_cols: list,
+        rl_to_proove: tuple,
+        rps: tuple,
+        seed_point: tuple,
+        Domain: list,
+    ) -> None:
         (
             self.Cb,
             self.Caccip,
@@ -112,10 +123,16 @@ class Verify:
             list(H.to_int(nm(cmt)) for cmt in self.proof_ptr[:4]),
         )  # cb, caccip, caccx, caccy
 
-        self.cur_t, self.zeta_p = phase2_eval_point(self.cur_t, H.to_int(nm(self.proof_ptr[-4])))
-        self.V_list = phase3_nu_vector(self.cur_t, list(self.proof_ptr[4:11]), self.proof_ptr[-3])
+        self.cur_t, self.zeta_p = phase2_eval_point(
+            self.cur_t, H.to_int(nm(self.proof_ptr[-4]))
+        )
+        self.V_list = phase3_nu_vector(
+            self.cur_t, list(self.proof_ptr[4:11]), self.proof_ptr[-3]
+        )
 
-    def contributions_to_constraints_eval_at_zeta(self) -> tuple[int, int, int, int, int, int, int]:
+    def contributions_to_constraints_eval_at_zeta(
+        self,
+    ) -> tuple[int, int, int, int, int, int, int]:
         zeta = self.zeta_p
         sp = self.sp
         sx, sy = sp
@@ -252,11 +269,15 @@ class Verify:
         b = self.b_zeta
         coeff_a = BandersnatchParams.EDWARDS_A
 
-        C_acc_x_cl2 = (b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME) % S_PRIME
+        C_acc_x_cl2 = (
+            b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME
+        ) % S_PRIME
         C_acc_x_f_cl2 = (C_acc_x_cl2 * zeta_minus_d4) % curve_order
 
         # Cl3 scalars
-        C_acc_y_cl3 = ((b * (x1 * y2 - x2 * y1)) % S_PRIME + (1 - b) % S_PRIME) % S_PRIME
+        C_acc_y_cl3 = (
+            (b * (x1 * y2 - x2 * y1)) % S_PRIME + (1 - b) % S_PRIME
+        ) % S_PRIME
         C_acc_y_f_cl3 = (C_acc_y_cl3 * zeta_minus_d4) % curve_order
 
         # Combined scalars

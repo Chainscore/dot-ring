@@ -18,7 +18,9 @@ class RingRoot:
         # or require a specific conversion method not shown here.
         # This implementation assumes 'ring_root' refers to the commitments themselves.
         comm_keys = (
-            H.bls_g1_compress(cast(Any, self.px.commitment)), # Cast to Any or a more specific tuple type if known
+            H.bls_g1_compress(
+                cast(Any, self.px.commitment)
+            ),  # Cast to Any or a more specific tuple type if known
             H.bls_g1_compress(cast(Any, self.py.commitment)),
             H.bls_g1_compress(cast(Any, self.s.commitment)),
         )

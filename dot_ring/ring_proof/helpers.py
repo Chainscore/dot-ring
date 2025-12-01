@@ -92,7 +92,10 @@ class Helpers:
         # compress the point
         # compress the point
         compressed = point_compression.compress_G2(point)
-        return str(compressed[0].to_bytes(48, "big").hex() + compressed[1].to_bytes(48, "big").hex())
+        return str(
+            compressed[0].to_bytes(48, "big").hex()
+            + compressed[1].to_bytes(48, "big").hex()
+        )
 
     @staticmethod
     # for fiat_shamir
@@ -120,7 +123,9 @@ class Helpers:
         return int.from_bytes(byts, "little")
 
     @staticmethod
-    def bls_projective_2_affine(points_3d: list[tuple[Any, Any, Any]]) -> list[tuple[Any, Any]]:
+    def bls_projective_2_affine(
+        points_3d: list[tuple[Any, Any, Any]]
+    ) -> list[tuple[Any, Any]]:
         """
         Convert a list of 3D coordinate points to 2D by removing the z-coordinate.
         """
@@ -146,7 +151,9 @@ class Helpers:
         return int.from_bytes(byte_array, order)
 
     @staticmethod
-    def int_to_str(val: int, order: Literal["little", "big"], n_bytes: int = 32) -> bytes:
+    def int_to_str(
+        val: int, order: Literal["little", "big"], n_bytes: int = 32
+    ) -> bytes:
         return val.to_bytes(n_bytes, order)
 
     @staticmethod

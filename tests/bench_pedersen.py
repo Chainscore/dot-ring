@@ -21,7 +21,12 @@ from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 def load_test_data():
     """Load test vector data."""
-    vector_path = Path(__file__).parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_pedersen.json"
+    vector_path = (
+        Path(__file__).parent
+        / "vectors"
+        / "ark-vrf"
+        / "bandersnatch_ed_sha512_ell2_pedersen.json"
+    )
     with open(vector_path) as f:
         return json.load(f)[0]
 

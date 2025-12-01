@@ -21,7 +21,9 @@ def _ensure_blst_p2_affine(point: blst.P2 | blst.P2_Affine) -> blst.P2_Affine:
     raise TypeError(f"Unsupported G2 point type: {type(point)}")
 
 
-def blst_miller_loop(p1: blst.P1 | blst.P1_Affine, p2: blst.P2 | blst.P2_Affine) -> blst.PT:
+def blst_miller_loop(
+    p1: blst.P1 | blst.P1_Affine, p2: blst.P2 | blst.P2_Affine
+) -> blst.PT:
     """Compute Miller loop for pairing."""
     return blst.PT(_ensure_blst_p2_affine(p2), _ensure_blst_p1_affine(p1))
 

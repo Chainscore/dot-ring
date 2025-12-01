@@ -13,7 +13,9 @@ HERE = os.path.dirname(__file__)
 
 
 def test_ietf_ark_bandersnatch():
-    data_dir = os.path.join(HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_ietf.json")
+    data_dir = os.path.join(
+        HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_ietf.json"
+    )
     data_dir = os.path.abspath(data_dir)
 
     gamma_len = 32
@@ -51,7 +53,10 @@ def test_ietf_ark_bandersnatch():
             assert proof_s.hex() == vector["proof_s"]
 
             if "beta" in vector:
-                assert IETF_VRF[Bandersnatch].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
+                assert (
+                    IETF_VRF[Bandersnatch].ecvrf_proof_to_hash(proof_bytes).hex()
+                    == vector["beta"]
+                )
 
             assert proof.verify(pk_bytes, alpha, additional_data)
             assert proof_rt.to_bytes() == proof_bytes
@@ -59,7 +64,9 @@ def test_ietf_ark_bandersnatch():
 
 
 def test_pedersen_ark_bandersnatch():
-    data_dir = os.path.join(HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_pedersen.json")
+    data_dir = os.path.join(
+        HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_pedersen.json"
+    )
     data_dir = os.path.abspath(data_dir)
 
     with open(data_dir) as f:
@@ -79,7 +86,9 @@ def test_pedersen_ark_bandersnatch():
             if "h" in vector:
                 assert input_point.point_to_string().hex() == vector["h"]
 
-            proof = PedersenVRF[Bandersnatch].prove(alpha, secret_scalar, additional_data)
+            proof = PedersenVRF[Bandersnatch].prove(
+                alpha, secret_scalar, additional_data
+            )
             proof_bytes = proof.to_bytes()
             proof_rt = PedersenVRF[Bandersnatch].from_bytes(proof_bytes)
 
@@ -89,19 +98,25 @@ def test_pedersen_ark_bandersnatch():
             assert proof.result_point.point_to_string().hex() == vector["proof_r"]
             assert proof.ok.point_to_string().hex() == vector["proof_ok"]
             assert proof.s.to_bytes(
-                (Bandersnatch.curve.PRIME_FIELD.bit_length() + 7) // 8, Bandersnatch.curve.ENDIAN
+                (Bandersnatch.curve.PRIME_FIELD.bit_length() + 7) // 8,
+                Bandersnatch.curve.ENDIAN,
             ) == bytes.fromhex(vector["proof_s"])
             assert proof.sb.to_bytes(
-                (Bandersnatch.curve.PRIME_FIELD.bit_length() + 7) // 8, Bandersnatch.curve.ENDIAN
+                (Bandersnatch.curve.PRIME_FIELD.bit_length() + 7) // 8,
+                Bandersnatch.curve.ENDIAN,
             ) == bytes.fromhex(vector["proof_sb"])
             assert (
-                PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex()
+                PedersenVRF[Bandersnatch]
+                .ecvrf_proof_to_hash(proof.output_point.point_to_string())
+                .hex()
                 == vector["beta"]
             )
 
             if "beta" in vector:
                 assert (
-                    PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex()
+                    PedersenVRF[Bandersnatch]
+                    .ecvrf_proof_to_hash(proof.output_point.point_to_string())
+                    .hex()
                     == vector["beta"]
                 )
 
@@ -111,7 +126,9 @@ def test_pedersen_ark_bandersnatch():
 
 
 def test_ring_proof():
-    file_path = os.path.join(HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
+    file_path = os.path.join(
+        HERE, "vectors/ark-vrf/bandersnatch_ed_sha512_ell2_ring.json"
+    )
     with open(file_path) as f:
         data = json.load(f)
     for index in range(len(data)):
@@ -125,11 +142,15 @@ def test_ring_proof():
         start = time()
         ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
         ring_time = time()
-        print(f"\nTime taken for Ring Root Construction: \t\t {1000 * (ring_time - start):.2f} ms")
+        print(
+            f"\nTime taken for Ring Root Construction: \t\t {1000 * (ring_time - start):.2f} ms"
+        )
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
         ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
         pk_time = time()
-        print(f"Time taken for Proof Generation: \t {1000 * (pk_time - ring_time):.2f} ms")
+        print(
+            f"Time taken for Proof Generation: \t {1000 * (pk_time - ring_time):.2f} ms"
+        )
         proof_bytes = ring_vrf_proof.to_bytes()
         proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
 
@@ -138,12 +159,12 @@ def test_ring_proof():
         assert (
             ring_vrf_proof.to_bytes().hex()
             == item["gamma"]
-                + item["proof_pk_com"]
-                + item["proof_r"]
-                + item["proof_ok"]
-                + item["proof_s"]
-                + item["proof_sb"]
-                + item["ring_proof"]
+            + item["proof_pk_com"]
+            + item["proof_r"]
+            + item["proof_ok"]
+            + item["proof_s"]
+            + item["proof_sb"]
+            + item["ring_proof"]
         ), "Unexpected Proof"
 
         assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
@@ -151,5 +172,7 @@ def test_ring_proof():
         start = time()
         assert proof_rt.verify(alpha, ad, ring_root)
         verify_time = time()
-        print(f"Time taken for Proof Verification: \t {1000 * (verify_time - start):.2f} ms")
+        print(
+            f"Time taken for Proof Verification: \t {1000 * (verify_time - start):.2f} ms"
+        )
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")

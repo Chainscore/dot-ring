@@ -77,6 +77,7 @@ class TECurve(Curve):
         p = self.PRIME_FIELD
 
         from typing import cast
+
         return cast(tuple[int, int], map_to_curve_ell2_fast(u, J, K, Z, p))
 
     @property

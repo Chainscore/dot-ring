@@ -45,16 +45,30 @@ class PedersenVRF(VRF[C]):
         if cls.cv.curve.UNCOMPRESSED:
             point_length *= 2
 
-        output_point = cls.cv.point.string_to_point(proof[point_length * 0 : point_length * 1])
+        output_point = cls.cv.point.string_to_point(
+            proof[point_length * 0 : point_length * 1]
+        )
 
-        public_key_cp = cls.cv.point.string_to_point(proof[point_length * 1 : point_length * 2])
+        public_key_cp = cls.cv.point.string_to_point(
+            proof[point_length * 1 : point_length * 2]
+        )
         R = cls.cv.point.string_to_point(proof[point_length * 2 : point_length * 3])
         Ok = cls.cv.point.string_to_point(proof[point_length * 3 : point_length * 4])
-        s = Helpers.str_to_int(proof[-scalar_len * 2 : -scalar_len], cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
-        Sb = Helpers.str_to_int(proof[-scalar_len:], cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
+        s = Helpers.str_to_int(
+            proof[-scalar_len * 2 : -scalar_len],
+            cast(Literal["little", "big"], cls.cv.curve.ENDIAN),
+        )
+        Sb = Helpers.str_to_int(
+            proof[-scalar_len:], cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
 
-        if isinstance(output_point, str) or isinstance(public_key_cp, str) or isinstance(R, str) or isinstance(Ok, str):
-             raise ValueError("Invalid point in proof")
+        if (
+            isinstance(output_point, str)
+            or isinstance(public_key_cp, str)
+            or isinstance(R, str)
+            or isinstance(Ok, str)
+        ):
+            raise ValueError("Invalid point in proof")
 
         return cls(
             output_point=output_point,
@@ -83,8 +97,14 @@ class PedersenVRF(VRF[C]):
             + self.blinded_pk.point_to_string()
             + self.result_point.point_to_string()
             + self.ok.point_to_string()
-            + Helpers.int_to_str(self.s, cast(Literal["little", "big"], self.cv.curve.ENDIAN), scalar_len)
-            + Helpers.int_to_str(self.sb, cast(Literal["little", "big"], self.cv.curve.ENDIAN), scalar_len)
+            + Helpers.int_to_str(
+                self.s, cast(Literal["little", "big"], self.cv.curve.ENDIAN), scalar_len
+            )
+            + Helpers.int_to_str(
+                self.sb,
+                cast(Literal["little", "big"], self.cv.curve.ENDIAN),
+                scalar_len,
+            )
         )
         return proof
 
@@ -111,7 +131,12 @@ class PedersenVRF(VRF[C]):
         """
 
         scalar_len = (cls.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
-        secret_key_int = Helpers.str_to_int(secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)) % cls.cv.curve.ORDER
+        secret_key_int = (
+            Helpers.str_to_int(
+                secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+            )
+            % cls.cv.curve.ORDER
+        )
 
         # Create generator point
         generator = cls.cv.point.generator_point()
@@ -119,8 +144,12 @@ class PedersenVRF(VRF[C]):
         b_base = cls.cv.point(cast(int, cls.cv.curve.BBx), cast(int, cls.cv.curve.BBy))
         input_point = cast(Any, cls.cv.point).encode_to_curve(alpha, salt)
         # Use curve's endianness for secret key serialization
-        secret_key_bytes = secret_key_int.to_bytes(scalar_len, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
-        blinding_factor = cls.blinding(secret_key_bytes, input_point.point_to_string(), additional_data)
+        secret_key_bytes = secret_key_int.to_bytes(
+            scalar_len, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
+        blinding_factor = cls.blinding(
+            secret_key_bytes, input_point.point_to_string(), additional_data
+        )
 
         output_point = input_point * secret_key_int
 
@@ -135,7 +164,9 @@ class PedersenVRF(VRF[C]):
         public_key_cp = cast(Any, generator) * secret_key_int + b_base * blinding_factor
         R = cast(Any, generator) * k + b_base * Kb
         Ok = input_point * k
-        c = cls.challenge([public_key_cp, input_point, output_point, R, Ok], additional_data)
+        c = cls.challenge(
+            [public_key_cp, input_point, output_point, R, Ok], additional_data
+        )
         s = (k + c * secret_key_int) % cls.cv.curve.ORDER
         Sb = (Kb + c * blinding_factor) % cls.cv.curve.ORDER
 
@@ -162,20 +193,34 @@ class PedersenVRF(VRF[C]):
         """
         generator = self.cv.point.generator_point()
         input_point = cast(Any, self.cv.point).encode_to_curve(input)
-        b_base = self.cv.point(cast(int, self.cv.curve.BBx), cast(int, self.cv.curve.BBy))
+        b_base = self.cv.point(
+            cast(int, self.cv.curve.BBx), cast(int, self.cv.curve.BBy)
+        )
 
         c = self.challenge(
-            [self.blinded_pk, input_point, self.output_point, self.result_point, self.ok], additional_data
+            [
+                self.blinded_pk,
+                input_point,
+                self.output_point,
+                self.result_point,
+                self.ok,
+            ],
+            additional_data,
         )
 
         # Check 1: ok + c * output_point - s * input_point == 0
         # 1*ok + c*output_point + (-s)*input_point == identity
-        check1 = self.cv.point.msm([self.ok, self.output_point, input_point], [1, c, -self.s])
+        check1 = self.cv.point.msm(
+            [self.ok, self.output_point, input_point], [1, c, -self.s]
+        )
         Theta0 = check1.is_identity()
 
         # Check 2: result_point + c * blinded_pk - s * generator - sb * b_base == 0
         # 1*result_point + c*blinded_pk + (-s)*generator + (-sb)*b_base == identity
-        check2 = self.cv.point.msm([self.result_point, self.blinded_pk, generator, b_base], [1, c, -self.s, -self.sb])
+        check2 = self.cv.point.msm(
+            [self.result_point, self.blinded_pk, generator, b_base],
+            [1, c, -self.s, -self.sb],
+        )
         Theta1 = check2.is_identity()
 
         return Theta0 and Theta1

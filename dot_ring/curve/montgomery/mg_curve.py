@@ -126,7 +126,11 @@ class MGCurve(Curve):
         """Check if two curves are equal."""
         if not isinstance(other, MGCurve):
             return False
-        return self.PRIME_FIELD == other.PRIME_FIELD and self.A == other.A and self.B == other.B
+        return (
+            self.PRIME_FIELD == other.PRIME_FIELD
+            and self.A == other.A
+            and self.B == other.B
+        )
 
     def __hash__(self) -> int:
         """Hash for use as dictionary keys."""

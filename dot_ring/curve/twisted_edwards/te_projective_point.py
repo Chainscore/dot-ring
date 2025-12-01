@@ -27,12 +27,14 @@ class TEProjectivePoint(Generic[C]):
     @classmethod
     def from_point(cls, point: CurvePoint) -> Self:
         from typing import cast
+
         x, y = cast(int, point.x), cast(int, point.y)
         return cls(x, y, 1, (x * y) % point.curve.PRIME_FIELD, point.curve)
 
     @classmethod
     def from_affine(cls, point: TEAffinePoint) -> Self:
         from typing import cast
+
         x, y = cast(int, point.x), cast(int, point.y)
         return cls(x, y, 1, (x * y) % point.curve.PRIME_FIELD, point.curve)
 

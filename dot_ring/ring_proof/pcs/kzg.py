@@ -81,7 +81,9 @@ class KZG:
             result = blst.P1()  # point at infinity
         else:
             # Use Pippenger multi-scalar multiplication
-            result = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), active_scalars)
+            result = blst.P1_Affines.mult_pippenger(
+                blst.P1_Affines.as_memory(blst_points), active_scalars
+            )
         return blst_p1_to_fq_tuple(result)
 
     @classmethod
@@ -190,7 +192,9 @@ class KZG:
         acc_proof = blst.P1()
         acc_z_proof = blst.P1()
 
-        for coeff, (commitment, proof, point, value) in zip(coeffs, verifications, strict=False):
+        for coeff, (commitment, proof, point, value) in zip(
+            coeffs, verifications, strict=False
+        ):
             if isinstance(commitment, blst.P1):
                 comm_blst = commitment
             else:

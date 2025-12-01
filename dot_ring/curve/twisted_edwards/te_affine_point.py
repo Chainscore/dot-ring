@@ -94,7 +94,7 @@ class TEAffinePoint(CurvePoint[C]):
 
         p = self.curve.PRIME_FIELD
         if self.x is None or self.y is None or other.x is None or other.y is None:
-             raise ValueError("Unexpected identity point in addition")
+            raise ValueError("Unexpected identity point in addition")
         x1, y1 = cast(int, self.x), cast(int, self.y)
         x2, y2 = cast(int, other.x), cast(int, other.y)
 
@@ -107,7 +107,10 @@ class TEAffinePoint(CurvePoint[C]):
 
         # Compute result coordinates
         x3 = ((x1y2 + x2y1) * pow(1 + dx1x2y1y2, -1, self.curve.PRIME_FIELD)) % p
-        y3 = ((y1y2 - self.curve.EdwardsA * x1x2) * pow(1 - dx1x2y1y2, -1, self.curve.PRIME_FIELD)) % p
+        y3 = (
+            (y1y2 - self.curve.EdwardsA * x1x2)
+            * pow(1 - dx1x2y1y2, -1, self.curve.PRIME_FIELD)
+        ) % p
 
         return self.__class__(x3, y3)
 
@@ -155,7 +158,10 @@ class TEAffinePoint(CurvePoint[C]):
 
         # Calculate new coordinates
         x3 = (2 * x1 * y1 * pow(denom_x, -1, self.curve.PRIME_FIELD)) % p
-        y3 = ((y1**2 - self.curve.EdwardsA * x1**2) * pow(denom_y, -1, self.curve.PRIME_FIELD)) % p
+        y3 = (
+            (y1**2 - self.curve.EdwardsA * x1**2)
+            * pow(denom_y, -1, self.curve.PRIME_FIELD)
+        ) % p
 
         return self.__class__(x3, y3)
 
@@ -215,7 +221,9 @@ class TEAffinePoint(CurvePoint[C]):
 
         if cls.curve.E2C in [E2C_Variant.ELL2, E2C_Variant.ELL2_NU]:
             if cls.curve.E2C.value.endswith("_NU_"):
-                return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
+                return cls.encode_to_curve_hash2_suite_nu(
+                    alpha_string, salt, General_Check
+                )
             return cls.encode_to_curve_hash2_suite_ro(alpha_string, salt, General_Check)
         elif cls.curve.E2C == E2C_Variant.TAI:
             return cls.encode_to_curve_tai(alpha_string, salt)
@@ -284,7 +292,9 @@ class TEAffinePoint(CurvePoint[C]):
         H: Self | str = "INVALID"
         front = b"\x01"
         back = b"\x00"
-        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+        alpha_string = (
+            alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
+        )
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
         while H == "INVALID" or H == cls.identity_point():

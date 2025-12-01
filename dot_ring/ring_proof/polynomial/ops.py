@@ -11,7 +11,9 @@ def mod_inverse(val: int, prime: int) -> int:
     return pow(val, prime - 2, prime)
 
 
-def poly_add(poly1: list | Sequence[int], poly2: list | Sequence[int], prime: int) -> list[int]:
+def poly_add(
+    poly1: list | Sequence[int], poly2: list | Sequence[int], prime: int
+) -> list[int]:
     """Add two polynomials in a prime field."""
     # Make them the same length
     result_len = max(len(poly1), len(poly2))
@@ -139,7 +141,9 @@ def poly_evaluate_single(poly: list | Sequence[int], x: int, prime: int) -> int:
     return result
 
 
-def poly_evaluate(poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int) -> list[int] | int:
+def poly_evaluate(
+    poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int
+) -> list[int] | int:
     """Evaluate polynomial at points xs.
 
     Uses FFT when xs is one of the predefined evaluation domains (D_512, D_2048).
@@ -249,7 +253,9 @@ def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[i
 
 
 # vector subtraction
-def vect_sub(a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int) -> list[int]:
+def vect_sub(
+    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
+) -> list[int]:
     if isinstance(a, int) and isinstance(b, list):
         n = len(b)
         a_list = [a] * n
@@ -267,7 +273,9 @@ def vect_sub(a: list | int | Sequence[int], b: list | int | Sequence[int], prime
 
 
 # vector addition
-def vect_add(a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int) -> list[int]:
+def vect_add(
+    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
+) -> list[int]:
     if isinstance(a, int) and isinstance(b, list):
         n = len(b)
         a_list = [a] * n
@@ -285,7 +293,9 @@ def vect_add(a: list | int | Sequence[int], b: list | int | Sequence[int], prime
 
 
 # vector multiplication
-def vect_mul(a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int) -> list[int]:
+def vect_mul(
+    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
+) -> list[int]:
     if isinstance(a, int) and isinstance(b, list):
         n = len(b)
         a_list = [a] * n
@@ -302,6 +312,8 @@ def vect_mul(a: list | int | Sequence[int], b: list | int | Sequence[int], prime
         return result
 
 
-def vect_scalar_mul(vec: list[int] | Sequence[int], scalar: int, mod: int | None = None) -> list[int]:
+def vect_scalar_mul(
+    vec: list[int] | Sequence[int], scalar: int, mod: int | None = None
+) -> list[int]:
     """Multiply each element in the vector by the scalar"""
     return [(x * scalar) % mod if mod else x * scalar for x in vec]

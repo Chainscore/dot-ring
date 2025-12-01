@@ -20,7 +20,9 @@ class VRFProtocol(Protocol[C, P]):
     point_type: type[P]
 
     @abstractmethod
-    def proof(self, alpha: bytes, secret_key: int, additional_data: bytes) -> tuple[P, tuple[int, int]]:
+    def proof(
+        self, alpha: bytes, secret_key: int, additional_data: bytes
+    ) -> tuple[P, tuple[int, int]]:
         """Generate VRF proof."""
         ...
 
@@ -64,7 +66,9 @@ class VRF(Generic[C]):
         """
         if not isinstance(curve_variant, CurveVariant):
             return cls
-        new_class = type(f"{cls.__name__}[{curve_variant.name}]", (cls,), {"cv": curve_variant})
+        new_class = type(
+            f"{cls.__name__}[{curve_variant.name}]", (cls,), {"cv": curve_variant}
+        )
         return new_class
 
     @classmethod
@@ -81,7 +85,11 @@ class VRF(Generic[C]):
         """
         # Hash secret key (little-endian)
         scalr_len = (cls.cv.curve.ORDER.bit_length() + 7) // 8
-        sk_encoded = Helpers.int_to_str(secret_key % cls.cv.curve.ORDER, cast(Literal["little", "big"], cls.cv.curve.ENDIAN), scalr_len)
+        sk_encoded = Helpers.int_to_str(
+            secret_key % cls.cv.curve.ORDER,
+            cast(Literal["little", "big"], cls.cv.curve.ENDIAN),
+            scalr_len,
+        )
         hash_len = 2 * scalr_len
         hashed_sk = cls.cv.curve.hash(sk_encoded, hash_len)
         sk_hash = hashed_sk[scalr_len:hash_len]
@@ -89,12 +97,14 @@ class VRF(Generic[C]):
         # sk_hash_int = Helpers.str_to_int(sk_hash, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
         # Concatenate with input point encoding
         if isinstance(input_point, int):
-             raise ValueError("Input point must be a CurvePoint")
+            raise ValueError("Input point must be a CurvePoint")
         input_point_octet = input_point.point_to_string()
         data = sk_hash + input_point_octet
         # Generate final nonce
         nonce_hash = cls.cv.curve.hash(data, hash_len)
-        nonce = Helpers.str_to_int(nonce_hash, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
+        nonce = Helpers.str_to_int(
+            nonce_hash, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
 
         # Calculate k = nonce % order
         k = nonce % cls.cv.curve.ORDER
@@ -135,7 +145,9 @@ class VRF(Generic[C]):
         return Helpers.b_endian_2_int(challenge_hash) % cls.cv.curve.ORDER
 
     @classmethod
-    def ecvrf_nonce_rfc6979(cls, secret_scalar: int, h_string: bytes, hash_func: str = "sha256") -> int:
+    def ecvrf_nonce_rfc6979(
+        cls, secret_scalar: int, h_string: bytes, hash_func: str = "sha256"
+    ) -> int:
         """
         nonce generation as per rfc_6979
         Deterministically derives a nonce from secret scalar and input bytes.
@@ -181,8 +193,12 @@ class VRF(Generic[C]):
             pi_string = bytes.fromhex(pi_string)
 
         # Get lengths from curve parameters
-        challenge_len = cls.cv.curve.CHALLENGE_LENGTH  # Dynamic challenge length from curve
-        scalar_len = (cls.cv.curve.ORDER.bit_length() + 7) // 8  # Scalar length based on curve order
+        challenge_len = (
+            cls.cv.curve.CHALLENGE_LENGTH
+        )  # Dynamic challenge length from curve
+        scalar_len = (
+            cls.cv.curve.ORDER.bit_length() + 7
+        ) // 8  # Scalar length based on curve order
 
         # Calculate positions in the proof
         gamma_end = cls.cv.curve.POINT_LEN
@@ -202,8 +218,12 @@ class VRF(Generic[C]):
         gamma = cls.cv.point.string_to_point(gamma_string)
         if isinstance(gamma, str):
             raise ValueError("Invalid gamma point")
-        C = Helpers.str_to_int(c_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
-        S = Helpers.str_to_int(s_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
+        C = Helpers.str_to_int(
+            c_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
+        S = Helpers.str_to_int(
+            s_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+        )
 
         if S >= cls.cv.curve.ORDER:
             raise ValueError("Response scalar S is not less than the curve order")
@@ -254,7 +274,12 @@ class VRF(Generic[C]):
     @classmethod
     def get_public_key(cls, secret_key: bytes) -> bytes:
         """Take the Secret_Key and return Public Key"""
-        secret_key_int = Helpers.str_to_int(secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)) % cls.cv.curve.ORDER
+        secret_key_int = (
+            Helpers.str_to_int(
+                secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)
+            )
+            % cls.cv.curve.ORDER
+        )
         # Create generator point
         generator = cls.cv.point.generator_point()
         public_key: CurvePoint = cast(Any, generator) * secret_key_int

@@ -37,7 +37,9 @@ ENTRIES_MAX_LENGTHS = {
 }
 
 
-def print_entry(entry: dict, key: str, max_length: int = 64, continuation_prefix: str = "..") -> None:
+def print_entry(
+    entry: dict, key: str, max_length: int = 64, continuation_prefix: str = ".."
+) -> None:
     """Print a single entry, wrapping long values."""
     value = entry.get(key, "-")
     if value is None:
@@ -114,7 +116,9 @@ def compare_vectors(file1: str, file2: str) -> None:
             val1 = v1.get(key)
             val2 = v2.get(key)
             if val1 != val2:
-                diffs.append(f"  {key}: {val1[:20] if val1 else '-'}... != {val2[:20] if val2 else '-'}...")
+                diffs.append(
+                    f"  {key}: {val1[:20] if val1 else '-'}... != {val2[:20] if val2 else '-'}..."
+                )
 
         if diffs:
             print(f"Vector {i + 1}: DIFFERS")

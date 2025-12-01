@@ -25,7 +25,9 @@ def install_blst() -> None:
 
     if should_clone:
         print("Cloning blst...")
-        subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
+        subprocess.check_call(
+            ["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)]
+        )
 
     # 2. Build python bindings
     print("Building blst python bindings...")
@@ -49,7 +51,10 @@ def install_blst() -> None:
         # We are in a venv
         if os.name == "posix":
             site_packages = (
-                Path(sys.prefix) / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+                Path(sys.prefix)
+                / "lib"
+                / f"python{sys.version_info.major}.{sys.version_info.minor}"
+                / "site-packages"
             )
         elif os.name == "nt":
             site_packages = Path(sys.prefix) / "Lib" / "site-packages"
@@ -107,7 +112,9 @@ def build_cython_extensions() -> None:
         print("Error: setup_cython.py not found in scripts/ or root.")
         sys.exit(1)
 
-    subprocess.check_call([sys.executable, str(setup_script), "build_ext", "--inplace"], cwd=root_dir)
+    subprocess.check_call(
+        [sys.executable, str(setup_script), "build_ext", "--inplace"], cwd=root_dir
+    )
     print("Cython extensions built successfully.")
 
 

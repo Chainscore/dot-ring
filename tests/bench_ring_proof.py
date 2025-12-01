@@ -25,7 +25,12 @@ from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 def load_test_data():
     """Load test vector data."""
-    vector_path = Path(__file__).parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_ring.json"
+    vector_path = (
+        Path(__file__).parent
+        / "vectors"
+        / "ark-vrf"
+        / "bandersnatch_ed_sha512_ell2_ring.json"
+    )
     with open(vector_path) as f:
         return json.load(f)[0]
 

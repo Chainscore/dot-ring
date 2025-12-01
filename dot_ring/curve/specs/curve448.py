@@ -25,7 +25,9 @@ class Curve448Params:
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 2**448 - 2**224 - 1
-    ORDER: Final[int] = 2**446 - 0x8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D
+    ORDER: Final[int] = (
+        2**446 - 0x8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D
+    )
     COFACTOR: Final[int] = 4
 
     # Generator point (u, v) - corresponds to the base point of edwards448
@@ -34,9 +36,9 @@ class Curve448Params:
 
     # v-coordinate is derived from the curve equation v^2 = u^3 + A*u^2 + u mod p
     # Using the positive square root that has even least significant bit (LSB)
-    GENERATOR_V: Final[int] = (
-        355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
-    )
+    GENERATOR_V: Final[
+        int
+    ] = 355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362
 
     # Montgomery curve parameters: v² = u³ + Au² + u
     A: Final[int] = 156326
@@ -127,13 +129,14 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> type[MGAffinePoin
     Returns:
         A Curve448Point class configured with the specified variant
     """
+
     class Curve448PointVariant(MGAffinePoint):
         """Point on Curve448 with custom E2C variant"""
+
         curve = Curve448Curve(e2c_variant)
         pass
 
     return Curve448PointVariant
-
 
 
 Curve448_NU = CurveVariant(

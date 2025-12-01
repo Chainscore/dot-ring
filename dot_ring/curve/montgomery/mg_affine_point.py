@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Any, Literal, TypeVar, cast
@@ -65,8 +64,8 @@ class MGAffinePoint(CurvePoint[C]):
 
         # ensure coords are ints mod p
         if self.x is None or self.y is None or other.x is None or other.y is None:
-             # Should be handled by is_identity checks above, but for mypy:
-             return self.__class__(None, None)
+            # Should be handled by is_identity checks above, but for mypy:
+            return self.__class__(None, None)
 
         x1, y1 = cast(int, self.x) % p, cast(int, self.y) % p
         x2, y2 = cast(int, other.x) % p, cast(int, other.y) % p
@@ -76,7 +75,9 @@ class MGAffinePoint(CurvePoint[C]):
             # if y == 0 then slope denominator = 0 => result is identity
             if y1 % p == 0:
                 return self.__class__(None, None)
-            numerator = (3 * cast(int, x1) * cast(int, x1) + 2 * cast(int, A) * cast(int, x1) + 1) % p
+            numerator = (
+                3 * cast(int, x1) * cast(int, x1) + 2 * cast(int, A) * cast(int, x1) + 1
+            ) % p
             denominator = (2 * cast(int, B) * cast(int, y1)) % p
             # Check if denominator is zero before computing inverse
             if denominator == 0:
@@ -98,7 +99,9 @@ class MGAffinePoint(CurvePoint[C]):
             raise ValueError("Unexpected zero denominator in point addition")
         lam = (numerator * pow(denominator, -1, p)) % p
         # Corrected formula for x3 in point addition
-        x3 = (cast(int, B) * lam * lam - cast(int, A) - cast(int, x1) - cast(int, x2)) % p
+        x3 = (
+            cast(int, B) * lam * lam - cast(int, A) - cast(int, x1) - cast(int, x2)
+        ) % p
         # Corrected formula for y3
         y3 = (lam * (cast(int, x1) - x3) - cast(int, y1)) % p
         return self.__class__(x3, y3)
@@ -107,7 +110,10 @@ class MGAffinePoint(CurvePoint[C]):
         """Negate a point (x, y) -> (x, -y)."""
         if self.is_identity() or self.x is None or self.y is None:
             return self.__class__(None, None)
-        return self.__class__(cast(int, self.x) % self.curve.PRIME_FIELD, (-cast(int, self.y)) % self.curve.PRIME_FIELD)
+        return self.__class__(
+            cast(int, self.x) % self.curve.PRIME_FIELD,
+            (-cast(int, self.y)) % self.curve.PRIME_FIELD,
+        )
 
     def __sub__(self, other: MGAffinePoint[C]) -> MGAffinePoint[C]:
         """Subtract points by adding the negation."""
@@ -246,7 +252,10 @@ class MGAffinePoint(CurvePoint[C]):
 
     @classmethod
     def encode_to_curve(
-        cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check: bool = False
+        cls,
+        alpha_string: bytes | str,
+        salt: bytes | str = b"",
+        General_Check: bool = False,
     ) -> MGAffinePoint[C] | Any:
         if not isinstance(alpha_string, bytes):
             alpha_string = bytes.fromhex(alpha_string)
@@ -257,7 +266,9 @@ class MGAffinePoint(CurvePoint[C]):
         # Check if it's an ELL2 variant (ELL2 or ELL2_NU)
         if cls.curve.E2C in (E2C_Variant.ELL2, E2C_Variant.ELL2_NU):
             if cls.curve.E2C.value.endswith("_NU_"):
-                return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
+                return cls.encode_to_curve_hash2_suite_nu(
+                    alpha_string, salt, General_Check
+                )
 
             return cls.encode_to_curve_hash2_suite_ro(alpha_string, salt, General_Check)
         else:
@@ -309,8 +320,6 @@ class MGAffinePoint(CurvePoint[C]):
             P = R.clear_cofactor()
             return {"u": u, "Q0": [q0.x, q0.y], "Q1": [q1.x, q1.y], "P": [P.x, P.y]}
         return R.clear_cofactor()
-
-
 
     @classmethod
     def map_to_curve(cls, u: int) -> MGAffinePoint[C]:
@@ -380,9 +389,13 @@ class MGAffinePoint(CurvePoint[C]):
         if self.curve.UNCOMPRESSED:
             # Encode u and v coordinates as little-endian bytes
             if self.x is None or self.y is None:
-                 raise ValueError("Cannot serialize identity point")
-            x_bytes = int(cast(int, self.x)).to_bytes(field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN))
-            y_bytes = int(cast(int, self.y)).to_bytes(field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN))
+                raise ValueError("Cannot serialize identity point")
+            x_bytes = int(cast(int, self.x)).to_bytes(
+                field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN)
+            )
+            y_bytes = int(cast(int, self.y)).to_bytes(
+                field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN)
+            )
             return x_bytes + y_bytes
         else:
             raise NotImplementedError("Compressed encoding not implemented")

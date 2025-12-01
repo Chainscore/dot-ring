@@ -22,6 +22,7 @@ TEST_CASES = [
     (P256_NU, "secp256r1_sha256_tai_pedersen", "ark-vrf"),
 ]
 
+
 @pytest.mark.parametrize("curve_variant, file_prefix, subdir", TEST_CASES)
 def test_pedersen_ietf(curve_variant, file_prefix, subdir):
     data_dir = os.path.join(HERE, "../vectors", subdir)
@@ -51,29 +52,39 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 if "h" in vector:
                     assert input_point.point_to_string().hex() == vector["h"]
 
-                proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
+                proof = PedersenVRF[curve_variant].prove(
+                    alpha, secret_scalar, additional_data
+                )
                 proof_bytes = proof.to_bytes()
                 proof_rt = PedersenVRF[curve_variant].from_bytes(proof_bytes)
 
                 assert pk_bytes.hex() == vector["pk"], "Invalid Public Key"
                 assert proof.output_point.point_to_string().hex() == vector["gamma"]
-                assert proof.blinded_pk.point_to_string().hex() == vector["proof_pk_com"]
+                assert (
+                    proof.blinded_pk.point_to_string().hex() == vector["proof_pk_com"]
+                )
                 assert proof.result_point.point_to_string().hex() == vector["proof_r"]
                 assert proof.ok.point_to_string().hex() == vector["proof_ok"]
                 assert proof.s.to_bytes(
-                    (curve_variant.curve.PRIME_FIELD.bit_length() + 7) // 8, curve_variant.curve.ENDIAN
+                    (curve_variant.curve.PRIME_FIELD.bit_length() + 7) // 8,
+                    curve_variant.curve.ENDIAN,
                 ) == bytes.fromhex(vector["proof_s"])
                 assert proof.sb.to_bytes(
-                    (curve_variant.curve.PRIME_FIELD.bit_length() + 7) // 8, curve_variant.curve.ENDIAN
+                    (curve_variant.curve.PRIME_FIELD.bit_length() + 7) // 8,
+                    curve_variant.curve.ENDIAN,
                 ) == bytes.fromhex(vector["proof_sb"])
                 assert (
-                    PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex()
+                    PedersenVRF[curve_variant]
+                    .ecvrf_proof_to_hash(proof.output_point.point_to_string())
+                    .hex()
                     == vector["beta"]
                 )
 
                 if "beta" in vector:
                     assert (
-                        PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex()
+                        PedersenVRF[curve_variant]
+                        .ecvrf_proof_to_hash(proof.output_point.point_to_string())
+                        .hex()
                         == vector["beta"]
                     )
 

@@ -13,7 +13,12 @@ class Profiler:
     """Context manager for profiling code blocks"""
 
     def __init__(
-        self, name: str, save_stats: bool = True, print_stats: bool = True, sort_by: str = "cumulative", limit: int = 20
+        self,
+        name: str,
+        save_stats: bool = True,
+        print_stats: bool = True,
+        sort_by: str = "cumulative",
+        limit: int = 20,
     ):
         self.name = name
         self.save_stats = save_stats
@@ -49,7 +54,9 @@ class Profiler:
         ps = pstats.Stats(self.profiler, stream=s).sort_stats(self.sort_by)
         ps.print_stats(self.limit)
 
-        print(f"\n📊 Profiling results for {self.name} (top {self.limit}, sorted by {self.sort_by}):")
+        print(
+            f"\n📊 Profiling results for {self.name} (top {self.limit}, sorted by {self.sort_by}):"
+        )
         print("=" * 80)
         print(s.getvalue())
         print("=" * 80)
@@ -64,7 +71,9 @@ class Profiler:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate safe filename
-        safe_name = "".join(c for c in self.name if c.isalnum() or c in (" ", "-", "_")).rstrip()
+        safe_name = "".join(
+            c for c in self.name if c.isalnum() or c in (" ", "-", "_")
+        ).rstrip()
         safe_name = safe_name.replace(" ", "_")
 
         # Save binary stats file (overwrite if exists)
@@ -102,7 +111,9 @@ class Profiler:
 
             # Generate dot file
             with open(dot_file, "w") as f:
-                subprocess.run(["gprof2dot", "-f", "pstats", str(stats_file)], stdout=f, check=True)
+                subprocess.run(
+                    ["gprof2dot", "-f", "pstats", str(stats_file)], stdout=f, check=True
+                )
 
             print(f"📊 Dot file saved: {dot_file}")
 
@@ -140,7 +151,9 @@ def profile(sort_by: str = "cumulative", limit: int = 20, save_stats: bool = Tru
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            with Profiler(func.__name__, save_stats=save_stats, sort_by=sort_by, limit=limit):
+            with Profiler(
+                func.__name__, save_stats=save_stats, sort_by=sort_by, limit=limit
+            ):
                 return func(*args, **kwargs)
 
         return wrapper
@@ -149,7 +162,12 @@ def profile(sort_by: str = "cumulative", limit: int = 20, save_stats: bool = Tru
 
 
 def profile_function(
-    func: Callable, *args, sort_by: str = "cumulative", limit: int = 20, save_stats: bool = True, **kwargs
+    func: Callable,
+    *args,
+    sort_by: str = "cumulative",
+    limit: int = 20,
+    save_stats: bool = True,
+    **kwargs,
 ) -> Any:
     """Profile a function call and return its result"""
     with Profiler(func.__name__, save_stats=save_stats, sort_by=sort_by, limit=limit):

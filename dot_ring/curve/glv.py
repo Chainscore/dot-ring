@@ -52,7 +52,9 @@ class GLV:
         """
         return self.lambda_param != 0 and self.constant_b != 0 and self.constant_c != 0
 
-    def extended_euclidean_algorithm(self, n: int, lam: int) -> list[tuple[int, int, int]]:
+    def extended_euclidean_algorithm(
+        self, n: int, lam: int
+    ) -> list[tuple[int, int, int]]:
         """
         Compute extended Euclidean algorithm sequence.
 
@@ -82,7 +84,9 @@ class GLV:
         return sequence[:-1]
 
     @lru_cache(maxsize=1024)  # noqa: B019
-    def find_short_vectors(self, n: int, lam: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    def find_short_vectors(
+        self, n: int, lam: int
+    ) -> tuple[tuple[int, int], tuple[int, int]]:
         """
         Find short vectors for scalar decomposition.
 
@@ -220,18 +224,20 @@ class GLV:
         # Convert to projective coordinates
         if P1.x is None or P1.y is None or P2.x is None or P2.y is None:
             # Handle identity points
-             if P1.is_identity():
-                 return P2 * k2
-             if P2.is_identity():
-                 return P1 * k1
-             raise ValueError("Invalid points")
+            if P1.is_identity():
+                return P2 * k2
+            if P2.is_identity():
+                return P1 * k1
+            raise ValueError("Invalid points")
 
         p1_t = (cast(int, P1.x) * cast(int, P1.y)) % p
         p2_t = (cast(int, P2.x) * cast(int, P2.y)) % p
 
         assert projective_to_affine is not None
         # Use compiled MSM
-        rx, ry, rz, rt = _compiled_msm(k1, k2, P1.x, P1.y, 1, p1_t, P2.x, P2.y, 1, p2_t, a_coeff, d_coeff, p, w)
+        rx, ry, rz, rt = _compiled_msm(
+            k1, k2, P1.x, P1.y, 1, p1_t, P2.x, P2.y, 1, p2_t, a_coeff, d_coeff, p, w
+        )
 
         # Convert back to affine
         ax, ay = projective_to_affine(rx, ry, rz, p)
@@ -282,12 +288,21 @@ class GLV:
         d_coeff = P1.curve.EdwardsD
 
         # Convert to projective coordinates
-        if P1.x is None or P1.y is None or P2.x is None or P2.y is None or P3.x is None or P3.y is None or P4.x is None or P4.y is None:
-             # Fallback to simple addition for identity points
-             res = P1 * k1 + P2 * k2  # type: ignore[operator]
-             res = res + P3 * k3  # type: ignore[operator]
-             res = res + P4 * k4  # type: ignore[operator]
-             return res
+        if (
+            P1.x is None
+            or P1.y is None
+            or P2.x is None
+            or P2.y is None
+            or P3.x is None
+            or P3.y is None
+            or P4.x is None
+            or P4.y is None
+        ):
+            # Fallback to simple addition for identity points
+            res = P1 * k1 + P2 * k2  # type: ignore[operator]
+            res = res + P3 * k3  # type: ignore[operator]
+            res = res + P4 * k4  # type: ignore[operator]
+            return res
 
         p1_t = (cast(int, P1.x) * cast(int, P1.y)) % p
         p2_t = (cast(int, P2.x) * cast(int, P2.y)) % p

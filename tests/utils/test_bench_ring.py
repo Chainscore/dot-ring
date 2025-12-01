@@ -17,7 +17,9 @@ RESULTS_DIR = os.path.join(HERE, "results")
 
 def load_test_data():
     """Load test vectors from JSON file - returns only first test case"""
-    file_path = os.path.join(HERE, "../vectors", "dot-ring/bandersnatch_sha-512_ell2_ring.json")
+    file_path = os.path.join(
+        HERE, "../vectors", "dot-ring/bandersnatch_sha-512_ell2_ring.json"
+    )
     with open(file_path) as f:
         data = json.load(f)
     return [data[0]]  # Return only first test case
@@ -43,7 +45,11 @@ def test_bench_ring_prove():
 
         # Benchmark proof generation with profiling
         with Profiler(
-            f"ring_prove_sample_{index + 1}", save_stats=True, print_stats=False, sort_by="cumulative", limit=25
+            f"ring_prove_sample_{index + 1}",
+            save_stats=True,
+            print_stats=False,
+            sort_by="cumulative",
+            limit=25,
         ):
             ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
 
@@ -93,7 +99,11 @@ def test_bench_ring_verify():
 
         # Benchmark verification with profiling
         with Profiler(
-            f"ring_verify_sample_{index + 1}", save_stats=True, print_stats=False, sort_by="cumulative", limit=100
+            f"ring_verify_sample_{index + 1}",
+            save_stats=True,
+            print_stats=False,
+            sort_by="cumulative",
+            limit=100,
         ):
             result = ring_vrf_proof.verify(alpha, ad, ring_root_bytes)
 

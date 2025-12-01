@@ -41,6 +41,7 @@ def build_cython_extensions() -> list[Extension]:
         ),
     ]
 
+
 cython_extensions = build_cython_extensions()
 
 
@@ -83,7 +84,14 @@ class CustomBuildExt(build_ext):
         if not blst_dir.exists():
             print("Cloning blst repository...")
             subprocess.check_call(
-                ["git", "clone", "--depth", "1", "https://github.com/supranational/blst.git", str(blst_dir)]
+                [
+                    "git",
+                    "clone",
+                    "--depth",
+                    "1",
+                    "https://github.com/supranational/blst.git",
+                    str(blst_dir),
+                ]
             )
 
         # Clean previous build artifacts (may be for different platform)

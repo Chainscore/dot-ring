@@ -62,12 +62,17 @@ class PublicColumnBuilder:
             pk_ring.append(padding_sw)
         return pk_ring
 
-    def _h_vector(self, blinding_base: tuple[int, int] = Blinding_Base) -> list[tuple[int, int]]:
+    def _h_vector(
+        self, blinding_base: tuple[int, int] = Blinding_Base
+    ) -> list[tuple[int, int]]:
         """Return `[2⁰·H, 2¹·H, …]` in short‑Weierstrass coords."""
         # sw_bb = sw.from_twisted_edwards(blinding_base)
         sw_bb = blinding_base
         # print("Blinding Base:",sw_bb)
-        res = [cast(tuple[int, int], TE.mul(pow(2, i, S_PRIME), sw_bb)) for i in range(self.size)]
+        res = [
+            cast(tuple[int, int], TE.mul(pow(2, i, S_PRIME), sw_bb))
+            for i in range(self.size)
+        ]
         return res  # B_Neck
 
     def build(self, ring_pk: list[tuple[int, int]]) -> tuple[Column, Column, Column]:
@@ -114,12 +119,18 @@ class WitnessColumnBuilder:
         bv.append(0)  # padding bit
         return bv
 
-    def _conditional_sum_accumulator(self, b_vector: list[int]) -> tuple[list[int], list[int]]:
+    def _conditional_sum_accumulator(
+        self, b_vector: list[int]
+    ) -> tuple[list[int], list[int]]:
         seed_sw = SeedPoint
 
         acc = [seed_sw]
         for i in range(1, self.size - 3):
-            next_pt = acc[i - 1] if b_vector[i - 1] == 0 else cast(tuple[int, int], TE.add(acc[i - 1], self.ring_pk[i - 1]))
+            next_pt = (
+                acc[i - 1]
+                if b_vector[i - 1] == 0
+                else cast(tuple[int, int], TE.add(acc[i - 1], self.ring_pk[i - 1]))
+            )
             acc.append(next_pt)
         return H.unzip(acc)
 
@@ -153,7 +164,10 @@ class WitnessColumnBuilder:
         # sw_H = sw.from_twisted_edwards(Blinding_point)
         sw_H = Blinding_point
         PK_k = self.ring_pk[self.producer_index]
-        Result_point = cast(tuple[int, int], TE.add(PK_k, cast(tuple[int, int], TE.mul(self.secret_t, sw_H))))
+        Result_point = cast(
+            tuple[int, int],
+            TE.add(PK_k, cast(tuple[int, int], TE.mul(self.secret_t, sw_H))),
+        )
         return Result_point
 
     def result_p_seed(self, result: tuple[int, int]) -> tuple[int, int]:
