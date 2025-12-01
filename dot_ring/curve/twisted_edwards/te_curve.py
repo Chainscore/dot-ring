@@ -3,7 +3,9 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Final, Tuple
+from functools import lru_cache
 from dot_ring.curve.curve import Curve
+from dot_ring.curve.fast_math import map_to_curve_ell2_fast
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,7 @@ class TECurve(Curve):
             and all(x < self.PRIME_FIELD for x in (self.EdwardsA, self.EdwardsD))
         )
 
+    @lru_cache(maxsize=1024)
     def calculate_j_k(self) -> Tuple[int, int]:
         """
         Calculate curve parameters J and K for Elligator 2.
@@ -74,37 +77,8 @@ class TECurve(Curve):
         J, K = self.calculate_j_k()
         Z = self.Z
         p = self.PRIME_FIELD
-
-        # Compute constants
-        c1 = (J * self.mod_inverse(K)) % p
-        c2 = self.mod_inverse(K * K) % p
-
-        # Main mapping computation
-        tv1 = (Z * u * u) % p
-        e1 = tv1 == -1
-        tv1 = 0 if e1 else tv1
-        x1 = (-c1 * self.mod_inverse(tv1 + 1)) % p
-        gx1 = (((x1 + c1) * x1 + c2) * x1) % p
-
-        x2 = (-x1 - c1) % p
-        gx2 = (tv1 * gx1) % p
-
-        # Choose correct values
-        e2 = self.is_square(gx1)
-        x = x2 if not e2 else x1
-        y2 = gx2 if not e2 else gx1
-
-        # Compute square root
-        y = self.mod_sqrt(y2)
-
-        # Adjust sign
-        e3 = (y & 1) == 1
-        y = -y % p if e2 ^ e3 else y
-
-        # Scale coordinates
-        s = (x * K) % p
-        t = (y * K) % p
-        return (s, t)
+        
+        return map_to_curve_ell2_fast(u, J, K, Z, p)
 
     @property
     def curve_equation(self) -> str:

@@ -1,11 +1,12 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from ...curve.point import CurvePoint
 from dot_ring.curve.point import Point
 from ..vrf import VRF
 from ...curve.curve import Curve, CurveVariant
 from ...ring_proof.helpers import Helpers
 
-
+@dataclass
 class IETF_VRF(VRF):
     """
     IETF specification compliant VRF implementation.
@@ -22,12 +23,6 @@ class IETF_VRF(VRF):
     output_point: CurvePoint
     c: int
     s: int
-    
-    def __init__(self, output_point: CurvePoint, c: int, s: int):
-        self.output_point = output_point
-        self.c = c
-        self.s = s
-        super().__init__()
     
     @classmethod
     def from_bytes(cls, proof_bytes: bytes) -> IETF_VRF:
@@ -141,14 +136,18 @@ class IETF_VRF(VRF):
             bool: True if proof is valid
         """
         input_point = self.cv.point.encode_to_curve(input, salt)
-        public_key = self.cv.point.string_to_point(public_key)
+        public_key_pt = self.cv.point.string_to_point(public_key)
+        generator = self.cv.point.generator_point()
+        n = self.cv.curve.ORDER
+        neg_c = (-self.c) % n
 
-        # Compute proof points
-        U = (self.cv.point.generator_point() * self.s) - (public_key * self.c)
-        V = (input_point * self.s) - (self.output_point * self.c)
+        # MSM for U = G*s + pk*(-c) and V = H*s + O*(-c)
+        U = self.cv.point.msm([generator, public_key_pt], [self.s, neg_c])
+        V = self.cv.point.msm([input_point, self.output_point], [self.s, neg_c])
+        
         # Verify challenge
         expected_c = self.challenge(
-            [public_key, input_point, self.output_point, U, V], additional_data
+            [public_key_pt, input_point, self.output_point, U, V], additional_data
         )
 
         return self.c == expected_c

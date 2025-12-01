@@ -15,7 +15,6 @@ from .field_arithmetic import (
 
 AffinePointT = TypeVar("AffinePointT", bound=TEAffinePoint[Any])
 
-
 @dataclass(frozen=True)
 class GLV:
     """
@@ -79,7 +78,7 @@ class GLV:
 
         return sequence[:-1]
 
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=1024)
     def find_short_vectors(
         self, n: int, lam: int
     ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
@@ -133,61 +132,27 @@ class GLV:
             ValueError: If GLV is not enabled
         """
         v1, v2 = self.find_short_vectors(n, self.lambda_param)
-        v, b1, b2 = self._find_closest_lattice_point(k, v1, v2, n)
-
-        k1 = (k - v[0]) % n
-        k2 = (-v[1]) % n
-
+        
+        v1_0, v1_1 = v1
+        v2_0, v2_1 = v2
+        
+        det = v1_0 * v2_1 - v1_1 * v2_0
+        
+        num1 = k * v2_1
+        b1 = (num1 + det // 2) // det
+        
+        num2 = k * -v1_1
+        b2 = (num2 + det // 2) // det
+        
+        vx = b1 * v1_0 + b2 * v2_0
+        vy = b1 * v1_1 + b2 * v2_1
+        
+        k1 = k - vx
+        k2 = -vy
+        
         return k1, k2
 
-    def _find_closest_lattice_point(
-        self, k: int, v1: Tuple[int, int], v2: Tuple[int, int], n: int
-    ) -> Tuple[Tuple[int, int], int, int]:
-        """
-        Find closest lattice point for scalar decomposition.
-
-        Args:
-            k: Scalar value
-            v1: First basis vector
-            v2: Second basis vector
-            n: Curve order
-
-        Returns:
-            Tuple[Tuple[int, int], int, int]: Lattice point and coefficients
-        """
-        # Compute beta values using integer arithmetic
-        # beta = A_inv @ [k, 0]
-        # A_inv = [[v2[1], -v2[0]], [-v1[1], v1[0]]] / det
-        # beta1 = k * v2[1] / det
-        # beta2 = k * (-v1[1]) / det
-        
-        det = v1[0] * v2[1] - v1[1] * v2[0]
-        
-        # Round to nearest integers
-        # b = round(num / det) = (num + det//2) // det  (assuming det > 0)
-        # If det < 0, we can flip signs of num and det
-        
-        if det == 0:
-            return (0, 0), 0, 0
-            
-        # b1 = round(k * v2[1] / det)
-        num1 = k * v2[1]
-        
-        # b2 = round(k * (-v1[1]) / det)
-        num2 = k * (-v1[1])
-        
-        # Helper for rounding division
-        def round_div(n, d):
-            return (n + d // 2) // d
-            
-        b1 = round_div(num1, det)
-        b2 = round_div(num2, det)
-
-        # Compute lattice point
-        v = (b1 * v1[0] + b2 * v2[0], b1 * v1[1] + b2 * v2[1])
-
-        return v, b1, b2
-
+    @lru_cache(maxsize=128)
     def compute_endomorphism(self, point: CurvePoint) -> CurvePoint:
         """
         Compute the GLV endomorphism of this point.
@@ -195,10 +160,11 @@ class GLV:
         Returns:
             CurvePoint: Result of endomorphism
         """
+        x, y, p = point.x, point.y, point.curve.PRIME_FIELD
+        
         # These constants should ideally be curve attributes
         B = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
         C = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
-        x, y, p = point.x, point.y, point.curve.PRIME_FIELD
         y2 = pow(y, 2, p)
         xy = (x * y) % p
         f_y = (C * (1 - y2)) % p
@@ -236,6 +202,14 @@ class GLV:
         if P1.curve != P2.curve:
             raise TypeError("Points must be on the same curve")
         
+        # Handle negative scalars
+        if k1 < 0:
+            k1 = -k1
+            P1 = -P1
+        if k2 < 0:
+            k2 = -k2
+            P2 = -P2
+        
         p = P1.curve.PRIME_FIELD
         a_coeff = P1.curve.EdwardsA
         d_coeff = P1.curve.EdwardsD
@@ -257,7 +231,6 @@ class GLV:
         ax, ay = projective_to_affine(rx, ry, rz, p)
         point_cls = cast(Type[AffinePointT], P1.__class__)
         return point_cls(ax, ay)
-        
 
     def multi_scalar_mult_4(
         self,
@@ -284,6 +257,20 @@ class GLV:
         Returns:
             TEAffinePoint: Result of k1*P1 + k2*P2 + k3*P3 + k4*P4
         """
+        # Handle negative scalars
+        if k1 < 0:
+            k1 = -k1
+            P1 = -P1
+        if k2 < 0:
+            k2 = -k2
+            P2 = -P2
+        if k3 < 0:
+            k3 = -k3
+            P3 = -P3
+        if k4 < 0:
+            k4 = -k4
+            P4 = -P4
+
         p = P1.curve.PRIME_FIELD
         a_coeff = P1.curve.EdwardsA
         d_coeff = P1.curve.EdwardsD

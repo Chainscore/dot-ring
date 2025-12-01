@@ -158,8 +158,19 @@ class BandersnatchPoint(TEAffinePoint):
         scalars = [s % n for s in scalars]
         
         if len(points) == 2:
-            return BandersnatchGLV.windowed_simultaneous_mult(
-                scalars[0], scalars[1], points[0], points[1]
+            # Size-2 MSM using GLV to split into size-4 MSM
+            # k1*P1 + k2*P2 = (k1_1 + k1_2*lambda)*P1 + (k2_1 + k2_2*lambda)*P2
+            #               = k1_1*P1 + k1_2*phi(P1) + k2_1*P2 + k2_2*phi(P2)
+            
+            k1_1, k1_2 = BandersnatchGLV.decompose_scalar(scalars[0], n)
+            k2_1, k2_2 = BandersnatchGLV.decompose_scalar(scalars[1], n)
+            
+            phi_P1 = BandersnatchGLV.compute_endomorphism(points[0])
+            phi_P2 = BandersnatchGLV.compute_endomorphism(points[1])
+            
+            return BandersnatchGLV.multi_scalar_mult_4(
+                k1_1, k1_2, k2_1, k2_2,
+                points[0], phi_P1, points[1], phi_P2
             )
             
         if len(points) == 4:

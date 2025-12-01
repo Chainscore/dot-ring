@@ -353,7 +353,7 @@ class TEAffinePoint(CurvePoint[C]):
         return cls(v, w)
 
     @classmethod
-    def _x_recover(cls, y: int) -> Tuple[int, int] | int:
+    def _x_recover(cls, y: int) -> Tuple[int, int] | int | None:
         """ """
         p = cls.curve.PRIME_FIELD
         lhs = (1 - y * y) % p
@@ -365,60 +365,11 @@ class TEAffinePoint(CurvePoint[C]):
             return None
 
         x2 = (lhs * inv_rhs) % p
-        x = cls.sqrt_mod(x2)
-        if x is None:
+        try:
+            x = cls.curve.mod_sqrt(x2)
+        except ValueError:
             return None
 
         neg_x = (-x) % p
         # consistent ordering
         return (x, neg_x) if x <= neg_x else (neg_x, x)
-
-    @classmethod
-    def sqrt_mod(cls, n: int) -> int | None:
-        """Tonelli-Shanks sqrt mod p. Returns r such that r*r % p == n, or None."""
-        p = cls.curve.PRIME_FIELD
-        n %= p
-        if n == 0:
-            return 0
-        # Legendre symbol
-        ls = pow(n, (p - 1) // 2, p)
-        if ls == p - 1:
-            return None
-        if p % 4 == 3:
-            return pow(n, (p + 1) // 4, p)
-
-        # Factor p-1 = q * 2^s
-        q = p - 1
-        s = 0
-        while q % 2 == 0:
-            q //= 2
-            s += 1
-
-        # find a quadratic non-residue z
-        z = 2
-        while pow(z, (p - 1) // 2, p) != p - 1:
-            z += 1
-
-        m = s
-        c = pow(z, q, p)
-        t = pow(n, q, p)
-        r = pow(n, (q + 1) // 2, p)
-
-        while True:
-            if t == 0:
-                return 0
-            if t == 1:
-                return r
-            # find smallest i (0 < i < m) with t^(2^i) == 1
-            i = 1
-            t2i = pow(t, 2, p)
-            while i < m and t2i != 1:
-                t2i = pow(t2i, 2, p)
-                i += 1
-            if i == m:
-                return None
-            b = pow(c, 1 << (m - i - 1), p)
-            m = i
-            c = (b * b) % p
-            t = (t * c) % p
-            r = (r * b) % p
