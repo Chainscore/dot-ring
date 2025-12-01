@@ -9,9 +9,7 @@ HERE = os.path.dirname(__file__)
 
 
 def test_ring_proof():
-    file_path = os.path.join(
-        HERE, "../vectors", "dot-ring/bandersnatch_sha-512_ell2_ring.json"
-    )
+    file_path = os.path.join(HERE, "../vectors", "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
     with open(file_path) as f:
         data = json.load(f)
     for index in range(len(data)):
