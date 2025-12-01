@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Final, Self
+
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..twisted_edwards.te_curve import TECurve
+
 from ..twisted_edwards.te_affine_point import TEAffinePoint
+from ..twisted_edwards.te_curve import TECurve
 
 
 @dataclass(frozen=True)
@@ -21,35 +23,23 @@ class BabyJubJubParams:
     DST = b""
 
     # Curve parameters
-    PRIME_FIELD: Final[
-        int
-    ] = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-    ORDER: Final[
-        int
-    ] = 2736030358979909402780800718157159386076813972158567259200215660948447373041
+    PRIME_FIELD: Final[int] = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+    ORDER: Final[int] = 2736030358979909402780800718157159386076813972158567259200215660948447373041
     COFACTOR: Final[int] = 8
 
     # Generator point
-    GENERATOR_X: Final[
-        int
-    ] = 19698561148652590122159747500897617769866003486955115824547446575314762165298
-    GENERATOR_Y: Final[
-        int
-    ] = 19298250018296453272277890825869354524455968081175474282777126169995084727839
+    GENERATOR_X: Final[int] = 19698561148652590122159747500897617769866003486955115824547446575314762165298
+    GENERATOR_Y: Final[int] = 19298250018296453272277890825869354524455968081175474282777126169995084727839
     # Edwards curve parameters
     EDWARDS_A: Final[int] = 1
-    EDWARDS_D: Final[
-        int
-    ] = 9706598848417545097372247223557719406784115219466060233080913168975159366771
+    EDWARDS_D: Final[int] = 9706598848417545097372247223557719406784115219466060233080913168975159366771
 
     # Z
     Z: Final[int] = 5
     M: Final[int] = 1
     K: Final[int] = 128
     L: Final[int] = 32  # can define func as well
-    S_in_bytes: Final[
-        int
-    ] = 128  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
+    S_in_bytes: Final[int] = 128  # can be taken as hsh_fn.block_size #not sure as its supposed to be 128 for sha512
     H_A = hashlib.sha512
     ENDIAN = "little"
     Requires_Isogeny: Final[bool] = False
@@ -58,12 +48,8 @@ class BabyJubJubParams:
     CHALLENGE_LENGTH: Final[int] = 32  # 128 bits
 
     # Blinding Base For Pedersen
-    BBx: Final[
-        int
-    ] = 8170247200255741810297410022472365370979789984587637609570347196251706043122
-    BBy: Final[
-        int
-    ] = 16313972569917201570489077828713531620741538540099917729994937953803219324220
+    BBx: Final[int] = 8170247200255741810297410022472365370979789984587637609570347196251706043122
+    BBy: Final[int] = 16313972569917201570489077828713531620741538540099917729994937953803219324220
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 32
 
@@ -104,7 +90,7 @@ class BabyJubJubPoint(TEAffinePoint):
     including GLV scalar multiplication.
     """
 
-    curve: Final[TECurve] = BabyJubJub_TE_Curve
+    curve: TECurve = BabyJubJub_TE_Curve
 
 
 BabyJubJub = CurveVariant(name="BabyJubJub", curve=BabyJubJub_TE_Curve, point=BabyJubJubPoint)

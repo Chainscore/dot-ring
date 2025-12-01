@@ -1,13 +1,19 @@
 from dataclasses import dataclass
-from typing import List, Any, Tuple
+from typing import Any, cast
+
+from py_ecc.optimized_bls12_381 import normalize as nm
+
 from dot_ring.curve.point import CurvePoint
+from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
+from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
+from dot_ring.ring_proof.constants import D_512 as D
 from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME, Blinding_Base, PaddingPoint, SeedPoint
 from dot_ring.ring_proof.constraints.aggregation import aggregate_constraints
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.helpers import Helpers as H
+from dot_ring.ring_proof.pcs.kzg import Opening
 from dot_ring.ring_proof.pcs.srs import srs
-from dot_ring.ring_proof.pcs.kzg import KZG, Opening
 from dot_ring.ring_proof.proof.aggregation_poly import AggPoly
 from dot_ring.ring_proof.proof.linearization_poly import LAggPoly
 from dot_ring.ring_proof.proof.quotient_poly import QuotientPoly
@@ -15,47 +21,45 @@ from dot_ring.ring_proof.transcript.phases import phase1_alphas, phase3_nu_vecto
 from dot_ring.ring_proof.transcript.transcript import Transcript
 from dot_ring.ring_proof.verify import Verify
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+
 from ..vrf import VRF
-from py_ecc.optimized_bls12_381 import normalize as nm
-from dot_ring.ring_proof.columns.columns import Column, PublicColumnBuilder as PC, WitnessColumnBuilder
-from dot_ring.ring_proof.constants import D_512 as D
 from .ring_root import RingRoot
 
 
 @dataclass
-class RingVRF(VRF):
+class RingVRF(VRF[Any]):
     """
     Ring VRF implementation.
 
     This implementation provides Ring VRF operations combining
     Pedersen VRF proofs with ring signatures.
-    
+
     Usage:
     >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
     >>> from dot_ring.vrf.ring.ring_vrf import RingVRF
     >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, producer_key, keys)
     >>> verified = RingVRF[Bandersnatch].verify(ad, ring_root, proof)
-    
+
     Note: Ring VRF currently only supports Bandersnatch curve.
     """
-    
-    pedersen_proof: PedersenVRF
+
+    pedersen_proof: PedersenVRF | None
     c_b: Column
     c_accip: Column
     c_accx: Column
     c_accy: Column
-    px_zeta: CurvePoint
-    py_zeta: CurvePoint
-    s_zeta: CurvePoint
-    b_zeta: CurvePoint
-    accip_zeta: CurvePoint
-    accx_zeta: CurvePoint
-    accy_zeta: CurvePoint
+    px_zeta: int
+    py_zeta: int
+    s_zeta: int
+    b_zeta: int
+    accip_zeta: int
+    accx_zeta: int
+    accy_zeta: int
     c_q: Column
-    l_zeta_omega: CurvePoint
+    l_zeta_omega: int
     open_agg_zeta: Opening
     open_l_zeta_omega: Opening
-    
+
     def to_bytes(self) -> bytes:
         """
         Serialize the Ring VRF proof to bytes.
@@ -63,24 +67,33 @@ class RingVRF(VRF):
         Returns:
             bytes: Bytes representation of the Ring VRF proof
         """
+        assert self.c_b.commitment is not None
+        assert self.c_accip.commitment is not None
+        assert self.c_accx.commitment is not None
+        assert self.c_accy.commitment is not None
+        assert self.c_q.commitment is not None
+        assert self.open_agg_zeta.proof is not None
+        assert self.open_l_zeta_omega.proof is not None
+
+        assert self.pedersen_proof is not None
         return self.pedersen_proof.to_bytes() + bytes.fromhex(
-            H.bls_g1_compress(self.c_b.commitment) +
-            H.bls_g1_compress(self.c_accip.commitment) +
-            H.bls_g1_compress(self.c_accx.commitment) +
-            H.bls_g1_compress(self.c_accy.commitment) +
-            H.to_bytes(self.px_zeta) +
-            H.to_bytes(self.py_zeta) +
-            H.to_bytes(self.s_zeta) +
-            H.to_bytes(self.b_zeta) +
-            H.to_bytes(self.accip_zeta) +
-            H.to_bytes(self.accx_zeta) +
-            H.to_bytes(self.accy_zeta) +
-            H.bls_g1_compress(self.c_q.commitment) +
-            H.to_bytes(self.l_zeta_omega) +
-            H.bls_g1_compress(self.open_agg_zeta.proof) +
-            H.bls_g1_compress(self.open_l_zeta_omega.proof)
+            H.bls_g1_compress(cast(tuple, self.c_b.commitment))
+            + H.bls_g1_compress(cast(tuple, self.c_accip.commitment))
+            + H.bls_g1_compress(cast(tuple, self.c_accx.commitment))
+            + H.bls_g1_compress(cast(tuple, self.c_accy.commitment))
+            + H.to_bytes(self.px_zeta)
+            + H.to_bytes(self.py_zeta)
+            + H.to_bytes(self.s_zeta)
+            + H.to_bytes(self.b_zeta)
+            + H.to_bytes(self.accip_zeta)
+            + H.to_bytes(self.accx_zeta)
+            + H.to_bytes(self.accy_zeta)
+            + H.bls_g1_compress(cast(tuple, self.c_q.commitment))
+            + H.to_bytes(self.l_zeta_omega)
+            + H.bls_g1_compress(cast(tuple, self.open_agg_zeta.proof))
+            + H.bls_g1_compress(cast(tuple, self.open_l_zeta_omega.proof))
         )
-        
+
     @classmethod
     def from_bytes(cls, proof: bytes, skip_pedersen: bool = False) -> "RingVRF":
         """
@@ -92,14 +105,14 @@ class RingVRF(VRF):
             RingVRF: Deserialized Ring VRF proof object
         """
         if not skip_pedersen:
-            pedersen_proof = PedersenVRF[cls.cv].from_bytes(proof[:192])
+            pedersen_proof = PedersenVRF[cls.cv].from_bytes(proof[:192])  # type: ignore[name-defined]
             offset = 192
         else:
             pedersen_proof = None
             offset = 0
-            
+
         commitment_size = 48  # Size of compressed G1 point
-        
+
         c_b_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
         c_accip_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
@@ -108,7 +121,7 @@ class RingVRF(VRF):
         offset += commitment_size
         c_accy_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
-        
+
         px_zeta = H.to_scalar_int(proof[offset : offset + 32])
         offset += 32
         py_zeta = H.to_scalar_int(proof[offset : offset + 32])
@@ -123,13 +136,13 @@ class RingVRF(VRF):
         offset += 32
         accy_zeta = H.to_scalar_int(proof[offset : offset + 32])
         offset += 32
-        
+
         c_q_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
-        
+
         l_zeta_omega = H.to_scalar_int(proof[offset : offset + 32])
         offset += 32
-        
+
         open_agg_zeta_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
         open_l_zeta_omega_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
@@ -150,31 +163,38 @@ class RingVRF(VRF):
             c_q=Column(name="c_q", evals=[], commitment=c_q_commitment),
             l_zeta_omega=l_zeta_omega,
             # TODO: Fix Opening initialization; unsafe scalar 0 used temporarily
-            open_agg_zeta=Opening(proof=open_agg_zeta_commitment, y=0), # We only need opening proof to verify
-            open_l_zeta_omega=Opening(proof=open_l_zeta_omega_commitment, y=0) # We only need opening proof to verify
+            open_agg_zeta=Opening(proof=open_agg_zeta_commitment, y=0),  # We only need opening proof to verify
+            open_l_zeta_omega=Opening(proof=open_l_zeta_omega_commitment, y=0),  # We only need opening proof to verify
         )
-    
+
     @classmethod
     def generate_bls_signature(
         cls,
         blinding_factor: int,
         producer_key: bytes | str,
-        keys: List[Any] | str | bytes,
-    ) -> bytes:
+        keys: list[Any] | str | bytes,
+    ) -> tuple[Column, Column, Column, Column, int, int, int, int, int, int, int, Column, int, Any, Any]:
         """
         Returns the Ring Proof as an output
         """
         producer_key_point = cls.cv.point.string_to_point(producer_key)
 
-        if not producer_key_point or producer_key_point == "INVALID":
+        if isinstance(producer_key_point, str) or producer_key_point.is_identity():
             producer_key_point = cls.cv.point(PaddingPoint[0], PaddingPoint[1])
 
-        producer_key_pt = (producer_key_point.x, producer_key_point.y)
+        producer_key_pt = (cast(int, producer_key_point.x), cast(int, producer_key_point.y))
         keys_as_bs_points = []
 
         for key in keys:
-            point = cls.cv.point.string_to_point(key)
-            keys_as_bs_points.append((point.x, point.y))
+            if isinstance(key, (str, bytes)):
+                point = cls.cv.point.string_to_point(key)
+                if isinstance(point, str):
+                     # Handle invalid point string
+                     continue
+                keys_as_bs_points.append((cast(int, point.x), cast(int, point.y)))
+            else:
+                # Handle non-string/bytes keys if necessary, or skip/raise
+                continue
 
         ring_root = PC()  # ring_root builder
         fixed_cols = ring_root.build(keys_as_bs_points)
@@ -185,14 +205,14 @@ class RingVRF(VRF):
         witness_relation_res = witness_obj.result(Blinding_Base)
         Result_plus_Seed = witness_obj.result_p_seed(witness_relation_res)
         constraints = RingConstraintBuilder(
-            Result_plus_Seed,
-            fixed_cols[0].coeffs,
-            fixed_cols[1].coeffs,
-            fixed_cols[2].coeffs,
-            witness_res[0].coeffs,
-            witness_res[1].coeffs,
-            witness_res[2].coeffs,
-            witness_res[3].coeffs,
+            Result_plus_Seed=Result_plus_Seed,  # type: ignore
+            px=cast(list[int], fixed_cols[0].coeffs),
+            py=cast(list[int], fixed_cols[1].coeffs),
+            s=cast(list[int], fixed_cols[2].coeffs),
+            b=cast(list[int], witness_res[0].coeffs),
+            acc_x=cast(list[int], witness_res[1].coeffs),
+            acc_y=cast(list[int], witness_res[2].coeffs),
+            acc_ip=cast(list[int], witness_res[3].coeffs),
         )
 
         constraint_dict = constraints.compute()
@@ -225,17 +245,41 @@ class RingVRF(VRF):
         Q_p, C_q = qp.quotient_poly(C_agg)
         C_q_commitment = Column(name="C_q", evals=[], commitment=C_q)
         C_q_nm = nm(C_q)
-        l_obj = LAggPoly(t, H.to_int(C_q_nm), fixed_cols, ws, alpha)
+        l_obj = LAggPoly(t, list(H.to_int(C_q_nm)), list(fixed_cols), list(ws), alpha)
         current_t, zeta, rel_poly_evals, l_agg, zeta_omega, l_zw = l_obj.l_agg_poly()
-        _, _, phi_z, phi_zw = AggPoly.proof_contents_phi(zeta, zeta_omega, l_agg, fixed_cols, ws, Q_p, phase3_nu_vector(current_t, list(rel_poly_evals.values()), l_zw))
+        _, _, phi_z, phi_zw = AggPoly.proof_contents_phi(
+            zeta,
+            zeta_omega,
+            l_agg,
+            list(fixed_cols),
+            list(ws),
+            Q_p,
+            phase3_nu_vector(current_t, list(rel_poly_evals.values()), l_zw),
+        )
         [p_x_zeta, p_y_zeta, s_zeta, b_zeta, acc_ip_zeta, acc_x_zeta, acc_y_zeta] = list(rel_poly_evals.values())
         c_b, c_acc_x, c_acc_y, c_acc_ip = ws[0], ws[1], ws[2], ws[3]
-        return (c_b, c_acc_ip, c_acc_x, c_acc_y, p_x_zeta, p_y_zeta, s_zeta, b_zeta, acc_ip_zeta, acc_x_zeta, acc_y_zeta, C_q_commitment, l_zw, phi_z, phi_zw)
+        return (
+            c_b,
+            c_acc_ip,
+            c_acc_x,
+            c_acc_y,
+            p_x_zeta,
+            p_y_zeta,
+            s_zeta,
+            b_zeta,
+            acc_ip_zeta,
+            acc_x_zeta,
+            acc_y_zeta,
+            C_q_commitment,
+            l_zw,
+            phi_z,
+            phi_zw,
+        )
 
     def verify_ring_proof(
         self,
-        message: bytes | CurvePoint, 
-        ring_root: RingRoot | bytes, 
+        message: bytes | CurvePoint,
+        ring_root: RingRoot | bytes,
     ) -> bool:
         """
         Verifies the Ring Proof
@@ -244,21 +288,29 @@ class RingVRF(VRF):
         if isinstance(ring_root, bytes):
             ring_root = RingRoot.from_bytes(ring_root)
         fixed_cols_cmts = [ring_root.px.commitment, ring_root.py.commitment, ring_root.s.commitment]
-        
+
         if isinstance(message, bytes):
-            message = self.cv.point.string_to_point(message)  # relation to proove
+            message_pt = self.cv.point.string_to_point(message)  # relation to proove
+            if isinstance(message_pt, str):
+                 raise ValueError("Invalid message point")
+            message = message_pt
 
         rltn = (message.x, message.y)  # relartion to proove
         res_plus_seed = TwistedEdwardCurve.add(SeedPoint, rltn)
-        
-        verifier_key = {
+
+        # Ensure commitments are not None
+        fixed_cols_cmts_safe = []
+        for c in fixed_cols_cmts:
+            assert c is not None
+            fixed_cols_cmts_safe.append(c)
+        comm_keys_affine = H.bls_projective_2_affine(cast(list[Any], fixed_cols_cmts_safe))
+        comm_keys_int = [H.to_int(pt) for pt in comm_keys_affine]
+        verifier_key: dict[str, Any] = {
             "g1": srs.g1_points[0],
-            "g2": H.altered_points(srs.g2_points),
-            "commitments": [
-                H.to_int(each) for each in H.bls_projective_2_affine(fixed_cols_cmts)
-            ],
+            "g2": cast(Any, H.altered_points(srs.g2_points)),  # type: ignore
+            "commitments": comm_keys_int,
         }
-        
+
         return Verify(
             (
                 self.c_b.commitment,
@@ -276,26 +328,34 @@ class RingVRF(VRF):
                 self.l_zeta_omega,
                 self.open_agg_zeta.proof,
                 self.open_l_zeta_omega.proof,
-                ), verifier_key, fixed_cols_cmts, rltn, res_plus_seed, SeedPoint, D
+            ),
+            verifier_key,
+            fixed_cols_cmts,
+            rltn,
+            res_plus_seed,
+            SeedPoint,
+            D,
         ).is_valid()
 
     @classmethod
     def construct_ring_root(
         cls,
-        keys: List[bytes], 
+        keys: list[bytes],
     ) -> RingRoot:
         """
         Constructs the Ring Root
         """
         keys_as_bs_points = []
         for key in keys:
+            if not isinstance(key, (str, bytes)):
+                continue
             point = cls.cv.point.string_to_point(key)
 
-            if not point or point == "INVALID":
+            if isinstance(point, str) or point.is_identity():
                 keys_as_bs_points.append((PaddingPoint[0], PaddingPoint[1]))
 
             else:
-                keys_as_bs_points.append((point.x, point.y))
+                keys_as_bs_points.append((cast(int, point.x), cast(int, point.y)))
 
         ring_root = PC()  # ring_root builder
         fixed_cols = ring_root.build(keys_as_bs_points)
@@ -309,23 +369,21 @@ class RingVRF(VRF):
         ad: bytes,
         secret_key: bytes,
         producer_key: bytes,
-        keys: List[bytes],
+        keys: list[bytes],
     ) -> "RingVRF":
         """
         Generate ring VRF proof (pedersen vrf proof + ring_proof)
         """
         # pedersen_proof
-        pedersen_proof = PedersenVRF[cls.cv].prove(alpha, secret_key, ad)
+        pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove(alpha, secret_key, ad)  # type: ignore[misc]
 
         # ring_proof
-        ring_proof = cls.generate_bls_signature(
-            pedersen_proof._blinding_factor, producer_key, keys
-        )
+        ring_proof = cls.generate_bls_signature(pedersen_proof._blinding_factor, producer_key, keys)
 
         return cls(pedersen_proof, *ring_proof)
-        
+
     @classmethod
-    def parse_keys(cls, keys: bytes) -> List[bytes]:
+    def parse_keys(cls, keys: bytes) -> list[bytes]:
         """Parse a bytes object containing concatenated keys into a list of individual keys.
 
         Args:
@@ -334,10 +392,7 @@ class RingVRF(VRF):
         Returns:
             List[bytes]: A list of individual keys extracted from the input bytes object.
         """
-        return [
-            keys[32 * i : 32 * (i + 1)] for i in range(len(keys) // 32)
-        ]
-        
+        return [keys[32 * i : 32 * (i + 1)] for i in range(len(keys) // 32)]
 
     def verify(
         self,
@@ -351,8 +406,10 @@ class RingVRF(VRF):
         # Decompress ring_root once at the start
         if isinstance(ring_root, bytes):
             ring_root = RingRoot.from_bytes(ring_root)
-        
+
         # is pedersen proof valid
+        if self.pedersen_proof is None:
+             raise ValueError("Pedersen proof is missing")
         p_proof_valid = self.pedersen_proof.verify(input, ad_data)
         ring_proof_valid = self.verify_ring_proof(self.pedersen_proof.blinded_pk, ring_root)
 

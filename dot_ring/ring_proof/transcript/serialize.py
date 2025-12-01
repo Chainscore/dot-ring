@@ -27,7 +27,7 @@ def serialize(obj: Any) -> bytes:
         else:
             x, y = obj
             # Uncompressed: serialize x, y, and flag
-            flag = b"\x01" if x > (S_PRIME - 1) // 2 else b""
+            b"\x01" if x > (S_PRIME - 1) // 2 else b""
             return serialize(x) + serialize(y)
 
     elif isinstance(obj, list):

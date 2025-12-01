@@ -95,3 +95,35 @@ Documentation = "https://github.com/chainscore/dot-ring#readme"
 [build-system]
 requires = ["setuptools>=65.0.0", "wheel", "Cython>=3.0.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 150
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["UP046"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+exclude = ["build/"]
+
+[[tool.mypy.overrides]]
+module = ["dot_ring.curve.field_arithmetic", "dot_ring.curve.fast_math", "dot_ring.ring_proof.polynomial.ntt", "dot_ring.blst.*", "py_ecc.*"]
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = false
+disable_error_code = ["attr-defined", "import-not-found", "no-redef"]
+
+[[tool.mypy.overrides]]
+module = ["pytest", "setuptools", "setuptools.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "scripts.*"]
+disallow_untyped_defs = false
+warn_return_any = false
+disable_error_code = ["misc", "arg-type", "var-annotated"]

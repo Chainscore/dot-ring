@@ -1,18 +1,18 @@
 from dot_ring.ring_proof.constants import SIZE
-from dot_ring.ring_proof.polynomial.ops import poly_division_general
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.polynomial.ops import poly_division_general
+
 
 class QuotientPoly:
-
     @staticmethod
-    def poly_vector_xn_minus_1(n):
+    def poly_vector_xn_minus_1(n: int) -> list[int]:
         vec = [0] * (n + 1)
         vec[0] = -1
         vec[n] = 1
         # print("vect:", vec)
         return vec
 
-    def quotient_poly_commitment(self, q_x):
+    def quotient_poly_commitment(self, q_x: list[int]) -> tuple:
         """
         input: quotient polynomial
         output: commitment to quotient polynomial
@@ -20,7 +20,7 @@ class QuotientPoly:
         c_q = KZG.commit(q_x)
         return c_q
 
-    def quotient_poly(self, C_agg):
+    def quotient_poly(self, C_agg: list[int]) -> tuple[list[int], tuple]:
         qnt_poly = poly_division_general(C_agg, SIZE)
         # print("q_p:", qnt_poly)
         C_qp = self.quotient_poly_commitment(qnt_poly)

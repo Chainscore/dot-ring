@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import math
 import struct
-from typing import List
 
 __all__ = ["Transcript"]
 
@@ -15,23 +14,23 @@ class Transcript:
     def __init__(self, modulus: int, initial: bytes):
         self.modulus = modulus
         self._shake = hashlib.shake_128()
-        self._length = None
+        self._length: int | None = None
         self.label(initial)
 
-    def separate(self):
+    def separate(self) -> None:
         """Write length footer if needed and reset counter."""
         if self._length is not None:
             self._shake.update(struct.pack(">I", self._length))
         self._length = None
 
-    def write(self, data: bytes):
+    def write(self, data: bytes) -> None:
         """Write data to the transcript."""
         if self._length is None:
             self._length = 0
         self._shake.update(data)
         self._length += len(data)
 
-    def write_bytes(self, data: bytes):
+    def write_bytes(self, data: bytes) -> None:
         """
         Write `data` into the transcript, breaking into <=2^31-1 chunks
         and inserting length-footers between them.
@@ -59,12 +58,13 @@ class Transcript:
                 return
 
             # Otherwise we hit the chunk-size limit: set the MSB flag
-            self._length |= HIGH
+            if self._length is not None:
+                self._length |= HIGH
 
             # Emit a separator and loop for the rest
             self.separate()
 
-    def label(self, lbl: bytes):
+    def label(self, lbl: bytes) -> None:
         """Add a domain separation label."""
         self.separate()
         self.write(lbl)
@@ -83,13 +83,13 @@ class Transcript:
         shake_copy = self._shake.copy()
         return shake_copy.digest(n)
 
-    def append(self, data: bytes):
+    def append(self, data: bytes) -> None:
         """Append data with domain separation."""
         self.separate()
         self.write_bytes(data)
         self.separate()
 
-    def add_serialized(self, label: bytes, data: bytes):
+    def add_serialized(self, label: bytes, data: bytes) -> None:
         """Add labeled serialized object to transcript."""
         self.label(label)
         self.append(data)
@@ -102,20 +102,20 @@ class Transcript:
         val = int.from_bytes(rnd[::-1], "little")
         return val % self.modulus
 
-    def get_constraints_aggregation_coeffs(self, n: int) -> List[int]:
+    def get_constraints_aggregation_coeffs(self, n: int) -> list[int]:
         """Get n constraint aggregation coefficients."""
         out = []
         for _ in range(n):
             out.append(self.challenge(b"constraints_aggregation"))
         return out
 
-    def get_evaluation_point(self, n: int = 1) -> List[int]:
+    def get_evaluation_point(self, n: int = 1) -> list[int]:
         """Get n evaluation points."""
         out = []
         out.append(self.challenge(b"evaluation_point"))
         return out
 
-    def get_kzg_aggregation_challenges(self, n: int) -> List[int]:
+    def get_kzg_aggregation_challenges(self, n: int) -> list[int]:
         """Get n KZG aggregation challenges."""
         out = []
         for _ in range(n):

@@ -1,19 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, List, Tuple, Type, TypeVar, cast
-from functools import lru_cache
 import math
-from .point import CurvePoint
-from .twisted_edwards.te_affine_point import TEAffinePoint
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Any, TypeVar, cast
 
 from .field_arithmetic import (
-    scalar_mult_windowed_cy as _compiled_msm,
-    scalar_mult_4_cy as _compiled_msm4,
     projective_to_affine_cy as projective_to_affine,
 )
+from .field_arithmetic import (
+    scalar_mult_4_cy as _compiled_msm4,
+)
+from .field_arithmetic import (
+    scalar_mult_windowed_cy as _compiled_msm,
+)
+from .twisted_edwards.te_affine_point import TEAffinePoint
 
 AffinePointT = TypeVar("AffinePointT", bound=TEAffinePoint[Any])
+
 
 @dataclass(frozen=True)
 class GLV:
@@ -29,6 +33,7 @@ class GLV:
         constant_b: First decomposition constant
         constant_c: Second decomposition constant
     """
+
     lambda_param: int = 0
     constant_b: int = 0
     constant_c: int = 0
@@ -47,9 +52,7 @@ class GLV:
         """
         return self.lambda_param != 0 and self.constant_b != 0 and self.constant_c != 0
 
-    def extended_euclidean_algorithm(
-        self, n: int, lam: int
-    ) -> List[Tuple[int, int, int]]:
+    def extended_euclidean_algorithm(self, n: int, lam: int) -> list[tuple[int, int, int]]:
         """
         Compute extended Euclidean algorithm sequence.
 
@@ -78,10 +81,8 @@ class GLV:
 
         return sequence[:-1]
 
-    @lru_cache(maxsize=1024)
-    def find_short_vectors(
-        self, n: int, lam: int
-    ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    @lru_cache(maxsize=1024)  # noqa: B019
+    def find_short_vectors(self, n: int, lam: int) -> tuple[tuple[int, int], tuple[int, int]]:
         """
         Find short vectors for scalar decomposition.
 
@@ -117,7 +118,7 @@ class GLV:
 
         return v1, v2
 
-    def decompose_scalar(self, k: int, n: int) -> Tuple[int, int]:
+    def decompose_scalar(self, k: int, n: int) -> tuple[int, int]:
         """
         Decompose scalar for faster multiplication.
 
@@ -132,41 +133,43 @@ class GLV:
             ValueError: If GLV is not enabled
         """
         v1, v2 = self.find_short_vectors(n, self.lambda_param)
-        
+
         v1_0, v1_1 = v1
         v2_0, v2_1 = v2
-        
+
         det = v1_0 * v2_1 - v1_1 * v2_0
-        
+
         num1 = k * v2_1
         b1 = (num1 + det // 2) // det
-        
+
         num2 = k * -v1_1
         b2 = (num2 + det // 2) // det
-        
+
         vx = b1 * v1_0 + b2 * v2_0
         vy = b1 * v1_1 + b2 * v2_1
-        
+
         k1 = k - vx
         k2 = -vy
-        
+
         return k1, k2
 
-    @lru_cache(maxsize=128)
-    def compute_endomorphism(self, point: CurvePoint) -> CurvePoint:
+    @lru_cache(maxsize=128)  # noqa: B019
+    def compute_endomorphism(self, point: AffinePointT) -> AffinePointT:
         """
         Compute the GLV endomorphism of this point.
 
         Returns:
-            CurvePoint: Result of endomorphism
+            AffinePointT: Result of endomorphism
         """
         x, y, p = point.x, point.y, point.curve.PRIME_FIELD
-        
+
         # These constants should ideally be curve attributes
         B = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
         C = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
-        y2 = pow(y, 2, p)
-        xy = (x * y) % p
+        if x is None or y is None:
+            return point.__class__(None, None)
+        y2 = pow(cast(int, y), 2, p)
+        xy = (cast(int, x) * cast(int, y)) % p
         f_y = (C * (1 - y2)) % p
         g_y = (B * (y2 + B)) % p
         h_y = (y2 - B) % p
@@ -179,7 +182,7 @@ class GLV:
         y_a = (y_p * pow(z_p, -1, p)) % p
 
         return point.__class__(x_a, y_a)
-    
+
     def windowed_simultaneous_mult(
         self, k1: int, k2: int, P1: AffinePointT, P2: AffinePointT, w: int = 2
     ) -> AffinePointT:
@@ -201,7 +204,7 @@ class GLV:
         """
         if P1.curve != P2.curve:
             raise TypeError("Points must be on the same curve")
-        
+
         # Handle negative scalars
         if k1 < 0:
             k1 = -k1
@@ -209,27 +212,30 @@ class GLV:
         if k2 < 0:
             k2 = -k2
             P2 = -P2
-        
+
         p = P1.curve.PRIME_FIELD
         a_coeff = P1.curve.EdwardsA
         d_coeff = P1.curve.EdwardsD
-        
+
         # Convert to projective coordinates
-        p1_t = (P1.x * P1.y) % p
-        p2_t = (P2.x * P2.y) % p
-        
+        if P1.x is None or P1.y is None or P2.x is None or P2.y is None:
+            # Handle identity points
+             if P1.is_identity():
+                 return P2 * k2
+             if P2.is_identity():
+                 return P1 * k1
+             raise ValueError("Invalid points")
+
+        p1_t = (cast(int, P1.x) * cast(int, P1.y)) % p
+        p2_t = (cast(int, P2.x) * cast(int, P2.y)) % p
+
         assert projective_to_affine is not None
         # Use compiled MSM
-        rx, ry, rz, rt = _compiled_msm(
-            k1, k2,
-            P1.x, P1.y, 1, p1_t,
-            P2.x, P2.y, 1, p2_t,
-            a_coeff, d_coeff, p, w
-        )
-        
+        rx, ry, rz, rt = _compiled_msm(k1, k2, P1.x, P1.y, 1, p1_t, P2.x, P2.y, 1, p2_t, a_coeff, d_coeff, p, w)
+
         # Convert back to affine
         ax, ay = projective_to_affine(rx, ry, rz, p)
-        point_cls = cast(Type[AffinePointT], P1.__class__)
+        point_cls = cast(type[AffinePointT], P1.__class__)
         return point_cls(ax, ay)
 
     def multi_scalar_mult_4(
@@ -246,7 +252,7 @@ class GLV:
     ) -> AffinePointT:
         """
         Compute k1*P1 + k2*P2 + k3*P3 + k4*P4 using windowed simultaneous multi-scalar multiplication.
-        
+
         This is faster than doing 4 separate scalar multiplications.
 
         Args:
@@ -274,23 +280,48 @@ class GLV:
         p = P1.curve.PRIME_FIELD
         a_coeff = P1.curve.EdwardsA
         d_coeff = P1.curve.EdwardsD
-        
+
         # Convert to projective coordinates
-        p1_t = (P1.x * P1.y) % p
-        p2_t = (P2.x * P2.y) % p
-        p3_t = (P3.x * P3.y) % p
-        p4_t = (P4.x * P4.y) % p
-        
+        if P1.x is None or P1.y is None or P2.x is None or P2.y is None or P3.x is None or P3.y is None or P4.x is None or P4.y is None:
+             # Fallback to simple addition for identity points
+             res = P1 * k1 + P2 * k2  # type: ignore[operator]
+             res = res + P3 * k3  # type: ignore[operator]
+             res = res + P4 * k4  # type: ignore[operator]
+             return res
+
+        p1_t = (cast(int, P1.x) * cast(int, P1.y)) % p
+        p2_t = (cast(int, P2.x) * cast(int, P2.y)) % p
+        p3_t = (cast(int, P3.x) * cast(int, P3.y)) % p
+        p4_t = (cast(int, P4.x) * cast(int, P4.y)) % p
+
         assert projective_to_affine is not None
         rx, ry, rz, rt = _compiled_msm4(
-            k1, k2, k3, k4,
-            P1.x, P1.y, 1, p1_t,
-            P2.x, P2.y, 1, p2_t,
-            P3.x, P3.y, 1, p3_t,
-            P4.x, P4.y, 1, p4_t,
-            a_coeff, d_coeff, p, w
+            k1,
+            k2,
+            k3,
+            k4,
+            P1.x,
+            P1.y,
+            1,
+            p1_t,
+            P2.x,
+            P2.y,
+            1,
+            p2_t,
+            P3.x,
+            P3.y,
+            1,
+            p3_t,
+            P4.x,
+            P4.y,
+            1,
+            p4_t,
+            a_coeff,
+            d_coeff,
+            p,
+            w,
         )
-        
+
         ax, ay = projective_to_affine(rx, ry, rz, p)
-        point_cls = cast(Type[AffinePointT], P1.__class__)
+        point_cls = cast(type[AffinePointT], P1.__class__)
         return point_cls(ax, ay)

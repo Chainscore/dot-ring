@@ -1,6 +1,6 @@
-
-from dot_ring.curve.specs.bandersnatch import (Bandersnatch_TE_Curve, BandersnatchPoint)
 from typing import NamedTuple
+
+from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchPoint
 
 
 class BigInt(NamedTuple):
@@ -20,10 +20,12 @@ def process_field_elements(big_ints: list[BigInt]) -> list[int]:
 
 def test_h2f():
     # Test vector from specification
-    expected_field_elements = process_field_elements([
-        BigInt([13667986260176768296, 7615788394780045608, 16744902074056285084, 5843483180372586193]),
-        BigInt([10069264885616157454, 379900787323118714, 5986637957723933190, 6530082265195051099]),
-    ])
+    expected_field_elements = process_field_elements(
+        [
+            BigInt([13667986260176768296, 7615788394780045608, 16744902074056285084, 5843483180372586193]),
+            BigInt([10069264885616157454, 379900787323118714, 5986637957723933190, 6530082265195051099]),
+        ]
+    )
 
     data = bytes("foo", "utf-8")
     u = Bandersnatch_TE_Curve.hash_to_field(data, 2)

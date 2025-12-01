@@ -1,16 +1,22 @@
+from typing import cast
+
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
-from dot_ring.ring_proof.constants import OMEGA as omega, D_512 as D, S_PRIME
+from dot_ring.ring_proof.columns.columns import Column
+from dot_ring.ring_proof.constants import D_512 as D
+from dot_ring.ring_proof.constants import OMEGA as omega
+from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     poly_add,
+    poly_evaluate,
     poly_scalar,
     vect_mul,
 )
-from dot_ring.ring_proof.polynomial.ops import poly_evaluate
 from dot_ring.ring_proof.transcript.phases import phase2_eval_point
+from dot_ring.ring_proof.transcript.transcript import Transcript
 
 
 class LAggPoly:
-    def __init__(self, cur_t, C_q, fixed_cols, witness_res, alphas):
+    def __init__(self, cur_t: Transcript, C_q: list[int], fixed_cols: list[Column], witness_res: list[Column], alphas: list[int]) -> None:
         self.t, self.zeta = phase2_eval_point(cur_t, C_q)
         self.zeta_omega = (self.zeta * omega) % S_PRIME
         self.scalar_term = (self.zeta - D[-4]) % S_PRIME
@@ -19,31 +25,38 @@ class LAggPoly:
         self.alphas = alphas
         self.a = BandersnatchParams.EDWARDS_A
 
-    def evaluate_polys_at_zeta(self):
-        self.P_x_zeta = poly_evaluate(self.fs[0].coeffs, [self.zeta], S_PRIME)[0]
-        self.P_y_zeta = poly_evaluate(self.fs[1].coeffs, [self.zeta], S_PRIME)[0]
-        self.s_zeta = poly_evaluate(self.fs[2].coeffs, [self.zeta], S_PRIME)[0]
-        self.b_zeta = poly_evaluate(self.wts[0].coeffs, [self.zeta], S_PRIME)[0]
-        self.acc_ip_zeta = poly_evaluate(self.wts[3].coeffs, [self.zeta], S_PRIME)[0]
-        self.acc_x_zeta = poly_evaluate(self.wts[1].coeffs, [self.zeta], S_PRIME)[0]
-        self.acc_y_zeta = poly_evaluate(self.wts[2].coeffs, [self.zeta], S_PRIME)[0]
+    def evaluate_polys_at_zeta(self) -> None:
+        if self.fs[0].coeffs is None or self.fs[1].coeffs is None or self.fs[2].coeffs is None:
+             raise ValueError("Fixed columns not interpolated")
+        if self.wts[0].coeffs is None or self.wts[1].coeffs is None or self.wts[2].coeffs is None or self.wts[3].coeffs is None:
+             raise ValueError("Witness columns not interpolated")
 
-    def compute_l1(self):
+        self.P_x_zeta = cast(list[int], poly_evaluate(self.fs[0].coeffs, [self.zeta], S_PRIME))[0]
+        self.P_y_zeta = cast(list[int], poly_evaluate(self.fs[1].coeffs, [self.zeta], S_PRIME))[0]
+        self.s_zeta = cast(list[int], poly_evaluate(self.fs[2].coeffs, [self.zeta], S_PRIME))[0]
+        self.b_zeta = cast(list[int], poly_evaluate(self.wts[0].coeffs, [self.zeta], S_PRIME))[0]
+        self.acc_ip_zeta = cast(list[int], poly_evaluate(self.wts[3].coeffs, [self.zeta], S_PRIME))[0]
+        self.acc_x_zeta = cast(list[int], poly_evaluate(self.wts[1].coeffs, [self.zeta], S_PRIME))[0]
+        self.acc_y_zeta = cast(list[int], poly_evaluate(self.wts[2].coeffs, [self.zeta], S_PRIME))[0]
+
+    def compute_l1(self) -> list[int]:
+        if self.wts[3].coeffs is None:
+             raise ValueError("Witness column 3 not interpolated")
         return poly_scalar(self.wts[3].coeffs, self.scalar_term, S_PRIME)
 
-    def compute_l2(self):
+    def compute_l2(self) -> list[int]:
         x1, y1 = self.acc_x_zeta, self.acc_y_zeta
         x2, y2 = self.P_x_zeta, self.P_y_zeta
         b = self.b_zeta
         coeff_a = self.a
 
-        C_acc_x = (
-            b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME
-        ) % S_PRIME
+        C_acc_x = (b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME) % S_PRIME
         C_acc_y = 0
         C_acc_x_f = C_acc_x * self.scalar_term
         C_acc_y_f = C_acc_y * self.scalar_term
 
+        if self.wts[1].coeffs is None or self.wts[2].coeffs is None:
+             raise ValueError("Witness columns not interpolated")
         term1 = vect_mul(self.wts[1].coeffs, C_acc_x_f, S_PRIME)
         term2 = vect_mul(self.wts[2].coeffs, C_acc_y_f, S_PRIME)
         res = poly_add(term1, term2, S_PRIME)
@@ -54,7 +67,7 @@ class LAggPoly:
         # right = poly_scalar(self.wts[2].coeffs, (1 - self.b_zeta) % S_PRIME, S_PRIME)
         # return poly_scalar(poly_add(left, right, S_PRIME), self.scalar_term, S_PRIME)
 
-    def compute_l3(self):
+    def compute_l3(self) -> list[int]:
         b = self.b_zeta
         x1, y1 = self.acc_x_zeta, self.acc_y_zeta
         x2, y2 = self.P_x_zeta, self.P_y_zeta
@@ -63,6 +76,8 @@ class LAggPoly:
         C_acc_x *= self.scalar_term
         C_acc_y *= self.scalar_term
 
+        if self.wts[1].coeffs is None or self.wts[2].coeffs is None:
+             raise ValueError("Witness columns not interpolated")
         term1 = poly_scalar(self.wts[1].coeffs, C_acc_x, S_PRIME)
         term2 = poly_scalar(self.wts[2].coeffs, C_acc_y, S_PRIME)
         res = poly_add(term1, term2, S_PRIME)
@@ -74,20 +89,20 @@ class LAggPoly:
         # term2 = poly_scalar(self.wts[2].coeffs, term2_scalar, S_PRIME)
         # return poly_scalar(poly_add(term1, term2, S_PRIME), self.scalar_term, S_PRIME)
 
-    def linearize(self, l1, l2, l3):
+    def linearize(self, l1: list[int], l2: list[int], l3: list[int]) -> list[int]:
         l_agg = [0]
         for i, li in enumerate([l1, l2, l3]):
             l_agg = poly_add(l_agg, poly_scalar(li, self.alphas[i], S_PRIME), S_PRIME)
         return l_agg
 
-    def l_agg_poly(self):
+    def l_agg_poly(self) -> tuple[Transcript, int, dict[str, int], list[int], int, int]:
         self.evaluate_polys_at_zeta()  # fills P_x_zeta … acc_y_zeta
         l1 = self.compute_l1()
         l2 = self.compute_l2()
         l3 = self.compute_l3()
         l_agg = self.linearize(l1, l2, l3)
 
-        l_agg_zeta_omega = poly_evaluate(l_agg, [self.zeta_omega], S_PRIME)[0]
+        l_agg_zeta_omega = cast(list[int], poly_evaluate(l_agg, [self.zeta_omega], S_PRIME))[0]
         return (
             self.t,
             self.zeta,

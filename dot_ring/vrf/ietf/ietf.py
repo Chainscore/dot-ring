@@ -1,29 +1,32 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Any, Literal, cast
+
 from ...curve.point import CurvePoint
-from dot_ring.curve.point import Point
-from ..vrf import VRF
-from ...curve.curve import Curve, CurveVariant
 from ...ring_proof.helpers import Helpers
+from ..vrf import VRF
+
 
 @dataclass
-class IETF_VRF(VRF):
+class IETF_VRF(VRF[Any]):
     """
     IETF specification compliant VRF implementation.
 
     This implementation follows the IETF draft specification
     for VRFs using the Bandersnatch curve.
-    
+
     Usage:
     >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
     >>> from dot_ring.vrf.ietf.ietf import IETF_VRF
     >>> proof: IETF_VRF = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     >>> verified = proof.verify(public_key, input_point, additional_data)
     """
+
     output_point: CurvePoint
     c: int
     s: int
-    
+
     @classmethod
     def from_bytes(cls, proof_bytes: bytes) -> IETF_VRF:
         """
@@ -43,13 +46,14 @@ class IETF_VRF(VRF):
         c_end = output_point_end + challenge_len
         # Extract components
         output_point = cls.cv.point.string_to_point(proof_bytes[:output_point_end])
-        c = (
-            Helpers.str_to_int(proof_bytes[output_point_end:c_end], cls.cv.curve.ENDIAN)
-            % cls.cv.curve.ORDER
-        )
-        s = Helpers.str_to_int(proof_bytes[c_end:], cls.cv.curve.ENDIAN) % cls.cv.curve.ORDER
+        if isinstance(output_point, str):
+            raise ValueError("Invalid output point")
+        c = Helpers.str_to_int(proof_bytes[output_point_end:c_end], cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
+        s = Helpers.str_to_int(proof_bytes[c_end:], cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
+        if s >= cls.cv.curve.ORDER:
+            raise ValueError("Response scalar s is not less than the curve order")
         return cls(output_point, c, s)
-    
+
     def to_bytes(self) -> bytes:
         """
         Serialize proof to bytes.
@@ -60,11 +64,11 @@ class IETF_VRF(VRF):
         scalar_len = (self.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
         proof = (
             self.output_point.point_to_string()
-            + Helpers.int_to_str(self.c, self.cv.curve.ENDIAN, self.cv.curve.CHALLENGE_LENGTH)
-            + Helpers.int_to_str(self.s, self.cv.curve.ENDIAN, scalar_len)
+            + Helpers.int_to_str(self.c, cast(Literal["little", "big"], self.cv.curve.ENDIAN), self.cv.curve.CHALLENGE_LENGTH)
+            + Helpers.int_to_str(self.s, cast(Literal["little", "big"], self.cv.curve.ENDIAN), scalar_len)
         )
         return proof
-    
+
     @classmethod
     def prove(
         cls,
@@ -85,43 +89,32 @@ class IETF_VRF(VRF):
         Returns:
             Tuple[BandersnatchPoint, Tuple[int, int]]: (output_point, (c, s))
         """
-        secret_key = (
-            Helpers.str_to_int(secret_key, cls.cv.curve.ENDIAN) % cls.cv.curve.ORDER
-        )
+        secret_key_int = Helpers.str_to_int(secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)) % cls.cv.curve.ORDER
 
         # Create generator point
         generator = cls.cv.point.generator_point()
         # Encode input to curve point
-        input_point = cls.cv.point.encode_to_curve(alpha, salt)
+        input_point = cast(Any, cls.cv.point).encode_to_curve(alpha, salt)
         # Compute output point and public key
-        output_point = input_point * secret_key
-        public_key = generator * secret_key
+        output_point = input_point * secret_key_int
+        public_key = generator * secret_key_int
 
         if cls.cv.point.__name__ == "P256PointVariant":
             input_point_octet = input_point.point_to_string()
-            nonce = cls.ecvrf_nonce_rfc6979(secret_key, input_point_octet)
+            nonce = cls.ecvrf_nonce_rfc6979(secret_key_int, input_point_octet)
         else:
             # Generate nonce and compute proof points
-            nonce = cls.generate_nonce(secret_key, input_point)
+            nonce = cls.generate_nonce(secret_key_int, input_point)
 
         U = generator * nonce
         V = input_point * nonce
 
         # Generate challenge
-        c = cls.challenge(
-            [public_key, input_point, output_point, U, V], additional_data
-        )
-        s = (nonce + (c * secret_key)) % cls.cv.curve.ORDER
+        c = cls.challenge([public_key, input_point, output_point, U, V], additional_data)
+        s = (nonce + (c * secret_key_int)) % cls.cv.curve.ORDER
         return cls(output_point, c, s)
 
-
-    def verify(
-        self,
-        public_key: bytes,
-        input: bytes,
-        additional_data: bytes,
-        salt: bytes = b""
-    ) -> bool:
+    def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
         """
         Verify IETF VRF proof.
 
@@ -135,8 +128,10 @@ class IETF_VRF(VRF):
         Returns:
             bool: True if proof is valid
         """
-        input_point = self.cv.point.encode_to_curve(input, salt)
+        input_point = cast(Any, self.cv.point).encode_to_curve(input, salt)
         public_key_pt = self.cv.point.string_to_point(public_key)
+        if isinstance(public_key_pt, str):
+            raise ValueError("Invalid public key")
         generator = self.cv.point.generator_point()
         n = self.cv.curve.ORDER
         neg_c = (-self.c) % n
@@ -144,11 +139,8 @@ class IETF_VRF(VRF):
         # MSM for U = G*s + pk*(-c) and V = H*s + O*(-c)
         U = self.cv.point.msm([generator, public_key_pt], [self.s, neg_c])
         V = self.cv.point.msm([input_point, self.output_point], [self.s, neg_c])
-        
+
         # Verify challenge
-        expected_c = self.challenge(
-            [public_key_pt, input_point, self.output_point, U, V], additional_data
-        )
+        expected_c = self.challenge([public_key_pt, input_point, self.output_point, U, V], additional_data)
 
         return self.c == expected_c
-

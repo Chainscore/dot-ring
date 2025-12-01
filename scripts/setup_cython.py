@@ -4,8 +4,9 @@ Setup script for Cython extensions.
 Usage:
     python scripts/setup_cython.py build_ext --inplace
 """
-from setuptools import setup, Extension
+
 from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 extensions = [
     Extension(

@@ -12,62 +12,66 @@ Requirements:
 """
 
 import os
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 from pathlib import Path
-from setuptools import setup, Extension, find_packages
-from setuptools.command.build_ext import build_ext
+
 from Cython.Build import cythonize
+from setuptools import Extension, find_packages, setup
+from setuptools.command.build_ext import build_ext
 
 
-cython_extensions = [
-    Extension(
-        "dot_ring.curve.field_arithmetic",
-        ["dot_ring/curve/field_arithmetic.pyx"],
-        extra_compile_args=["-O3", "-ffast-math"],
-    ),
-    Extension(
-        "dot_ring.curve.fast_math",
-        ["dot_ring/curve/fast_math.pyx"],
-        extra_compile_args=["-O3", "-ffast-math"],
-    ),
-    Extension(
-        "dot_ring.ring_proof.polynomial.ntt",
-        ["dot_ring/ring_proof/polynomial/ntt.pyx"],
-        extra_compile_args=["-O3", "-ffast-math"],
-    ),
-]
+def build_cython_extensions() -> list[Extension]:
+    return [
+        Extension(
+            "dot_ring.curve.field_arithmetic",
+            ["dot_ring/curve/field_arithmetic.pyx"],
+            extra_compile_args=["-O3", "-ffast-math"],
+        ),
+        Extension(
+            "dot_ring.curve.fast_math",
+            ["dot_ring/curve/fast_math.pyx"],
+            extra_compile_args=["-O3", "-ffast-math"],
+        ),
+        Extension(
+            "dot_ring.ring_proof.polynomial.ntt",
+            ["dot_ring/ring_proof/polynomial/ntt.pyx"],
+            extra_compile_args=["-O3", "-ffast-math"],
+        ),
+    ]
+
+cython_extensions = build_cython_extensions()
 
 
 class CustomBuildExt(build_ext):
     """Custom build that also compiles blst bindings."""
 
-    def run(self):
+    def run(self) -> None:
         # Build blst FIRST so it's available for packaging
         self.build_blst()
         super().run()
         self.copy_blst_to_build()
 
-    def copy_blst_to_build(self):
+    def copy_blst_to_build(self) -> None:
         """Copy blst artifacts to the build output directory."""
         root_dir = Path(__file__).parent.absolute()
         src_blst = root_dir / "dot_ring" / "blst"
-        
+
         if not src_blst.exists():
             return
-            
+
         # Get the build lib directory
         build_lib = Path(self.build_lib) / "dot_ring" / "blst"
         build_lib.mkdir(parents=True, exist_ok=True)
-        
+
         # Copy all blst files to build directory
         for f in src_blst.iterdir():
             if f.is_file():
                 shutil.copy(f, build_lib / f.name)
                 print(f"Copied {f.name} to build directory")
 
-    def build_blst(self):
+    def build_blst(self) -> None:
         """Build blst library bindings from source."""
         root_dir = Path(__file__).parent.absolute()
         dest_dir = root_dir / "dot_ring" / "blst"
@@ -78,11 +82,9 @@ class CustomBuildExt(build_ext):
         # Clone blst if not present
         if not blst_dir.exists():
             print("Cloning blst repository...")
-            subprocess.check_call([
-                "git", "clone", "--depth", "1",
-                "https://github.com/supranational/blst.git",
-                str(blst_dir)
-            ])
+            subprocess.check_call(
+                ["git", "clone", "--depth", "1", "https://github.com/supranational/blst.git", str(blst_dir)]
+            )
 
         # Clean previous build artifacts (may be for different platform)
         self._clean_blst_artifacts(blst_dir)
@@ -116,15 +118,15 @@ class CustomBuildExt(build_ext):
         if not copied:
             raise RuntimeError("Failed to build blst shared library")
 
-    def _clean_blst_artifacts(self, blst_dir: Path):
+    def _clean_blst_artifacts(self, blst_dir: Path) -> None:
         """Clean previous blst build artifacts."""
         for pattern in ["libblst.a", "**/*.o", "**/*.so", "**/*.dylib"]:
             for f in blst_dir.glob(pattern):
                 f.unlink()
 
         bindings_dir = blst_dir / "bindings" / "python"
-        for f in ["blst.py", "blst_wrap.cpp"]:
-            path = bindings_dir / f
+        for filename in ["blst.py", "blst_wrap.cpp"]:
+            path = bindings_dir / filename
             if path.exists():
                 path.unlink()
 

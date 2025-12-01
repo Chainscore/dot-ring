@@ -1,54 +1,57 @@
 from __future__ import annotations
-import time
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import Any, cast
 
 # from concurrent.futures import ProcessPoolExecutor
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+from dot_ring.ring_proof.constants import (
+    D_512 as D,
+)
 
 # from dot_ring.ring_proof.short_weierstrass.curve import ShortWeierstrassCurve as sw
-from dot_ring.ring_proof.constants import SeedPoint
-from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Sequence, Any
 from dot_ring.ring_proof.constants import (
-    S_PRIME,
-    OMEGA,
-    D_512 as D,
-    SIZE,
     D_2048,
+    OMEGA,
+    S_PRIME,
+    SIZE,
+    SeedPoint,
 )
-
 from dot_ring.ring_proof.polynomial.ops import (
-    vect_add,
-    vect_sub,
-    vect_mul,
-    poly_evaluate,
     lagrange_basis_polynomial,
+    poly_evaluate,
+    vect_add,
+    vect_mul,
+    vect_sub,
 )
 
 
-def _to_radix4(vec: Sequence[int]) -> List[int]:
+def _to_radix4(vec: Sequence[int]) -> list[int]:
     """Convert a radix‑2 evaluation vector to radix‑4"""
-    return poly_evaluate(vec, D_2048, S_PRIME)
+    return cast(list[int], poly_evaluate(vec, D_2048, S_PRIME))
 
 
 _NOT_LAST = vect_sub(D_2048, pow(OMEGA, 508, S_PRIME), S_PRIME)
 
-_L0_RAD4: List[int] | None = None
-_LN4_RAD4: List[int] | None = None
+_L0_RAD4: list[int] | None = None
+_LN4_RAD4: list[int] | None = None
 
 _l0_coeffs = lagrange_basis_polynomial(D, 0, S_PRIME)
 _ln4_coeffs = lagrange_basis_polynomial(D, SIZE - 4, S_PRIME)
 
 
-def get_radix4_constants():
+
+def get_radix4_constants() -> tuple[list[int], list[int]]:
     global _L0_RAD4, _LN4_RAD4
     if _L0_RAD4 is None:
-        _L0_RAD4 = poly_evaluate(_l0_coeffs, D_2048, S_PRIME)
+        _L0_RAD4 = cast(list[int], poly_evaluate(_l0_coeffs, D_2048, S_PRIME))
     if _LN4_RAD4 is None:
-        _LN4_RAD4 = poly_evaluate(_ln4_coeffs, D_2048, S_PRIME)
+        _LN4_RAD4 = cast(list[int], poly_evaluate(_ln4_coeffs, D_2048, S_PRIME))
     return _L0_RAD4, _LN4_RAD4
 
 
-def _shift(vec: Sequence[int]) -> List[int]:
+def _shift(vec: Sequence[int]) -> list[int]:
     """Rotate vector right by 4 (≈ multiply index by ω)."""
     return list(vec[4:]) + list(vec[:4])
 
@@ -67,15 +70,15 @@ class RingConstraintBuilder:
     acc_y: Sequence[int]
     acc_ip: Sequence[int]
 
-    _px4: List[int] = field(init=False, repr=False)
-    _py4: List[int] = field(init=False, repr=False)
-    _s4: List[int] = field(init=False, repr=False)
-    _b4: List[int] = field(init=False, repr=False)
-    _accx4: List[int] = field(init=False, repr=False)
-    _accy4: List[int] = field(init=False, repr=False)
-    _accip4: List[int] = field(init=False, repr=False)
+    _px4: list[int] = field(init=False, repr=False)
+    _py4: list[int] = field(init=False, repr=False)
+    _s4: list[int] = field(init=False, repr=False)
+    _b4: list[int] = field(init=False, repr=False)
+    _accx4: list[int] = field(init=False, repr=False)
+    _accy4: list[int] = field(init=False, repr=False)
+    _accip4: list[int] = field(init=False, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._px4 = _to_radix4(self.px)
         self._py4 = _to_radix4(self.py)
         self._s4 = _to_radix4(self.s)
@@ -86,10 +89,9 @@ class RingConstraintBuilder:
 
     # convenient classmethod for Column builders
     @classmethod
-    def from_columns(
-        cls, columns: Mapping[str, Sequence[int]]
-    ) -> "RingConstraintBuilder":
+    def from_columns(cls, columns: Mapping[str, Sequence[int]], Result_plus_Seed: Any) -> RingConstraintBuilder:
         return cls(
+            Result_plus_Seed=Result_plus_Seed,
             acc_ip=columns["accip"],
             b=columns["b"],
             s=columns["s"],
@@ -99,7 +101,7 @@ class RingConstraintBuilder:
             py=columns["Py"],
         )
 
-    def compute(self) -> Dict[str, List[int]]:
+    def compute(self) -> dict[str, list[int]]:
         return {
             "c1x": self._c1(),
             "c2x": self._c2()[0],
@@ -112,7 +114,7 @@ class RingConstraintBuilder:
 
     compute_all = compute  # alias
 
-    def _c1(self) -> List[int]:
+    def _c1(self) -> list[int]:
         accip_w = _shift(self._accip4)
         constraint = vect_sub(
             vect_sub(accip_w, self._accip4, S_PRIME),
@@ -122,14 +124,12 @@ class RingConstraintBuilder:
         c1x = vect_mul(constraint, _NOT_LAST, S_PRIME)
         return c1x
 
-    def _c2(self) -> List[List[int]]:
+    def _c2(self) -> list[list[int]]:
         bx = self._b4
 
         accx_w = _shift(self._accx4)
         accy_w = _shift(self._accy4)
-        te_coeff_a = (
-            BandersnatchParams.EDWARDS_A
-        )  # BandersnatchParams.EDWARDS_A % S_PRIME
+        te_coeff_a = BandersnatchParams.EDWARDS_A  # BandersnatchParams.EDWARDS_A % S_PRIME
         b = bx
         x1, x2, x3 = self._accx4, self._px4, accx_w
         y1, y2, y3 = self._accy4, self._py4, accy_w
@@ -144,9 +144,7 @@ class RingConstraintBuilder:
         x3_m_x1 = vect_sub(x3, x1, S_PRIME)
 
         term1 = vect_mul(x3, vect_add(y1_y2, a_x1_x2, S_PRIME), S_PRIME)
-        term2 = vect_mul(
-            b, vect_sub(term1, vect_add(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME
-        )
+        term2 = vect_mul(b, vect_sub(term1, vect_add(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME)
         term3 = vect_add(term2, vect_mul(one_m_b, x3_m_x1, S_PRIME), S_PRIME)
         c2x = vect_mul(term3, _NOT_LAST, S_PRIME)
 
@@ -192,19 +190,17 @@ class RingConstraintBuilder:
         y3_m_y1 = vect_sub(y3, y1, S_PRIME)
 
         term1 = vect_mul(y3, vect_sub(x1_y2, x2_y1, S_PRIME), S_PRIME)
-        term2 = vect_mul(
-            b, vect_sub(term1, vect_sub(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME
-        )
+        term2 = vect_mul(b, vect_sub(term1, vect_sub(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME)
         term3 = vect_add(term2, vect_mul(one_m_b, y3_m_y1, S_PRIME), S_PRIME)
         c3x = vect_mul(term3, _NOT_LAST, S_PRIME)
         return [c2x, c3x]
 
-    def _c4(self) -> List[int]:
+    def _c4(self) -> list[int]:
         one_m_bx = vect_sub(1, self._b4, S_PRIME)
         c4x = vect_mul(self._b4, one_m_bx, S_PRIME)
         return c4x
 
-    def _c5(self) -> List[List[int]]:
+    def _c5(self) -> list[list[int]]:
         # seed_x, seed_y = sw.from_twisted_edwards(SeedPoint)
         seed_x, seed_y = SeedPoint
 
@@ -215,6 +211,8 @@ class RingConstraintBuilder:
         # print("result here:", rx_psx, ry_psy)
 
         l0_rad4, ln4_rad4 = get_radix4_constants()
+        assert l0_rad4 is not None
+        assert ln4_rad4 is not None
 
         c5x = vect_add(
             vect_mul(vect_sub(self._accx4, seed_x, S_PRIME), l0_rad4, S_PRIME),
@@ -230,8 +228,10 @@ class RingConstraintBuilder:
 
         return [c5x, c6x]
 
-    def _c7(self) -> List[int]:
+    def _c7(self) -> list[int]:
         l0_rad4, ln4_rad4 = get_radix4_constants()
+        assert l0_rad4 is not None
+        assert ln4_rad4 is not None
 
         c7x = vect_add(
             vect_mul(self._accip4, l0_rad4, S_PRIME),

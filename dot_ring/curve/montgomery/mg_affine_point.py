@@ -1,14 +1,17 @@
+
 from __future__ import annotations
 
-from typing import Final, TypeVar, Generic, Type, Optional, Tuple, Any, Union
-from ..point import CurvePoint, PointProtocol
-from .mg_curve import MGCurve
+from typing import Any, Literal, TypeVar, cast
+
 from dot_ring.curve.e2c import E2C_Variant
 
-C = TypeVar('C', bound=MGCurve)
+from ..point import CurvePoint
+from .mg_curve import MGCurve
+
+C = TypeVar("C", bound=MGCurve)
 
 
-class MGAffinePoint(CurvePoint):
+class MGAffinePoint(CurvePoint[C]):
     """
     Affine point on a Montgomery curve.
 
@@ -29,9 +32,11 @@ class MGAffinePoint(CurvePoint):
         # identity is considered on-curve by convention
         if self.is_identity():
             return True
-        return self.curve.is_on_curve((self.x, self.y))
+        if self.x is None or self.y is None:
+            return False
+        return self.curve.is_on_curve((cast(int, self.x), cast(int, self.y)))
 
-    def __add__(self, other: "MGAffinePoint[C]") -> "MGAffinePoint[C]":
+    def __add__(self, other: MGAffinePoint[C]) -> MGAffinePoint[C]:
         """
         Affine point addition on Montgomery curve.
 
@@ -59,22 +64,26 @@ class MGAffinePoint(CurvePoint):
         B = self.curve.B
 
         # ensure coords are ints mod p
-        x1, y1 = self.x % p, self.y % p
-        x2, y2 = other.x % p, other.y % p
+        if self.x is None or self.y is None or other.x is None or other.y is None:
+             # Should be handled by is_identity checks above, but for mypy:
+             return self.__class__(None, None)
+
+        x1, y1 = cast(int, self.x) % p, cast(int, self.y) % p
+        x2, y2 = cast(int, other.x) % p, cast(int, other.y) % p
 
         # Doubling
         if x1 == x2 and y1 == y2:
             # if y == 0 then slope denominator = 0 => result is identity
             if y1 % p == 0:
                 return self.__class__(None, None)
-            num = (3 * x1 * x1 + 2 * A * x1 + 1) % p
-            den = (2 * B * y1) % p
+            numerator = (3 * cast(int, x1) * cast(int, x1) + 2 * cast(int, A) * cast(int, x1) + 1) % p
+            denominator = (2 * cast(int, B) * cast(int, y1)) % p
             # Check if denominator is zero before computing inverse
-            if den == 0:
+            if denominator == 0:
                 return self.__class__(None, None)
-            lam = (num * pow(den, -1, p)) % p
-            x3 = (B * (lam * lam % p) - A - 2 * x1) % p
-            y3 = (lam * (x1 - x3) - y1) % p
+            lam = (numerator * pow(denominator, -1, p)) % p
+            x3 = (cast(int, B) * (lam * lam % p) - cast(int, A) - 2 * cast(int, x1)) % p
+            y3 = (lam * (cast(int, x1) - x3) - cast(int, y1)) % p
             return self.__class__(x3, y3)
 
         # Addition for distinct points
@@ -82,29 +91,29 @@ class MGAffinePoint(CurvePoint):
             # vertical line -> identity (x1 == x2 but y1 != y2)
             return self.__class__(None, None)
 
-        num = (y2 - y1) % p
-        den = (x2 - x1) % p
+        numerator = (cast(int, y2) - cast(int, y1)) % p
+        denominator = (cast(int, x2) - cast(int, x1)) % p
         # Check if denominator is zero (shouldn't happen since x1 != x2)
-        if den == 0:
+        if denominator == 0:
             raise ValueError("Unexpected zero denominator in point addition")
-        lam = (num * pow(den, -1, p)) % p
+        lam = (numerator * pow(denominator, -1, p)) % p
         # Corrected formula for x3 in point addition
-        x3 = (B * lam * lam - A - x1 - x2) % p
+        x3 = (cast(int, B) * lam * lam - cast(int, A) - cast(int, x1) - cast(int, x2)) % p
         # Corrected formula for y3
-        y3 = (lam * (x1 - x3) - y1) % p
+        y3 = (lam * (cast(int, x1) - x3) - cast(int, y1)) % p
         return self.__class__(x3, y3)
 
-    def __neg__(self) -> "MGAffinePoint[C]":
+    def __neg__(self) -> MGAffinePoint[C]:
         """Negate a point (x, y) -> (x, -y)."""
-        if self.is_identity():
+        if self.is_identity() or self.x is None or self.y is None:
             return self.__class__(None, None)
-        return self.__class__(self.x % self.curve.PRIME_FIELD, (-self.y) % self.curve.PRIME_FIELD)
+        return self.__class__(cast(int, self.x) % self.curve.PRIME_FIELD, (-cast(int, self.y)) % self.curve.PRIME_FIELD)
 
-    def __sub__(self, other: "MGAffinePoint[C]") -> "MGAffinePoint[C]":
+    def __sub__(self, other: MGAffinePoint[C]) -> MGAffinePoint[C]:
         """Subtract points by adding the negation."""
         return self + (-other)
 
-    def _sqrt_mod_p(self, n: int) -> Optional[int]:
+    def _sqrt_mod_p(self, n: int) -> int | None:
         """
         Compute sqrt(n) mod p. Use p % 8 == 5 optimization if applicable, else
         Tonelli-Shanks.
@@ -171,7 +180,7 @@ class MGAffinePoint(CurvePoint):
 
         return R
 
-    def __mul__(self, scalar: int) -> "MGAffinePoint[C]":
+    def __mul__(self, scalar: int) -> MGAffinePoint[C]:
         """
         Scalar multiplication using double-and-add algorithm.
 
@@ -191,7 +200,7 @@ class MGAffinePoint(CurvePoint):
         # Use double-and-add for consistency with point addition formulas
         return self._scalar_mult_double_add(scalar)
 
-    def _scalar_mult_double_add(self, scalar: int) -> "MGAffinePoint[C]":
+    def _scalar_mult_double_add(self, scalar: int) -> MGAffinePoint[C]:
         """
         Scalar multiplication using double-and-add algorithm.
 
@@ -227,17 +236,18 @@ class MGAffinePoint(CurvePoint):
         """Check if this is the identity element (point at infinity)."""
         return self.x is None or self.y is None
 
-    def clear_cofactor(self)-> "MGAffinePoint[C]":
-        return self*self.curve.COFACTOR
+    def clear_cofactor(self) -> MGAffinePoint[C]:
+        return self * self.curve.COFACTOR
 
     @classmethod
-    def identity(cls) -> "MGAffinePoint":
+    def identity(cls) -> MGAffinePoint:
         """Get the identity element (point at infinity)."""
         return cls(None, None)
 
     @classmethod
-    def encode_to_curve(cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
-
+    def encode_to_curve(
+        cls, alpha_string: bytes | str, salt: bytes | str = b"", General_Check: bool = False
+    ) -> MGAffinePoint[C] | Any:
         if not isinstance(alpha_string, bytes):
             alpha_string = bytes.fromhex(alpha_string)
 
@@ -254,7 +264,9 @@ class MGAffinePoint(CurvePoint):
             raise ValueError(f"Unexpected E2C Variant: {cls.curve.E2C}")
 
     @classmethod
-    def encode_to_curve_hash2_suite_nu(cls, alpha_string: bytes, salt: bytes = b"",General_Check: bool = False) -> "MGAffinePoint[C]" | Any:
+    def encode_to_curve_hash2_suite_nu(
+        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
+    ) -> MGAffinePoint[C] | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -267,18 +279,16 @@ class MGAffinePoint(CurvePoint):
         """
         string_to_hash = salt + alpha_string
         u = cls.curve.hash_to_field(string_to_hash, 1)
-        R= cls.map_to_curve(u[0])  # ELL2
+        R = cls.map_to_curve(u[0])  # ELL2
         if General_Check:
             P = R.clear_cofactor()
-            return {
-                "u": u,
-                "Q0": [R.x, R.y],
-                "P": [P.x, P.y]
-            }
+            return {"u": u, "Q0": [R.x, R.y], "P": [P.x, P.y]}
         return R.clear_cofactor()
 
     @classmethod
-    def encode_to_curve_hash2_suite_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check:bool=False) -> "MGAffinePoint[C]"|Any:
+    def encode_to_curve_hash2_suite_ro(
+        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
+    ) -> MGAffinePoint[C] | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -296,28 +306,14 @@ class MGAffinePoint(CurvePoint):
         q1 = cls.map_to_curve(u[1])  # ELL2
         R = q0 + q1
         if General_Check:
-            P=R.clear_cofactor()
-            return {
-                "u": u,
-                "Q0": [q0.x, q0.y],
-                "Q1": [q1.x, q1.y],
-                "P": [P.x, P.y]
-            }
+            P = R.clear_cofactor()
+            return {"u": u, "Q0": [q0.x, q0.y], "Q1": [q1.x, q1.y], "P": [P.x, P.y]}
         return R.clear_cofactor()
 
 
 
-    def clear_cofactor(self) -> "MGAffinePoint[C]":
-        """
-        Clear the cofactor to ensure point is in prime-order subgroup.
-
-        Returns:
-            TEAffinePoint: Point in prime-order subgroup
-        """
-        return self * self.curve.COFACTOR
-
     @classmethod
-    def map_to_curve(cls, u: int) -> "MGAffinePoint[C]":
+    def map_to_curve(cls, u: int) -> MGAffinePoint[C]:
         """
         Map a field element to a curve point using Elligator 2.
 
@@ -339,9 +335,9 @@ class MGAffinePoint(CurvePoint):
         # 10.return (s, t)
 
         p = cls.curve.PRIME_FIELD
-        J= cls.curve.A
-        K= cls.curve.B
-        Z = cls.curve.Z
+        J = cls.curve.A
+        K = cls.curve.B
+        Z = cast(int, cls.curve.Z)
 
         c1 = (J * cls.curve.mod_inverse(K)) % p
         c2 = cls.curve.mod_inverse(K * K) % p
@@ -354,7 +350,7 @@ class MGAffinePoint(CurvePoint):
         x1 = (-c1 * cls.curve.mod_inverse(tv1 + 1)) % p
         gx1 = (((x1 + c1) * x1 + c2) * x1) % p
 
-        x2 = (-x1 - c1) % p
+        x2 = -x1 - c1
         gx2 = (tv1 * gx1) % p
 
         # Choose correct values
@@ -376,25 +372,26 @@ class MGAffinePoint(CurvePoint):
         return cls(s, t)
 
     def point_to_string(self) -> bytes:
-
         if self.is_identity():
             raise ValueError("Cannot serialize point at infinity")
         p = self.curve.PRIME_FIELD
-        byte_length = (p.bit_length() + 7) // 8
+        field_byte_len = (p.bit_length() + 7) // 8
 
         if self.curve.UNCOMPRESSED:
             # Encode u and v coordinates as little-endian bytes
-            u_bytes = self.x.to_bytes(byte_length, 'little')
-            v_bytes = self.y.to_bytes(byte_length, 'little')
-            return u_bytes + v_bytes
+            if self.x is None or self.y is None:
+                 raise ValueError("Cannot serialize identity point")
+            x_bytes = int(cast(int, self.x)).to_bytes(field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN))
+            y_bytes = int(cast(int, self.y)).to_bytes(field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN))
+            return x_bytes + y_bytes
         else:
-            ...
+            raise NotImplementedError("Compressed encoding not implemented")
 
     @classmethod
-    def string_to_point(cls, data: Union[str, bytes]) -> 'MGAffinePoint':
+    def string_to_point(cls, data: str | bytes) -> MGAffinePoint:
         if isinstance(data, str):
             data = bytes.fromhex(data)
-            
+
         p = cls.curve.PRIME_FIELD
         byte_length = (p.bit_length() + 7) // 8
         if cls.curve.UNCOMPRESSED:
@@ -402,8 +399,8 @@ class MGAffinePoint(CurvePoint):
             u_bytes = data[:byte_length]
             v_bytes = data[byte_length:]
 
-            u = int.from_bytes(u_bytes, 'little')
-            v = int.from_bytes(v_bytes, 'little')
+            u = int.from_bytes(u_bytes, "little")
+            v = int.from_bytes(v_bytes, "little")
 
             # Create the point
             point = cls(u, v)
@@ -414,5 +411,9 @@ class MGAffinePoint(CurvePoint):
         # Verify the point is on the curve
         if not point.is_on_curve():
             raise ValueError("Point is not on the curve")
-            
+
         return point
+
+    @classmethod
+    def _x_recover(cls, y: int) -> int:
+        raise NotImplementedError("Must be implemented by subclass")

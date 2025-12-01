@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, Any
-
 import hashlib
+from dataclasses import dataclass
+from typing import Any, Final, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..short_weierstrass.sw_curve import SWCurve
+
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
+from ..short_weierstrass.sw_curve import SWCurve
 
 
 @dataclass(frozen=True)
@@ -19,30 +19,26 @@ class BLS12_381_G1Params:
 
     # Domain separation / hash-to-curve strings (RFC drafts / implementations)
     SUITE_STRING: Final[bytes] = b"BLS12381G1_XMD:SHA-256_SSWU_RO_"
-    DST: Final[
-        bytes
-    ] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_"  # common default DST
+    DST: Final[bytes] = b"QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_"  # common default DST
 
     # Prime field p (F_q) for BLS12-381
-    PRIME_FIELD: Final[
-        int
-    ] = 0x1A0111EA397FE69A4B1BA7B6434BACD7_64774B84F38512BF6730D2A0F6B0F624_1EABFFFEB153FFFFB9FEFFFFFFFFAAAB
+    PRIME_FIELD: Final[int] = (
+        0x1A0111EA397FE69A4B1BA7B6434BACD7_64774B84F38512BF6730D2A0F6B0F624_1EABFFFEB153FFFFB9FEFFFFFFFFAAAB
+    )
 
     # Order r of the prime-order subgroup (G1 and G2 share the same r)
-    ORDER: Final[
-        int
-    ] = 0x73EDA753299D7D483339D80809A1D805_53BDA402FFFE5BFEFFFFFFFF00000001
+    ORDER: Final[int] = 0x73EDA753299D7D483339D80809A1D805_53BDA402FFFE5BFEFFFFFFFF00000001
 
     # Cofactor for G1 (h1)
     COFACTOR: Final[int] = 0xD201000000010001
 
     # Generator point (affine coordinates) for G1 (from standard definitions)
-    GENERATOR_X: Final[
-        int
-    ] = 0x17F1D3A73197D7942695638C4FA9AC0F_C3688C4F9774B905A14E3A3F171BAC58_6C55E83FF97A1AEFFB3AF00ADB22C6BB
-    GENERATOR_Y: Final[
-        int
-    ] = 0x08B3F481E3AAA0F1A09E30ED741D8AE4_FCF5E095D5D00AF600DB18CB2C04B3ED_D03CC744A2888AE40CAA232946C5E7E1
+    GENERATOR_X: Final[int] = (
+        0x17F1D3A73197D7942695638C4FA9AC0F_C3688C4F9774B905A14E3A3F171BAC58_6C55E83FF97A1AEFFB3AF00ADB22C6BB
+    )
+    GENERATOR_Y: Final[int] = (
+        0x08B3F481E3AAA0F1A09E30ED741D8AE4_FCF5E095D5D00AF600DB18CB2C04B3ED_D03CC744A2888AE40CAA232946C5E7E1
+    )
 
     # Short Weierstrass parameters for y^2 = x^3 + a*x + b
     WEIERSTRASS_A: Final[int] = 0x00
@@ -108,7 +104,7 @@ class BLS12_381_G1Curve(SWCurve):
             S_in_bytes=BLS12_381_G1Params.S_IN_BYTES,
             H_A=BLS12_381_G1Params.H_A,
             Requires_Isogeny=BLS12_381_G1Params.Requires_Isogeny,
-            Isogeny_Coeffs=BLS12_381_G1Params.Isogeny_Coeffs,
+            Isogeny_Coeffs=cast(dict[str, list[int]] | None, BLS12_381_G1Params.Isogeny_Coeffs),
             UNCOMPRESSED=BLS12_381_G1Params.UNCOMPRESSED,
             ENDIAN=BLS12_381_G1Params.ENDIAN,
             POINT_LEN=BLS12_381_G1Params.POINT_LEN,
@@ -120,11 +116,11 @@ class BLS12_381_G1Curve(SWCurve):
 BLS12_381_G1_SW_Curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve()
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU):
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.SSWU_NU) -> type[BLS12_381_G1Point]:
     class BLS12_381_G1PointVariant(BLS12_381_G1Point):
         """Point on BLS12_381_G1 with custom E2C variant"""
-        curve: Final[BLS12_381_G1Curve] = BLS12_381_G1Curve(e2c_variant)
 
+        curve: SWCurve = BLS12_381_G1Curve(e2c_variant)
 
     return BLS12_381_G1PointVariant
 
@@ -134,7 +130,7 @@ class BLS12_381_G1Point(SWAffinePoint):
     Affine point on BLS12-381 G1.
     """
 
-    curve: Final[BLS12_381_G1Curve] = BLS12_381_G1_SW_Curve
+    curve: SWCurve = BLS12_381_G1_SW_Curve
 
     @classmethod
     def map_to_curve_simple_swu(cls, u: int) -> BLS12_381_G1Point | Any:
@@ -149,9 +145,9 @@ class BLS12_381_G1Point(SWAffinePoint):
         # 8.  Else set x = x2 and y = sqrt(gx2)
         # 9.  If sgn0(u) != sgn0(y), set y = -y
         # 10. return (x, y)
-        Z = cls.curve.Z
-        A = cls.curve.WeierstrassA
-        B = cls.curve.WeierstrassB
+        Z = cast(int, cls.curve.Z)
+        A = cast(int, cls.curve.WeierstrassA)
+        B = cast(int, cls.curve.WeierstrassB)
         p = cls.curve.PRIME_FIELD
 
         if cls.curve.Requires_Isogeny:  # E' vals, used only for secp256k1 as its A=0
@@ -338,6 +334,7 @@ class BLS12_381_G1Point(SWAffinePoint):
             ) % p
             y = (yp * y_num * pow(y_den, -1, p)) % p
         return cls(x=x, y=y)
+
 
 BLS12_381_G1_NU = CurveVariant(
     name="BLS12_381_G1_NU",

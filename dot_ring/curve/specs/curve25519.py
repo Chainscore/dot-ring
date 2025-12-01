@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Self, Optional
 import hashlib
+from dataclasses import dataclass
+from typing import Final
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
-from ..montgomery.mg_curve import MGCurve
+
 from ..montgomery.mg_affine_point import MGAffinePoint
+from ..montgomery.mg_curve import MGCurve
 
 
 @dataclass(frozen=True)
@@ -29,9 +30,7 @@ class Curve25519Params:
     COFACTOR: Final[int] = 8
     # Generator point (u, v) - corresponds to the base point of edwards25519
     GENERATOR_U: Final[int] = 9
-    GENERATOR_V: Final[
-        int
-    ] = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+    GENERATOR_V: Final[int] = 14781619447589544791020593568409986887264606134616475288964881837755586237401
 
     # Montgomery curve parameters: v² = u³ + Au² + u
     A: Final[int] = 486662
@@ -52,12 +51,8 @@ class Curve25519Params:
     CHALLENGE_LENGTH: Final[int] = 16
 
     # Blinding base for Pedersen VRF (project-specific: keep if you need them)
-    BBu: Final[
-        int
-    ] = GENERATOR_U  # 0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
-    BBv: Final[
-        int
-    ] = GENERATOR_V  # 0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
+    BBu: Final[int] = GENERATOR_U  # 0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
+    BBv: Final[int] = GENERATOR_V  # 0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
     UNCOMPRESSED = True
     POINT_LEN: Final[int] = 32
 
@@ -110,8 +105,7 @@ class Curve25519Curve(MGCurve):
             CHALLENGE_LENGTH=Curve25519Params.CHALLENGE_LENGTH,
         )
 
-
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Skip parent validation since Curve25519 parameters are known to be valid."""
         # Override the validation from the fixed MGCurve to avoid redundant checks
         pass
@@ -123,16 +117,16 @@ class Curve25519CurveSimple(MGCurve):
     Simplified Curve25519 implementation using direct dataclass initialization.
     """
 
-    PRIME_FIELD: Final[int] = Curve25519Params.PRIME_FIELD
-    A: Final[int] = Curve25519Params.A
-    B: Final[int] = Curve25519Params.B
+    PRIME_FIELD: int = Curve25519Params.PRIME_FIELD
+    A: int = Curve25519Params.A
+    B: int = Curve25519Params.B
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Skip validation for known good parameters."""
         pass
 
 
-def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
+def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2) -> type[MGAffinePoint]:
     """
     Factory function to create a Curve25519Point class with a specific E2C variant.
     This is the recommended way for library users to work with different hash-to-curve variants.
@@ -143,13 +137,16 @@ def nu_variant(e2c_variant: E2C_Variant = E2C_Variant.ELL2):
         A Curve25519Point class configured with the specified variant
     Example:
     """
+
     class Curve25519PointVariant(MGAffinePoint):
         """Point on Curve25519 with custom E2C variant"""
-        curve: Final[Curve25519Curve] = Curve25519Curve(e2c_variant)
+
+        curve: Curve25519Curve = Curve25519Curve(e2c_variant)
         pass
 
     return Curve25519PointVariant
-    
+
+
 Curve25519_NU = CurveVariant(
     name="Curve25519_NU",
     curve=Curve25519Curve(e2c_variant=E2C_Variant.ELL2_NU),

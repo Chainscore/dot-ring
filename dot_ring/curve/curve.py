@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from enum import Enum
-import math
 import hashlib
+import math
 from dataclasses import dataclass
-from typing import List, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
+
 from dot_ring.curve.e2c import E2C_Variant
-from dot_ring.curve.fast_math import powmod, invert, is_square as fast_is_square, sqrt_mod
+from dot_ring.curve.fast_math import invert, powmod, sqrt_mod
+from dot_ring.curve.fast_math import is_square as fast_is_square
 
 if TYPE_CHECKING:
     from dot_ring.curve.point import CurvePoint
-
 
 
 @dataclass(frozen=True)
@@ -34,32 +34,32 @@ class Curve:
     # Curve Parameters
     PRIME_FIELD: int
     ORDER: int
-    GENERATOR_X: int
-    GENERATOR_Y: int
+    GENERATOR_X: int | tuple[int, int]
+    GENERATOR_Y: int | tuple[int, int]
     COFACTOR: int
-    Z: int
+    Z: int | tuple[int, int]
     E2C: E2C_Variant
 
     M: int  # 1
     K: int  # 128
     L: int
-    S_in_bytes: int
-    H_A: str
+    S_in_bytes: int | None
+    H_A: Any  # Callable or str
     ENDIAN: str
-    
+
     CHALLENGE_LENGTH: int
 
     # Isogeny
     Requires_Isogeny: bool
-    Isogeny_Coeffs: Dict[str, List[int]]
+    Isogeny_Coeffs: dict[str, list[int]] | None
 
     # Suite String Parameters
     SUITE_STRING: bytes
     DST: bytes
 
     # Blinding Base For Pedersen
-    BBx: int
-    BBy: int
+    BBx: int | tuple[int, int] | None
+    BBy: int | tuple[int, int] | None
     UNCOMPRESSED: bool
     POINT_LEN: int
 
@@ -103,23 +103,18 @@ class Curve:
 
         else:
             # Original scalar field validation
-            if not (
-                0 <= self.GENERATOR_X < self.PRIME_FIELD
-                and 0 <= self.GENERATOR_Y < self.PRIME_FIELD
-            ):
+            if isinstance(self.GENERATOR_X, int) and isinstance(self.GENERATOR_Y, int):
+                if not (0 <= self.GENERATOR_X < self.PRIME_FIELD and 0 <= self.GENERATOR_Y < self.PRIME_FIELD):
+                    return False
+            else:
                 return False
 
             # if not self.is_on_curve(self.GENERATOR_X, self.GENERATOR_Y): #already given in point class
             #     return False
 
-        return (
-            self.PRIME_FIELD > 2
-            and self.ORDER > 2
-            and self.COFACTOR > 0
-            and self.PRIME_FIELD != self.ORDER
-        )
+        return self.PRIME_FIELD > 2 and self.ORDER > 2 and self.COFACTOR > 0 and self.PRIME_FIELD != self.ORDER
 
-    def hash_to_field(self, msg: bytes, count: int) -> List[int]:
+    def hash_to_field(self, msg: bytes, count: int) -> list[int]:
         """
         Hash an arbitrary string to one or more field elements.
 
@@ -143,7 +138,7 @@ class Curve:
             uniform_bytes = self.expand_message_xof(msg, len_in_bytes)
         else:
             uniform_bytes = self.expand_message_xmd(msg, len_in_bytes)
-        u_values: List[int] = []
+        u_values: list[int] = []
         for i in range(count):
             for j in range(self.M):
                 elm_offset = self.L * (j + i * self.M)
@@ -169,11 +164,39 @@ class Curve:
         b_in_bytes = self.H_A().digest_size
         ell = math.ceil(len_in_bytes / b_in_bytes)
 
+        if (ell > 255 and self.PRIME_FIELD.bit_length() < 384) or len_in_bytes > 65535 or len(self.DST) > 255:
+            # Relax ell check for large curves like P-521 where len_in_bytes might be large
+            # But strictly, RFC 9380 says ell <= 255.
+            # If len_in_bytes is huge, maybe we should just allow it if the curve is large?
+            # However, 26596 bytes is suspiciously large. 
+            # Let's just relax the check if it's P521 (521 bits).
+            # But wait, 26596 bytes is way more than needed for P521 (approx 132 bytes).
+            # The issue might be how len_in_bytes is calculated.
+            # len_in_bytes = count * M * L.
+            # For P521, L=66 (ceil(521/8) + 128/8 ? No, L is usually larger).
+            # If L is around 66-100 bytes, and count=2, M=1. len_in_bytes should be ~200.
+            # Why is it 26596?
+            # 26596 / 2 = 13298.
+            # This suggests L is huge or M is huge.
+            # I should check P521 params in specs/p521.py before patching this.
+            pass
+
+        if ell > 255 and len_in_bytes < 65535:
+             # If len_in_bytes is within u16 range but ell > 255, it means b_in_bytes is small.
+             # For SHA-512, b=64. 255*64 = 16320.
+             # If len_in_bytes > 16320, ell > 255.
+             # P521 might need more than 16320 bytes? No.
+             pass
+        
         if ell > 255 or len_in_bytes > 65535 or len(self.DST) > 255:
-            raise ValueError("Invalid input size parameters")
+             # We will relax this check for now to unblock P521 if it really needs it, 
+             # but 26KB seems wrong.
+             # Let's assume the user knows what they are doing if they request such length.
+             # But XMD structure relies on 1 byte for 'i' in loop. So ell cannot exceed 255.
+             raise ValueError(f"Invalid input size parameters: ell={ell}, len={len_in_bytes}, dst_len={len(self.DST)}")
 
         DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
-        Z_pad = self.I2OSP(0, self.S_in_bytes)
+        Z_pad = self.I2OSP(0, cast(int, self.S_in_bytes))
 
         l_i_b_str = self.I2OSP(len_in_bytes, 2)
 
@@ -185,9 +208,7 @@ class Curve:
 
         b_values = [b_1]
         for i in range(2, ell + 1):
-            b_i = self.H_A(
-                self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime
-            ).digest()
+            b_i = self.H_A(self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime).digest()
             b_values.append(b_i)
 
         uniform_bytes = b"".join(b_values)
@@ -231,7 +252,7 @@ class Curve:
         xof.update(msg_prime)
         uniform_bytes = xof.digest(len_in_bytes)
         # Step 5: return uniform_bytes
-        return uniform_bytes
+        return cast(bytes, uniform_bytes)
 
     def hash(self, data: bytes, out_len: int | None = None) -> bytes:
         """Hash helper that handles both XOF and XMD suites."""
@@ -239,14 +260,14 @@ class Curve:
             length = out_len or self._default_xof_len()
             xof = self.H_A()
             xof.update(data)
-            return xof.digest(length)
+            return cast(bytes, xof.digest(length))
 
         hasher = self.H_A()
         hasher.update(data)
         digest = hasher.digest()
         if out_len is not None:
-            return digest[:out_len]
-        return digest
+            return cast(bytes, digest[:out_len])
+        return cast(bytes, digest)
 
     def mod_inverse(self, val: int) -> int:
         """
@@ -263,7 +284,7 @@ class Curve:
         """
         if powmod(val, self.PRIME_FIELD - 1, self.PRIME_FIELD) != 1:
             raise ValueError("No inverse exists")
-        return invert(val, self.PRIME_FIELD)
+        return cast(int, invert(val, self.PRIME_FIELD))
 
     @staticmethod
     def CMOV(a: int, b: int, cond: int) -> int:
@@ -280,7 +301,7 @@ class Curve:
 
     def is_square(self, val: int) -> bool:
         """Check if val is a quadratic residue mod p using gmpy2 if available."""
-        return fast_is_square(val, self.PRIME_FIELD)
+        return cast(bool, fast_is_square(val, self.PRIME_FIELD))
 
     def mod_sqrt(self, val: int) -> int:
         """
@@ -298,7 +319,7 @@ class Curve:
         result = sqrt_mod(val, self.PRIME_FIELD)
         if result is None:
             raise ValueError("No square root exists")
-        return result
+        return cast(int, result)
 
     def inv(self, x: int) -> int:
         # modular inverse in GF(p)
@@ -324,7 +345,7 @@ class Curve:
 
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:
-        return bytes(a ^ b for a, b in zip(s1, s2))
+        return bytes(a ^ b for a, b in zip(s1, s2, strict=False))
 
 
 @dataclass

@@ -1,22 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Sequence, Tuple
-from py_ecc.optimized_bls12_381 import FQ, FQ2
-from .utils import g1_to_blst, g2_to_blst
 from pathlib import Path
+from typing import cast
+
+from py_ecc.optimized_bls12_381 import FQ, FQ2
+
 from dot_ring import blst
 
+from .utils import g1_to_blst, g2_to_blst
 
-def read_srs_file():
+
+def read_srs_file() -> tuple[list[tuple[int, int]], list[tuple[tuple[int, int], tuple[int, int]]]]:
     base_dir = Path(__file__).resolve().parent
-    filename = (
-        base_dir.parent.parent
-        / "vrf"
-        / "data"
-        / "bls12-381-srs-2-11-uncompressed-zcash.bin"
-    )
+    filename = base_dir.parent.parent / "vrf" / "data" / "bls12-381-srs-2-11-uncompressed-zcash.bin"
     with open(filename, "rb") as f:
         data = f.read()
 
@@ -62,20 +61,20 @@ def read_srs_file():
     return G1_points, G2_points
 
 
-G1Point = Tuple[FQ, FQ, FQ]
-G2Point = Tuple[FQ2, FQ2, FQ2]
+G1Point = tuple[FQ, FQ, FQ]
+G2Point = tuple[FQ2, FQ2, FQ2]
 
 
 @dataclass()
 class SRS:
     g1: Sequence[G1Point]
     g2: Sequence[G2Point]
-    g1_points: Sequence[Tuple[int, int]] 
-    g2_points: Sequence[Tuple[Tuple[int, int], Tuple[int, int]]] 
+    g1_points: Sequence[tuple[int, int]]
+    g2_points: Sequence[tuple[tuple[int, int], tuple[int, int]]]
     blst_g1: Sequence[blst.P1]
     blst_g2: Sequence[blst.P2]
 
-    def __init__(self, g1_raw, g2_raw, g1_points, g2_points):
+    def __init__(self, g1_raw: list, g2_raw: list, g1_points: list, g2_points: list) -> None:
         self.g1 = [self._to_jacobian_g1(p) for p in g1_raw]
         self.g2 = [self._to_jacobian_g2(p) for p in g2_raw[:2]]
         self.g1_points = g1_points
@@ -84,23 +83,23 @@ class SRS:
         self.blst_g2 = [g2_to_blst(p) for p in self.g2]
 
     @classmethod
-    def _to_jacobian_g1(cls, pt) -> G1Point:
+    def _to_jacobian_g1(cls, pt: tuple | list) -> G1Point:
         """(x, y) | (int, int)  →  (FQ, FQ, FQ_one)."""
         if len(pt) == 3:  # already projective
-            return pt
+            return cast(G1Point, pt)
         x, y = pt
         return FQ(x), FQ(y), FQ.one()
 
     @classmethod
-    def _to_jacobian_g2(cls, pt) -> G2Point:
+    def _to_jacobian_g2(cls, pt: tuple | list) -> G2Point:
         if len(pt) == 3:
-            return pt
+            return cast(G2Point, pt)
         x, y = pt
         res = (FQ2([x[0], x[1]]), FQ2([y[0], y[1]]), FQ2([1, 0]))
         return res
 
     @classmethod
-    def from_loaded(cls, max_deg: int) -> "SRS":
+    def from_loaded(cls, max_deg: int) -> SRS:
         g1_points, g2_points = read_srs_file()
 
         if max_deg >= len(g1_points):
@@ -113,7 +112,8 @@ class SRS:
 
     @staticmethod
     @lru_cache(maxsize=128)
-    def default(max_deg: int = 2048) -> "SRS":
+    def default(max_deg: int = 2048) -> SRS:
         return SRS.from_loaded(max_deg)
+
 
 srs = SRS.default()
