@@ -17,9 +17,7 @@ RESULTS_DIR = os.path.join(HERE, "results")
 
 def load_test_data():
     """Load test vectors from JSON file - returns only first test case"""
-    file_path = os.path.join(
-        HERE, "../vectors", "dot-ring/bandersnatch_sha-512_ell2_ring.json"
-    )
+    file_path = os.path.join(HERE, "../vectors", "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
     with open(file_path) as f:
         data = json.load(f)
     return [data[0]]  # Return only first test case
