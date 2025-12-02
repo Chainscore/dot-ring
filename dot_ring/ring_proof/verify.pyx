@@ -30,7 +30,8 @@ def blst_msm(points: list, scalars: list) -> Any:
 
     # Use Pippenger MSM
     memory = blst.P1_Affines.as_memory(points)
-    return blst.P1_Affines.mult_pippenger(memory, scalars)
+    scalars_int = [int(s) for s in scalars]
+    return blst.P1_Affines.mult_pippenger(memory, scalars_int)
 
 
 def lagrange_at_zeta(

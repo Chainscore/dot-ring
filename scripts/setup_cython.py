@@ -12,17 +12,22 @@ extensions = [
     Extension(
         "dot_ring.curve.field_arithmetic",
         ["dot_ring/curve/field_arithmetic.pyx"],
-        extra_compile_args=["-O3", "-ffast-math"],
+        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
     ),
     Extension(
         "dot_ring.curve.fast_math",
         ["dot_ring/curve/fast_math.pyx"],
-        extra_compile_args=["-O3", "-ffast-math"],
+        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
     ),
     Extension(
         "dot_ring.ring_proof.polynomial.ntt",
         ["dot_ring/ring_proof/polynomial/ntt.pyx"],
-        extra_compile_args=["-O3", "-ffast-math"],
+        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
+    ),
+    Extension(
+        "dot_ring.curve.native_field.scalar",
+        ["dot_ring/curve/native_field/scalar.pyx"],
+        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
     ),
 ]
 

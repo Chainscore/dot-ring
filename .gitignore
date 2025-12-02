@@ -12,6 +12,7 @@ build
 .pytest_cache
 perf
 *.c
+!dot_ring/curve/native_field/*.c
 *.so 
 *.html
 

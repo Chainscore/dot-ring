@@ -39,6 +39,26 @@ def build_cython_extensions() -> list[Extension]:
             ["dot_ring/ring_proof/polynomial/ntt.pyx"],
             extra_compile_args=["-O3", "-ffast-math"],
         ),
+        Extension(
+            "dot_ring.curve.native_field.scalar",
+            [
+                "dot_ring/curve/native_field/scalar.pyx",
+                "dot_ring/curve/native_field/bls12_381_scalar.c",
+            ],
+            include_dirs=["dot_ring/curve/native_field"],
+            extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
+            extra_link_args=["-flto"],
+        ),
+        Extension(
+            "dot_ring.curve.native_field.vector_ops",
+            [
+                "dot_ring/curve/native_field/vector_ops.pyx",
+                "dot_ring/curve/native_field/bls12_381_scalar.c",
+            ],
+            include_dirs=["dot_ring/curve/native_field"],
+            extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
+            extra_link_args=["-flto"],
+        ),
     ]
 
 

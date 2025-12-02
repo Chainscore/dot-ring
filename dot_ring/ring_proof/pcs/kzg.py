@@ -139,11 +139,11 @@ class KZG:
 
         # Term 1: commitment - [value]G1
         val_g1 = p1_scalar_mul(g1_gen, value)
-        comm_term = p1_add(comm_blst, p1_neg(val_g1))
+        comm_term = comm_blst.dup().add(p1_neg(val_g1))
 
         # Term 2: [tau]G2 - [point]G2
-        point_g2 = p2_scalar_mul(g2_gen, point)
-        tau_term = p2_add(g2_tau, p2_neg(point_g2))
+        point_g2 = g2_gen.dup().mult(point)
+        tau_term = g2_tau.dup().add(p2_neg(point_g2))
 
         lhs = blst_miller_loop(comm_term, g2_gen)
         rhs = blst_miller_loop(proof_blst, tau_term)
@@ -187,39 +187,51 @@ class KZG:
         g2_gen = srs.blst_g2[0]  # [1]G2
         g2_tau = srs.blst_g2[1]  # [tau]G2
 
-        # Accumulators for the linear combination
-        acc_commit = blst.P1()
-        acc_proof = blst.P1()
-        acc_z_proof = blst.P1()
+        # Accumulate points and scalars for MSMs
+        # LHS = sum(coeff_i * C_i) - (sum(coeff_i * v_i)) * G1 + sum(coeff_i * z_i * proof_i)
+        # RHS = sum(coeff_i * proof_i)
 
+        lhs_points = []
+        lhs_scalars = []
+        
+        rhs_points = []
+        rhs_scalars = []
+
+        sum_v = 0
+        
         for coeff, (commitment, proof, point, value) in zip(
             coeffs, verifications, strict=False
         ):
-            if isinstance(commitment, blst.P1):
-                comm_blst = commitment
-            else:
-                comm_blst = g1_to_blst(commitment)
+            comm_blst = commitment
+            proof_blst = proof
 
-            if isinstance(proof, blst.P1):
-                proof_blst = proof
-            else:
-                proof_blst = g1_to_blst(proof)
+            # LHS terms
+            lhs_points.append(comm_blst)
+            lhs_scalars.append(coeff)
+            
+            sum_v = (sum_v + coeff * value) % order
+            
+            coeff_z = (coeff * point) % order
+            lhs_points.append(proof_blst)
+            lhs_scalars.append(coeff_z)
+            
+            # RHS terms
+            rhs_points.append(proof_blst)
+            rhs_scalars.append(coeff)
 
-            # r_i * (C_i - v_i * G1)
-            val_g1 = p1_scalar_mul(g1_gen, value % order)
-            comm_term = p1_add(comm_blst, p1_neg(val_g1))
-            acc_commit = p1_add(acc_commit, p1_scalar_mul(comm_term, coeff))
+        # Add G1 term to LHS
+        lhs_points.append(g1_gen)
+        lhs_scalars.append((-sum_v) % order)
 
-            # r_i * proof_i
-            acc_proof = p1_add(acc_proof, p1_scalar_mul(proof_blst, coeff))
+        lhs_point = blst.P1_Affines.mult_pippenger(
+            blst.P1_Affines.as_memory(lhs_points), lhs_scalars
+        )
+        
+        rhs_point = blst.P1_Affines.mult_pippenger(
+            blst.P1_Affines.as_memory(rhs_points), rhs_scalars
+        )
 
-            # r_i * z_i * proof_i
-            coeff_z = (coeff * (point % order)) % order
-            acc_z_proof = p1_add(acc_z_proof, p1_scalar_mul(proof_blst, coeff_z))
-
-        # Final pairing check
-        lhs_point = p1_add(acc_commit, acc_z_proof)
         lhs = blst_miller_loop(lhs_point, g2_gen)
-        rhs = blst_miller_loop(acc_proof, g2_tau)
+        rhs = blst_miller_loop(rhs_point, g2_tau)
 
         return bool(blst_final_verify(lhs, rhs))

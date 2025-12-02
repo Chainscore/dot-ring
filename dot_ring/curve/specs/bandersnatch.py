@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import Any, Final, Self, cast
+from typing import Any, ClassVar, Final, Self, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
+from dot_ring.curve.native_field.scalar import Scalar
 
 from ..glv import GLV
 from ..twisted_edwards.te_affine_point import TEAffinePoint
@@ -34,18 +35,18 @@ class BandersnatchParams:
     COFACTOR: Final[int] = 4
 
     # Generator point
-    GENERATOR_X: Final[
-        int
-    ] = 18886178867200960497001835917649091219057080094937609519140440539760939937304
-    GENERATOR_Y: Final[
-        int
-    ] = 19188667384257783945677642223292697773471335439753913231509108946878080696678
+    GENERATOR_X: ClassVar[
+        Scalar
+    ] = Scalar(18886178867200960497001835917649091219057080094937609519140440539760939937304)
+    GENERATOR_Y: ClassVar[
+        Scalar
+    ] = Scalar(19188667384257783945677642223292697773471335439753913231509108946878080696678)
 
     # Edwards curve parameters
-    EDWARDS_A: Final[int] = -5
-    EDWARDS_D: Final[
-        int
-    ] = 0x6389C12633C267CBC66E3BF86BE3B6D8CB66677177E54F92B369F2F5188D58E7
+    EDWARDS_A: ClassVar[Scalar] = Scalar(-5)
+    EDWARDS_D: ClassVar[
+        Scalar
+    ] = Scalar(0x6389C12633C267CBC66E3BF86BE3B6D8CB66677177E54F92B369F2F5188D58E7)
 
     # GLV parameters
     GLV_LAMBDA: Final[

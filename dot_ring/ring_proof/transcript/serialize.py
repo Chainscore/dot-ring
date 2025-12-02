@@ -10,6 +10,10 @@ __all__ = ["serialize"]
 
 def serialize(obj: Any) -> bytes:
     """Serialize objects into bytes format exactly as in the original implementation."""
+    # Handle Scalar types by converting to int
+    if type(obj).__name__ == 'Scalar':
+        return serialize(int(obj))
+
     if isinstance(obj, int):
         byte_len = (obj.bit_length() + 7) // 8
         if byte_len <= 32:

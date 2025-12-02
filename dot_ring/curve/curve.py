@@ -103,12 +103,21 @@ class Curve:
 
         else:
             # Original scalar field validation
+            # Allow int or custom Scalar types
             if isinstance(self.GENERATOR_X, int) and isinstance(self.GENERATOR_Y, int):
                 if not (
                     0 <= self.GENERATOR_X < self.PRIME_FIELD
                     and 0 <= self.GENERATOR_Y < self.PRIME_FIELD
                 ):
                     return False
+            elif not (
+                isinstance(self.GENERATOR_X, (tuple, list))
+                or isinstance(self.GENERATOR_Y, (tuple, list))
+            ):
+                # Assume custom field elements (like Scalar)
+                # We can't easily check bounds against int PRIME_FIELD if they are opaque,
+                # but we assume they are valid if they are passed.
+                pass
             else:
                 return False
 

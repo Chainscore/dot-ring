@@ -63,6 +63,7 @@ dot_ring = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-benchmark>=4.0.0",
     "Cython>=3.0.0",
     "build>=1.0.0",
     "setuptools>=65.0.0",
@@ -95,6 +96,13 @@ Documentation = "https://github.com/chainscore/dot-ring#readme"
 [build-system]
 requires = ["setuptools>=65.0.0", "wheel", "Cython>=3.0.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "cython>=3.2.1",
+    "pytest-benchmark>=5.2.3",
+    "setuptools>=80.9.0",
+]
 
 [tool.ruff]
 line-length = 150

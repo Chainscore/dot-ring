@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA, OMEGA_2048
 from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
+from dot_ring.curve.native_field.vector_ops import vect_add, vect_sub, vect_mul
 
 
 def mod_inverse(val: int, prime: int) -> int:
@@ -250,66 +251,6 @@ def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[i
     basis_poly = poly_scalar(numerator, inv_denominator, prime)
 
     return basis_poly
-
-
-# vector subtraction
-def vect_sub(
-    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
-) -> list[int]:
-    if isinstance(a, int) and isinstance(b, list):
-        n = len(b)
-        a_list = [a] * n
-        result = [(i - j) % prime for i, j in zip(a_list, b, strict=False)]
-        return result
-    elif isinstance(a, list) and isinstance(b, int):
-        n = len(a)
-        b_list = [b] * n
-        result = [(i - j) % prime for i, j in zip(a, b_list, strict=False)]
-        return result
-    else:
-        # Assume both are lists/sequences
-        result = [(i - j) % prime for i, j in zip(a, b, strict=False)]  # type: ignore
-        return result
-
-
-# vector addition
-def vect_add(
-    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
-) -> list[int]:
-    if isinstance(a, int) and isinstance(b, list):
-        n = len(b)
-        a_list = [a] * n
-        result = [(i + j) % prime for i, j in zip(a_list, b, strict=False)]
-        return result
-    elif isinstance(a, list) and isinstance(b, int):
-        n = len(a)
-        b_list = [b] * n
-        result = [(i + j) % prime for i, j in zip(a, b_list, strict=False)]
-        return result
-    else:
-        # Assume both are lists/sequences
-        result = [(i + j) % prime for i, j in zip(a, b, strict=False)]  # type: ignore
-        return result
-
-
-# vector multiplication
-def vect_mul(
-    a: list | int | Sequence[int], b: list | int | Sequence[int], prime: int
-) -> list[int]:
-    if isinstance(a, int) and isinstance(b, list):
-        n = len(b)
-        a_list = [a] * n
-        result = [(i * j) % prime for i, j in zip(a_list, b, strict=False)]
-        return result
-    elif isinstance(a, list) and isinstance(b, int):
-        n = len(a)
-        b_list = [b] * n
-        result = [(i * j) % prime for i, j in zip(a, b_list, strict=False)]
-        return result
-    else:
-        # Assume both are lists/sequences
-        result = [(i * j) % prime for i, j in zip(a, b, strict=False)]  # type: ignore
-        return result
 
 
 def vect_scalar_mul(

@@ -230,8 +230,8 @@ class GLV:
                 return P1 * k1
             raise ValueError("Invalid points")
 
-        p1_t = (cast(int, P1.x) * cast(int, P1.y)) % p
-        p2_t = (cast(int, P2.x) * cast(int, P2.y)) % p
+        p1_t = P1.x * P1.y % p
+        p2_t = P2.x * P2.y % p
 
         assert projective_to_affine is not None
         # Use compiled MSM

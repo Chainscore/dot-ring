@@ -20,11 +20,9 @@ from dot_ring.ring_proof.constants import (
 )
 from dot_ring.ring_proof.polynomial.ops import (
     lagrange_basis_polynomial,
-    poly_evaluate,
-    vect_add,
-    vect_mul,
-    vect_sub,
+    poly_evaluate
 )
+from dot_ring.curve.native_field.vector_ops import vect_add, vect_sub, vect_mul
 
 
 def _to_radix4(vec: Sequence[int]) -> list[int]:
