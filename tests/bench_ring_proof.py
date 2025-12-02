@@ -140,4 +140,4 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
 
 
 if __name__ == "__main__":
-    benchmark_ring_proof(warmup_iters=5, bench_iters=20)
+    benchmark_ring_proof(warmup_iters=2, bench_iters=8)
