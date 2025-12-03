@@ -12,6 +12,9 @@
 from libc.stdlib cimport malloc, free
 from dot_ring.curve.native_field.scalar cimport Scalar, bls_scalar_t, bls_scalar_ntt_round
 
+cdef extern from "stdlib.h":
+    int posix_memalign(void **memptr, size_t alignment, size_t size)
+
 def ntt_in_place(list coeffs, list twiddles, list rev, object prime):
     """
     Complete in-place NTT using precomputed twiddles and bit-reverse indices.
@@ -30,14 +33,15 @@ def ntt_in_place(list coeffs, list twiddles, list rev, object prime):
         list stage_twiddles_list
         object val
         Scalar s
+        void *ptr = NULL
     
     if n == 1:
         return
 
-    # Allocate memory for coefficients
-    coeffs_c = <bls_scalar_t *>malloc(n * sizeof(bls_scalar_t))
-    if not coeffs_c:
+    # Allocate memory for coefficients (32-byte aligned for AVX2)
+    if posix_memalign(&ptr, 32, n * sizeof(bls_scalar_t)) != 0:
         raise MemoryError()
+    coeffs_c = <bls_scalar_t *>ptr
 
     try:
         # Convert coefficients to C array and apply bit-reverse permutation simultaneously
@@ -56,9 +60,9 @@ def ntt_in_place(list coeffs, list twiddles, list rev, object prime):
             stage_twiddles_list = twiddles[stage]
             
             # Allocate and convert twiddles for this stage
-            twiddles_c = <bls_scalar_t *>malloc(half_m * sizeof(bls_scalar_t))
-            if not twiddles_c:
+            if posix_memalign(&ptr, 32, half_m * sizeof(bls_scalar_t)) != 0:
                 raise MemoryError()
+            twiddles_c = <bls_scalar_t *>ptr
             
             try:
                 for i in range(half_m):
