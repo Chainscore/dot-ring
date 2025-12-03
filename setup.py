@@ -167,25 +167,26 @@ class CustomBuildExt(build_ext):
                 path.unlink()
 
 
-setup(
-    name="dot-ring",
-    version="0.1.2",
-    packages=find_packages(exclude=["tests*", "perf*"]) + ["dot_ring.blst"],
-    ext_modules=cythonize(
-        cython_extensions,
-        compiler_directives={
-            "language_level": "3",
-            "boundscheck": False,
-            "wraparound": False,
-            "cdivision": True,
+if __name__ == "__main__":
+    setup(
+        name="dot-ring",
+        version="0.1.2",
+        packages=find_packages(exclude=["tests*", "perf*"]) + ["dot_ring.blst"],
+        ext_modules=cythonize(
+            cython_extensions,
+            compiler_directives={
+                "language_level": "3",
+                "boundscheck": False,
+                "wraparound": False,
+                "cdivision": True,
+            },
+        ),
+        cmdclass={"build_ext": CustomBuildExt},
+        package_data={
+            "dot_ring": ["py.typed"],
+            "dot_ring.blst": ["*.so", "*.dylib", "*.dll", "*.pyd"],
+            "dot_ring.vrf": ["data/*.bin"],
+            "dot_ring.ring_proof": ["columns/*.json"],
         },
-    ),
-    cmdclass={"build_ext": CustomBuildExt},
-    package_data={
-        "dot_ring": ["py.typed"],
-        "dot_ring.blst": ["*.so", "*.dylib", "*.dll", "*.pyd"],
-        "dot_ring.vrf": ["data/*.bin"],
-        "dot_ring.ring_proof": ["columns/*.json"],
-    },
-    include_package_data=True,
-)
+        include_package_data=True,
+    )

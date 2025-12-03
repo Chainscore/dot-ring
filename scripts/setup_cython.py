@@ -7,35 +7,19 @@ Usage:
 
 from Cython.Build import cythonize
 from setuptools import Extension, setup
+import sys
+from pathlib import Path
 
-extensions = [
-    Extension(
-        "dot_ring.curve.field_arithmetic",
-        ["dot_ring/curve/field_arithmetic.pyx"],
-        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
-    ),
-    Extension(
-        "dot_ring.curve.fast_math",
-        ["dot_ring/curve/fast_math.pyx"],
-        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
-    ),
-    Extension(
-        "dot_ring.ring_proof.polynomial.ntt",
-        ["dot_ring/ring_proof/polynomial/ntt.pyx"],
-        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
-    ),
-    Extension(
-        "dot_ring.curve.native_field.scalar",
-        ["dot_ring/curve/native_field/scalar.pyx"],
-        extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
-    ),
-]
+# Add project root to sys.path
+sys.path.append(str(Path(__file__).parent.parent))
+
+from setup import cython_extensions
 
 setup(
     name="dot_ring_cython",
     packages=["dot_ring", "dot_ring.curve", "dot_ring.ring_proof.polynomial"],
     ext_modules=cythonize(
-        extensions,
+        cython_extensions,
         compiler_directives={
             "language_level": "3",
             "boundscheck": False,
