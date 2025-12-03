@@ -22,7 +22,15 @@ from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
 
 
+def get_compile_args() -> list[str]:
+    args = ["-O3", "-ffast-math", "-flto"]
+    if sys.platform != "darwin":
+        args.append("-march=native")
+    return args
+
+
 def build_cython_extensions() -> list[Extension]:
+    compile_args = get_compile_args()
     return [
         Extension(
             "dot_ring.curve.field_arithmetic",
@@ -46,7 +54,7 @@ def build_cython_extensions() -> list[Extension]:
                 "dot_ring/curve/native_field/bls12_381_scalar.c",
             ],
             include_dirs=["dot_ring/curve/native_field"],
-            extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
+            extra_compile_args=compile_args,
             extra_link_args=["-flto"],
         ),
         Extension(
@@ -56,7 +64,7 @@ def build_cython_extensions() -> list[Extension]:
                 "dot_ring/curve/native_field/bls12_381_scalar.c",
             ],
             include_dirs=["dot_ring/curve/native_field"],
-            extra_compile_args=["-O3", "-ffast-math", "-flto", "-march=native"],
+            extra_compile_args=compile_args,
             extra_link_args=["-flto"],
         ),
     ]

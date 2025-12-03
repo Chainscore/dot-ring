@@ -12,7 +12,8 @@ build
 .pytest_cache
 perf
 *.c
-!dot_ring/curve/native_field/*.c
+!dot_ring/curve/native_field/bls12_381_scalar.c
+!dot_ring/curve/native_field/bls12_381_scalar.h
 *.so 
 *.html
 

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
-from .profiler import Profiler
+from ..utils.profiler import Profiler
 
 HERE = os.path.dirname(__file__)
 RESULTS_DIR = os.path.join(HERE, "results")
