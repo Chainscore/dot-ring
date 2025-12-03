@@ -2,12 +2,10 @@ name: Build & Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/build-*]
     tags:
       - "v*.*.*"
       - "*.*.*"
-  pull_request:
-    branches: [main]
 
 jobs:
   build_wheels:
