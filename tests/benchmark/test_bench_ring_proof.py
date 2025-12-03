@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "dot_ring" / "blst" / "bin
 from dot_ring import Bandersnatch
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
-@pytest.fixture(scope="module", params=[1024])
+# MAX_RING_SIZE is 255 per the constraint system
+@pytest.fixture(scope="module", params=[255])
 def ring_data(request):
     ring_size = request.param
     

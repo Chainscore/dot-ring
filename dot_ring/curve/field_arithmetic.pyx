@@ -8,13 +8,7 @@ cimport cython
 
 # Use gmpy2 for faster big integer operations
 import gmpy2
-from gmpy2 import mpz as __mpz
-
-cdef _mpz(object x):
-    return __mpz(x)
-
-cdef _int(object x):
-    return int(x)
+from gmpy2 import mpz as _mpz
 
 _invert = gmpy2.invert
 
@@ -121,7 +115,7 @@ cpdef tuple te_double_cy(
     result = _te_double_mpz(xm, ym, zm, tm, am, pm)
     
     # Convert back to int
-    return (_int(result[0]), _int(result[1]), _int(result[2]), _int(result[3]))
+    return (int(result[0]), int(result[1]), int(result[2]), int(result[3]))
 
 
 cpdef tuple te_add_cy(
@@ -153,12 +147,12 @@ cpdef tuple te_add_cy(
     result = _te_add_mpz(x1m, y1m, z1m, t1m, x2m, y2m, z2m, t2m, am, dm, pm)
     
     # Convert back to int
-    return (_int(result[0]), _int(result[1]), _int(result[2]), _int(result[3]))
+    return (int(result[0]), int(result[1]), int(result[2]), int(result[3]))
 
 
 cpdef object mod_inverse_cy(object val, object p):
     """Compute modular inverse using gmpy2."""
-    return _int(_invert(_mpz(val), _mpz(p)))
+    return int(_invert(_mpz(val), _mpz(p)))
 
 
 cpdef tuple projective_to_affine_cy(object x, object y, object z, object p):
@@ -171,7 +165,7 @@ cpdef tuple projective_to_affine_cy(object x, object y, object z, object p):
     ym = _mpz(y)
     zm = _mpz(z)
     inv_z = _invert(zm, pm)
-    return (_int((xm * inv_z) % pm), _int((ym * inv_z) % pm))
+    return (int((xm * inv_z) % pm), int((ym * inv_z) % pm))
 
 
 cpdef tuple scalar_mult_windowed_cy(
@@ -271,7 +265,7 @@ cpdef tuple scalar_mult_windowed_cy(
                            am, dm, pm)
     
     # Convert back to int only at the end
-    return (_int(R[0]), _int(R[1]), _int(R[2]), _int(R[3]))
+    return (int(R[0]), int(R[1]), int(R[2]), int(R[3]))
 
 
 cpdef tuple scalar_mult_4_cy(
@@ -411,4 +405,4 @@ cpdef tuple scalar_mult_4_cy(
                            am, dm, pm)
     
     # Convert back to int only at the end
-    return (_int(R[0]), _int(R[1]), _int(R[2]), _int(R[3]))
+    return (int(R[0]), int(R[1]), int(R[2]), int(R[3]))
