@@ -142,7 +142,7 @@ class CustomBuildExt(build_ext):
         os.chmod(run_me, 0o755)
 
         if sys.platform == "win32":
-            subprocess.check_call(["sh", str(run_me)], cwd=bindings_dir)
+            subprocess.check_call([sys.executable, str(run_me)], cwd=bindings_dir)
         else:
             subprocess.check_call([str(run_me)], cwd=bindings_dir)
 
