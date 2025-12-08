@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,6 @@ jobs:
             dnf install -y epel-release &&
             dnf install -y swig pcre2-devel gcc-c++ make
           CIBW_BEFORE_ALL_MACOS: brew install swig
-          CIBW_BEFORE_ALL_WINDOWS: choco install swig
           
           # Set macOS deployment target (blst requires 11.0+)
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
