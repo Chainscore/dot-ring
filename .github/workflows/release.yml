@@ -43,7 +43,7 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
           
           # Install Python build dependencies
-          CIBW_BEFORE_BUILD: pip install Cython setuptools wheel
+          CIBW_BEFORE_BUILD: pip install Cython setuptools wheel "packaging>=24.2"
           
           # Architectures to build
           CIBW_ARCHS_LINUX: x86_64 aarch64
