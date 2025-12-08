@@ -98,7 +98,7 @@ Issues = "https://github.com/chainscore/dot-ring/issues"
 Documentation = "https://github.com/chainscore/dot-ring#readme"
 
 [build-system]
-requires = ["setuptools>=65.0.0", "wheel", "Cython>=3.0.0", "setuptools_scm>=8.0", "packaging>=24.2"]
+requires = ["setuptools>=65.0.0,<77.0.0", "wheel", "Cython>=3.0.0", "setuptools_scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
