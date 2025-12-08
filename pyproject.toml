@@ -1,13 +1,13 @@
 [project]
 name = "dot-ring"
-version = "0.1.4"
+dynamic = ["version"]
 description = "Serves as a library to generate and verify a signature using IETF, Pedersen and Ring VRF-AD Schemes"
 authors = [
     {name = "prasad-kumkar", email = "prasad@chainscore.finance"}
 ]
 readme = "README.md"
-license = "MIT"
-requires-python = ">=3.12"
+license = {text = "MIT"}
+requires-python = ">=3.11"
 keywords = [
     "VRF", "VRF-AD", "IETF VRF", "Pedersen VRF",
     "Ring Proof", "Ring VRF", "Signature", "Proof",
@@ -23,6 +23,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
@@ -59,6 +60,9 @@ dot_ring = [
     "blst/*.pyd",
 ]
 
+[tool.setuptools_scm]
+
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
@@ -94,7 +98,7 @@ Issues = "https://github.com/chainscore/dot-ring/issues"
 Documentation = "https://github.com/chainscore/dot-ring#readme"
 
 [build-system]
-requires = ["setuptools>=65.0.0", "wheel", "Cython>=3.0.0"]
+requires = ["setuptools>=65.0.0,<77.0.0", "wheel", "Cython>=3.0.0", "setuptools_scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
