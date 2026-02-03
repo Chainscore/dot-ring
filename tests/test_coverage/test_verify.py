@@ -100,6 +100,21 @@ class TestVerifyHelpers:
         with pytest.raises(NotImplementedError):
             verifier.evaluation_of_linearization_poly_at_zeta_omega()
 
+    def test_init_rejects_invalid_padding_rows(self):
+        """Verify init validates padding_rows against domain size."""
+        proof = (0,) * 15
+        with pytest.raises(ValueError, match="padding_rows"):
+            Verify(
+                proof=proof,
+                vk={},
+                fixed_cols=[0, 0, 0],
+                rl_to_proove=(0, 0),
+                rps=(0, 0),
+                seed_point=(0, 0),
+                Domain=[1, 2, 3],
+                padding_rows=3,
+            )
+
     def test_contributions_handles_zeta_equal_domain_point(self):
         """Zeta equal to a domain point should hit the zero-difference branches."""
         verifier = Verify.__new__(Verify)
