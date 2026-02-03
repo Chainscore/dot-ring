@@ -11,9 +11,8 @@ from dot_ring import blst
 from dot_ring.ring_proof.constants import EVAL_DOMAINS
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.pcs import srs
-from dot_ring.ring_proof.verify import Verify
 from dot_ring.ring_proof.pcs.utils import g2_to_blst
-
+from dot_ring.ring_proof.verify import Verify
 from tests.utils.arkworks_serde import (
     compressed_g1_to_uncompressed_bytes,
     compressed_g2_to_uncompressed_bytes,

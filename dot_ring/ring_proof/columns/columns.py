@@ -5,18 +5,10 @@ import os
 from dataclasses import dataclass
 from typing import cast
 
-from dot_ring.ring_proof.constants import (
-    MAX_RING_SIZE,
-    S_PRIME,
-    DEFAULT_SIZE,
-    Blinding_Base,
-    PaddingPoint,
-    SeedPoint,
-    OMEGAS
-)
-from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, Blinding_Base, PaddingPoint, SeedPoint
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
 from dot_ring.ring_proof.helpers import Helpers as H
+from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
 
@@ -59,7 +51,7 @@ class PublicColumnBuilder:
     padding_rows: int = 4
 
     @classmethod
-    def from_params(cls, params: RingProofParams) -> "PublicColumnBuilder":
+    def from_params(cls, params: RingProofParams) -> PublicColumnBuilder:
         return cls(
             size=params.domain_size,
             prime=params.prime,
@@ -139,7 +131,7 @@ class WitnessColumnBuilder:
         producer_index: int,
         secret_t: int,
         params: RingProofParams,
-    ) -> "WitnessColumnBuilder":
+    ) -> WitnessColumnBuilder:
         return cls(
             ring_pk=ring_pk,
             selector_vector=selector_vector,

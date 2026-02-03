@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
-from dot_ring.ring_proof.constants import D_2048, MAX_RING_SIZE, OMEGA_2048, S_PRIME, DEFAULT_SIZE
+from dot_ring.ring_proof.constants import D_2048, DEFAULT_SIZE, MAX_RING_SIZE, OMEGA_2048, S_PRIME
 
 
 def _is_power_of_two(n: int) -> bool:

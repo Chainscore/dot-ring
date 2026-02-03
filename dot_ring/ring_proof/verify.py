@@ -11,8 +11,8 @@ from py_ecc.optimized_bls12_381 import (
 from dot_ring import blst as _blst
 from dot_ring.curve.native_field.scalar import Scalar
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
-from dot_ring.ring_proof.constants import D_512 as D
-from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA, OMEGA_2048, S_PRIME
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
+from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g1_to_blst

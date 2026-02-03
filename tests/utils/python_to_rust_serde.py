@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import Any
 
 from py_ecc.bls12_381 import bls12_381_pairing as pairing
-from py_ecc.optimized_bls12_381 import FQ, FQ2, normalize as nm
+from py_ecc.optimized_bls12_381 import FQ
+from py_ecc.optimized_bls12_381 import normalize as nm
 
 FIELD_MODULUS = pairing.field_modulus
 

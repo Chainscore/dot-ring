@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
-from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA_512 as OMEGA, OMEGA_2048
+from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA_2048
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
 from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
 
 
