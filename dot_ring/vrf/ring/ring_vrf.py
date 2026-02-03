@@ -179,6 +179,7 @@ class RingVRF(VRF[Any]):
         blinding_factor: int,
         producer_key: bytes | str,
         keys: list[Any] | str | bytes,
+        transcript_challenge: bytes = b"Bandersnatch_SHA-512_ELL2",
     ) -> tuple[
         Column,
         Column,
@@ -260,7 +261,7 @@ class RingVRF(VRF[Any]):
             "g2": H.altered_points(srs.g2_points),
             "commitments": fixed_col_commits,
         }
-        t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
+        t = Transcript(S_PRIME, transcript_challenge)
         t, alpha = phase1_alphas(t, vk, witness_relation_res, witness_commitments)
 
         cd = constraint_dict
