@@ -1,7 +1,7 @@
 import pytest
 
 from dot_ring.ring_proof.columns.columns import Column, PublicColumnBuilder, WitnessColumnBuilder
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, PaddingPoint, S_PRIME
+from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, S_PRIME, PaddingPoint
 from dot_ring.ring_proof.params import RingProofParams
 
 

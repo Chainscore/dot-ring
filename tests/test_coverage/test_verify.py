@@ -4,7 +4,9 @@ import pytest
 from dot_ring.curve.native_field.scalar import Scalar
 from py_ecc.optimized_bls12_381 import curve_order
 
-from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA, OMEGA_2048, S_PRIME, DEFAULT_SIZE as SIZE
+from dot_ring.ring_proof.constants import DEFAULT_SIZE as SIZE
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
+from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.pcs.srs import srs
 from dot_ring.ring_proof.verify import Verify, blst_msm, lagrange_at_zeta
 
