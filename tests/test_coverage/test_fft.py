@@ -1,7 +1,6 @@
 """Tests for FFT module to improve coverage."""
 
-import pytest
-
+from dot_ring.ring_proof.constants import OMEGA, S_PRIME
 from dot_ring.ring_proof.polynomial.fft import (
     _fft_in_place,
     _get_bit_reverse,
@@ -11,7 +10,6 @@ from dot_ring.ring_proof.polynomial.fft import (
     evaluate_poly_over_domain,
     inverse_fft,
 )
-from dot_ring.ring_proof.constants import OMEGA, S_PRIME
 
 
 class TestFFT:
@@ -20,7 +18,7 @@ class TestFFT:
     # Test constants - using a smaller prime for easier testing
     SMALL_PRIME = 17
     SMALL_OMEGA = 3  # primitive 4th root of unity mod 17 (3^4 = 81 = 4*17 + 13... let's use a proper one)
-    
+
     # Actually for mod 17: 17-1 = 16 = 2^4, so primitive roots exist
     # 3^4 mod 17 = 81 mod 17 = 13, 3^8 mod 17 = 16, 3^16 mod 17 = 1
     # So 3 is a primitive 16th root of unity
@@ -58,16 +56,16 @@ class TestFFT:
         n = 4
         omega = 4  # 4th root of unity mod 17
         prime = 17
-        
+
         twiddles = _get_twiddle_factors(n, omega, prime)
-        
+
         # Should have log2(4) = 2 stages
         assert len(twiddles) == 2
-        
+
         # Stage 0 (m=2): half_m=1, stride=2, w_step = omega^2 = 16
         # twiddles[0] = [1]
         assert twiddles[0] == [1]
-        
+
         # Stage 1 (m=4): half_m=2, stride=1, w_step = omega^1 = 4
         # twiddles[1] = [1, 4]
         assert twiddles[1] == [1, 4]
@@ -77,14 +75,14 @@ class TestFFT:
         n = 8
         omega = 4
         prime = 17
-        
+
         # omega^4 mod 17 = 256 mod 17 = 1, but we need 8th root
         # Let's find 8th root: need omega^8 = 1 mod 17
         # 2^8 = 256 mod 17 = 1. Yes! 2 is 8th root
         omega = 2
-        
+
         roots = _get_roots(n, omega, prime)
-        
+
         # Should have n/2 = 4 roots
         assert len(roots) == 4
         # roots[i] = omega^i
@@ -107,7 +105,7 @@ class TestFFT:
         # Use larger prime field for proper FFT
         omega_2 = pow(OMEGA, 512 // 2, S_PRIME)  # Scale down from 512-th root
         coeffs = [3, 5]
-        
+
         _fft_in_place(coeffs, omega_2, S_PRIME)
         # Just verify the result has same length
         assert len(coeffs) == 2
@@ -116,19 +114,18 @@ class TestFFT:
         """Test inverse FFT recovers original coefficients."""
         # Use the actual module constants
         original = [1, 2, 3, 4, 5, 6, 7, 8]
-        n = len(original)
-        
+
         # Need to find proper omega for size 8 in S_PRIME
         # Using module omega scaled down
         omega_8 = pow(OMEGA, 512 // 8, S_PRIME)  # Scale down from 512-th root
-        
+
         # Compute FFT
         values = original[:]
         _fft_in_place(values, omega_8, S_PRIME)
-        
+
         # Compute inverse FFT
         recovered = inverse_fft(values, omega_8, S_PRIME)
-        
+
         assert recovered == original
 
     def test_evaluate_poly_over_domain_basic(self):
@@ -139,9 +136,9 @@ class TestFFT:
         omega = 4  # 4th root of unity mod 17
         prime = 17
         domain = [pow(omega, i, prime) for i in range(n)]  # [1, 4, 16, 13]
-        
+
         result = evaluate_poly_over_domain(poly, domain, omega, prime)
-        
+
         # Should evaluate at each domain point
         # At x=1: 1 + 2*1 = 3
         # At x=4: 1 + 2*4 = 9
@@ -156,9 +153,9 @@ class TestFFT:
         omega = 4
         prime = 17
         domain = [pow(omega, i, prime) for i in range(n)]
-        
+
         result = evaluate_poly_over_domain(poly, domain, omega, prime)
-        
+
         # Constant polynomial evaluates to same value everywhere
         assert len(result) == 4
 
@@ -170,9 +167,9 @@ class TestFFT:
         omega = 4
         prime = 17
         domain = [pow(omega, i, prime) for i in range(n)]
-        
+
         result = evaluate_poly_over_domain(poly, domain, omega, prime)
-        
+
         # Result should fold coefficients
         assert len(result) == 4
 
@@ -182,9 +179,9 @@ class TestFFT:
         domain_size = 4
         omega = 4
         prime = 17
-        
+
         result = evaluate_poly_fft(poly, domain_size, omega, prime, coset_offset=1)
-        
+
         assert len(result) == domain_size
 
     def test_evaluate_poly_fft_with_coset(self):
@@ -194,9 +191,9 @@ class TestFFT:
         omega = 4
         prime = 17
         coset_offset = 2  # non-trivial coset
-        
+
         result = evaluate_poly_fft(poly, domain_size, omega, prime, coset_offset=coset_offset)
-        
+
         assert len(result) == domain_size
 
     def test_evaluate_poly_fft_larger_poly(self):
@@ -206,9 +203,9 @@ class TestFFT:
         domain_size = 4
         omega = 4
         prime = 17
-        
+
         result = evaluate_poly_fft(poly, domain_size, omega, prime, coset_offset=1)
-        
+
         assert len(result) == domain_size
 
     def test_evaluate_poly_fft_larger_poly_with_coset(self):
@@ -218,9 +215,9 @@ class TestFFT:
         omega = 4
         prime = 17
         coset_offset = 3
-        
+
         result = evaluate_poly_fft(poly, domain_size, omega, prime, coset_offset=coset_offset)
-        
+
         assert len(result) == domain_size
 
     def test_fft_roundtrip_with_real_constants(self):
@@ -228,16 +225,16 @@ class TestFFT:
         # Use actual constants from the module
         n = 8
         omega_n = pow(OMEGA, 512 // n, S_PRIME)
-        
+
         original = [i * 12345 for i in range(n)]  # Some test values
-        
+
         # Forward FFT
         values = original[:]
         _fft_in_place(values, omega_n, S_PRIME)
-        
+
         # Inverse FFT
         recovered = inverse_fft(values, omega_n, S_PRIME)
-        
+
         assert recovered == original
 
     def test_caching_bit_reverse(self):
@@ -246,7 +243,7 @@ class TestFFT:
         result1 = _get_bit_reverse(16)
         # Second call should return cached result
         result2 = _get_bit_reverse(16)
-        
+
         assert result1 == result2
         # Check cache is being used (same object)
         assert result1 is result2
@@ -255,7 +252,7 @@ class TestFFT:
         """Test that twiddle factor caching works correctly."""
         result1 = _get_twiddle_factors(8, OMEGA, S_PRIME)
         result2 = _get_twiddle_factors(8, OMEGA, S_PRIME)
-        
+
         assert result1 == result2
         assert result1 is result2  # Same cached object
 
@@ -263,6 +260,6 @@ class TestFFT:
         """Test that roots caching works correctly."""
         result1 = _get_roots(16, OMEGA, S_PRIME)
         result2 = _get_roots(16, OMEGA, S_PRIME)
-        
+
         assert result1 == result2
         assert result1 is result2

@@ -14,7 +14,7 @@ def deserialize_fq_field_element(data: bytes) -> int:
 
     Arkworks uses Montgomery form internally but serializes as regular integers.
     """
-    return int.from_bytes(data, byteorder='little')
+    return int.from_bytes(data, byteorder="little")
 
 
 def deserialize_bandersnatch_point(x_bytes: bytes, y_bytes: bytes) -> tuple[int, int]:
@@ -61,16 +61,17 @@ def compressed_bandersnatch_to_uncompressed_bytes(compressed: bytes) -> bytes:
 
     if is_infinity:
         # Point at infinity
-        return b'\x00' * 64
+        return b"\x00" * 64
 
     # Extract x-coordinate (remove flag bits from last byte)
     x_bytes = compressed[:-1] + bytes([compressed[-1] & 0x3F])
-    x = int.from_bytes(x_bytes, 'little')
+    x = int.from_bytes(x_bytes, "little")
 
     # Recover y from Twisted Edwards curve equation: a*x^2 + y^2 = 1 + d*x^2*y^2
     # Rearranged: y^2 = (1 - a*x^2) / (1 - d*x^2)
     # Bandersnatch parameters from the curve specification
     from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+
     a = BandersnatchParams.EDWARDS_A
     d = BandersnatchParams.EDWARDS_D
     p = BandersnatchParams.MODULUS
@@ -96,8 +97,8 @@ def compressed_bandersnatch_to_uncompressed_bytes(compressed: bytes) -> bytes:
         y = p - y
 
     # Serialize as uncompressed: x (32 bytes) || y (32 bytes), little-endian, no flags
-    x_uncompressed = x.to_bytes(32, 'little')
-    y_bytes = y.to_bytes(32, 'little')
+    x_uncompressed = x.to_bytes(32, "little")
+    y_bytes = y.to_bytes(32, "little")
 
     return x_uncompressed + y_bytes
 
@@ -133,10 +134,11 @@ def deserialize_bls12_381_g1(data: bytes) -> tuple:
 
     # Extract x-coordinate (remove flag bits from first byte)
     data_clean = bytes([data[0] & 0x1F]) + data[1:]
-    x = int.from_bytes(data_clean, 'big')
+    x = int.from_bytes(data_clean, "big")
 
     # Recover y from curve equation: y^2 = x^3 + 4
     from py_ecc.bls12_381 import bls12_381_pairing as pairing
+
     field_modulus = pairing.field_modulus
 
     x_fq = FQ(x)
@@ -173,15 +175,15 @@ def compressed_g1_to_uncompressed_bytes(compressed: bytes) -> bytes:
 
     # Handle point at infinity
     if z_fq == FQ(0):
-        return b'\x00' * 96
+        return b"\x00" * 96
 
     # Convert to affine coordinates (already in affine if z=1)
     x = int(x_fq)
     y = int(y_fq)
 
     # Serialize as uncompressed: x (48 bytes) || y (48 bytes), big-endian, no flags
-    x_bytes = x.to_bytes(48, 'big')
-    y_bytes = y.to_bytes(48, 'big')
+    x_bytes = x.to_bytes(48, "big")
+    y_bytes = y.to_bytes(48, "big")
 
     return x_bytes + y_bytes
 
@@ -205,6 +207,7 @@ def compressed_g2_to_uncompressed_bytes(compressed: bytes) -> bytes:
     # g2_point is ((x, y, z)) in Jacobian coordinates where x, y are FQ2 elements
     # We need to convert to affine: (x, y)
     from py_ecc.optimized_bls12_381 import normalize as nm
+
     affine = nm(g2_point)
     x_fq2, y_fq2 = affine
 
@@ -214,10 +217,10 @@ def compressed_g2_to_uncompressed_bytes(compressed: bytes) -> bytes:
 
     # Serialize as uncompressed: arkworks uses c1 || c0 || c1 || c0 format
     # Each coefficient is 48 bytes, big-endian, no flags
-    x_c0_bytes = int(x_c0).to_bytes(48, 'big')
-    x_c1_bytes = int(x_c1).to_bytes(48, 'big')
-    y_c0_bytes = int(y_c0).to_bytes(48, 'big')
-    y_c1_bytes = int(y_c1).to_bytes(48, 'big')
+    x_c0_bytes = int(x_c0).to_bytes(48, "big")
+    x_c1_bytes = int(x_c1).to_bytes(48, "big")
+    y_c0_bytes = int(y_c0).to_bytes(48, "big")
+    y_c1_bytes = int(y_c1).to_bytes(48, "big")
 
     return x_c1_bytes + x_c0_bytes + y_c1_bytes + y_c0_bytes
 
@@ -250,6 +253,7 @@ def sqrt_fq2(a) -> tuple[int, int] | None:
         Tuple (c0, c1) representing the square root, or None if no root exists.
     """
     from py_ecc.bls12_381 import bls12_381_pairing as pairing
+
     field_modulus = pairing.field_modulus
 
     # Extract coefficients (works for both FQ2 types)
@@ -351,13 +355,14 @@ def deserialize_bls12_381_g2(data: bytes) -> tuple:
     x_c1_bytes = bytes([data[0] & 0x1F]) + data[1:48]  # c1 in bytes 0-47
     x_c0_bytes = data[48:96]  # c0 in bytes 48-95
 
-    x_c0 = int.from_bytes(x_c0_bytes, 'big')
-    x_c1 = int.from_bytes(x_c1_bytes, 'big')
+    x_c0 = int.from_bytes(x_c0_bytes, "big")
+    x_c1 = int.from_bytes(x_c1_bytes, "big")
 
     x_fq2 = FQ2([x_c0, x_c1])
 
     # Recover y from curve equation: y^2 = x^3 + 4(1 + u)
     from py_ecc.bls12_381 import bls12_381_pairing as pairing
+
     field_modulus = pairing.field_modulus
 
     # G2 curve equation: y^2 = x^3 + 4(1 + u)

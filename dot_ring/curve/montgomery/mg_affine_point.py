@@ -75,9 +75,7 @@ class MGAffinePoint(CurvePoint[C]):
             # if y == 0 then slope denominator = 0 => result is identity
             if y1 % p == 0:
                 return self.__class__(None, None)
-            numerator = (
-                3 * cast(int, x1) * cast(int, x1) + 2 * cast(int, A) * cast(int, x1) + 1
-            ) % p
+            numerator = (3 * cast(int, x1) * cast(int, x1) + 2 * cast(int, A) * cast(int, x1) + 1) % p
             denominator = (2 * cast(int, B) * cast(int, y1)) % p
             # Check if denominator is zero before computing inverse
             if denominator == 0:
@@ -99,9 +97,7 @@ class MGAffinePoint(CurvePoint[C]):
             raise ValueError("Unexpected zero denominator in point addition")
         lam = (numerator * pow(denominator, -1, p)) % p
         # Corrected formula for x3 in point addition
-        x3 = (
-            cast(int, B) * lam * lam - cast(int, A) - cast(int, x1) - cast(int, x2)
-        ) % p
+        x3 = (cast(int, B) * lam * lam - cast(int, A) - cast(int, x1) - cast(int, x2)) % p
         # Corrected formula for y3
         y3 = (lam * (cast(int, x1) - x3) - cast(int, y1)) % p
         return self.__class__(x3, y3)
@@ -266,18 +262,14 @@ class MGAffinePoint(CurvePoint[C]):
         # Check if it's an ELL2 variant (ELL2 or ELL2_NU)
         if cls.curve.E2C in (E2C_Variant.ELL2, E2C_Variant.ELL2_NU):
             if cls.curve.E2C.value.endswith("_NU_"):
-                return cls.encode_to_curve_hash2_suite_nu(
-                    alpha_string, salt, General_Check
-                )
+                return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
 
             return cls.encode_to_curve_hash2_suite_ro(alpha_string, salt, General_Check)
         else:
             raise ValueError(f"Unexpected E2C Variant: {cls.curve.E2C}")
 
     @classmethod
-    def encode_to_curve_hash2_suite_nu(
-        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
-    ) -> MGAffinePoint[C] | Any:
+    def encode_to_curve_hash2_suite_nu(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> MGAffinePoint[C] | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -297,9 +289,7 @@ class MGAffinePoint(CurvePoint[C]):
         return R.clear_cofactor()
 
     @classmethod
-    def encode_to_curve_hash2_suite_ro(
-        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
-    ) -> MGAffinePoint[C] | Any:
+    def encode_to_curve_hash2_suite_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> MGAffinePoint[C] | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -390,12 +380,8 @@ class MGAffinePoint(CurvePoint[C]):
             # Encode u and v coordinates as little-endian bytes
             if self.x is None or self.y is None:
                 raise ValueError("Cannot serialize identity point")
-            x_bytes = int(cast(int, self.x)).to_bytes(
-                field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN)
-            )
-            y_bytes = int(cast(int, self.y)).to_bytes(
-                field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN)
-            )
+            x_bytes = int(cast(int, self.x)).to_bytes(field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN))
+            y_bytes = int(cast(int, self.y)).to_bytes(field_byte_len, cast(Literal["little", "big"], self.curve.ENDIAN))
             return x_bytes + y_bytes
         else:
             raise NotImplementedError("Compressed encoding not implemented")

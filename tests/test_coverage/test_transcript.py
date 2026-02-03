@@ -1,9 +1,7 @@
 """Additional tests for transcript module to improve coverage."""
 
-import pytest
-
-from dot_ring.ring_proof.transcript.transcript import Transcript
 from dot_ring.ring_proof.constants import S_PRIME
+from dot_ring.ring_proof.transcript.transcript import Transcript
 
 
 class TestTranscriptAdditional:
@@ -48,9 +46,9 @@ class TestTranscriptAdditional:
         """Test getting challenge."""
         transcript = Transcript(S_PRIME, b"test")
         transcript.append(b"some_data")
-        
+
         challenge = transcript.challenge(b"challenge")
-        
+
         assert isinstance(challenge, int)
         assert 0 <= challenge < S_PRIME
 
@@ -58,9 +56,9 @@ class TestTranscriptAdditional:
         """Test read_reduce method."""
         transcript = Transcript(S_PRIME, b"test")
         transcript.write(b"data")
-        
+
         result = transcript.read_reduce()
-        
+
         assert isinstance(result, int)
         assert 0 <= result < S_PRIME
 
@@ -75,9 +73,9 @@ class TestTranscriptAdditional:
     def test_transcript_get_constraints_aggregation_coeffs(self):
         """Test getting constraint aggregation coefficients."""
         transcript = Transcript(S_PRIME, b"test")
-        
+
         coeffs = transcript.get_constraints_aggregation_coeffs(3)
-        
+
         assert len(coeffs) == 3
         for c in coeffs:
             assert isinstance(c, int)
@@ -86,18 +84,18 @@ class TestTranscriptAdditional:
     def test_transcript_get_evaluation_point(self):
         """Test getting evaluation point."""
         transcript = Transcript(S_PRIME, b"test")
-        
+
         points = transcript.get_evaluation_point(1)
-        
+
         assert len(points) == 1
         assert isinstance(points[0], int)
 
     def test_transcript_get_kzg_aggregation_challenges(self):
         """Test getting KZG aggregation challenges."""
         transcript = Transcript(S_PRIME, b"test")
-        
+
         challenges = transcript.get_kzg_aggregation_challenges(5)
-        
+
         assert len(challenges) == 5
         for c in challenges:
             assert isinstance(c, int)

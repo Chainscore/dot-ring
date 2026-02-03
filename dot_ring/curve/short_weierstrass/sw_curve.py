@@ -51,12 +51,8 @@ class SWCurve(Curve):
         if is_fp2(A) or is_fp2(B):
             # For Fp2, we'll just check that the parameters are not both zero
             # A more thorough check would involve Fp2 arithmetic
-            a_is_zero = (
-                all(x == 0 for x in A) if isinstance(A, (tuple, list)) else A == 0
-            )
-            b_is_zero = (
-                all(x == 0 for x in B) if isinstance(B, (tuple, list)) else B == 0
-            )
+            a_is_zero = all(x == 0 for x in A) if isinstance(A, (tuple, list)) else A == 0
+            b_is_zero = all(x == 0 for x in B) if isinstance(B, (tuple, list)) else B == 0
             return not (a_is_zero and b_is_zero)
 
         # Original Fp validation

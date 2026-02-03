@@ -105,15 +105,9 @@ class Curve:
             # Original scalar field validation
             # Allow int or custom Scalar types
             if isinstance(self.GENERATOR_X, int) and isinstance(self.GENERATOR_Y, int):
-                if not (
-                    0 <= self.GENERATOR_X < self.PRIME_FIELD
-                    and 0 <= self.GENERATOR_Y < self.PRIME_FIELD
-                ):
+                if not (0 <= self.GENERATOR_X < self.PRIME_FIELD and 0 <= self.GENERATOR_Y < self.PRIME_FIELD):
                     return False
-            elif not (
-                isinstance(self.GENERATOR_X, (tuple, list))
-                or isinstance(self.GENERATOR_Y, (tuple, list))
-            ):
+            elif not (isinstance(self.GENERATOR_X, (tuple, list)) or isinstance(self.GENERATOR_Y, (tuple, list))):
                 # Assume custom field elements (like Scalar)
                 # We can't easily check bounds against int PRIME_FIELD if they are opaque,
                 # but we assume they are valid if they are passed.
@@ -124,12 +118,7 @@ class Curve:
             # if not self.is_on_curve(self.GENERATOR_X, self.GENERATOR_Y): #already given in point class
             #     return False
 
-        return (
-            self.PRIME_FIELD > 2
-            and self.ORDER > 2
-            and self.COFACTOR > 0
-            and self.PRIME_FIELD != self.ORDER
-        )
+        return self.PRIME_FIELD > 2 and self.ORDER > 2 and self.COFACTOR > 0 and self.PRIME_FIELD != self.ORDER
 
     def hash_to_field(self, msg: bytes, count: int) -> list[int]:
         """
@@ -181,11 +170,7 @@ class Curve:
         b_in_bytes = self.H_A().digest_size
         ell = math.ceil(len_in_bytes / b_in_bytes)
 
-        if (
-            (ell > 255 and self.PRIME_FIELD.bit_length() < 384)
-            or len_in_bytes > 65535
-            or len(self.DST) > 255
-        ):
+        if (ell > 255 and self.PRIME_FIELD.bit_length() < 384) or len_in_bytes > 65535 or len(self.DST) > 255:
             # Relax ell check for large curves like P-521 where len_in_bytes might be large
             # But strictly, RFC 9380 says ell <= 255.
             # If len_in_bytes is huge, maybe we should just allow it if the curve is large?
@@ -214,9 +199,7 @@ class Curve:
             # but 26KB seems wrong.
             # Let's assume the user knows what they are doing if they request such length.
             # But XMD structure relies on 1 byte for 'i' in loop. So ell cannot exceed 255.
-            raise ValueError(
-                f"Invalid input size parameters: ell={ell}, len={len_in_bytes}, dst_len={len(self.DST)}"
-            )
+            raise ValueError(f"Invalid input size parameters: ell={ell}, len={len_in_bytes}, dst_len={len(self.DST)}")
 
         DST_prime = self.DST + self.I2OSP(len(self.DST), 1)
         Z_pad = self.I2OSP(0, cast(int, self.S_in_bytes))
@@ -231,9 +214,7 @@ class Curve:
 
         b_values = [b_1]
         for i in range(2, ell + 1):
-            b_i = self.H_A(
-                self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime
-            ).digest()
+            b_i = self.H_A(self.strxor(b_0, b_values[-1]) + self.I2OSP(i, 1) + DST_prime).digest()
             b_values.append(b_i)
 
         uniform_bytes = b"".join(b_values)

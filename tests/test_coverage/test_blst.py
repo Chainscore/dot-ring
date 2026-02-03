@@ -1,7 +1,5 @@
 """Additional tests for blst module to improve coverage."""
 
-import pytest
-
 from dot_ring import blst
 
 

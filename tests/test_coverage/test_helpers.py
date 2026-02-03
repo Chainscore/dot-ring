@@ -1,7 +1,6 @@
 """Tests for helpers module to improve coverage."""
 
-import pytest
-from py_ecc.optimized_bls12_381 import FQ, FQ2
+from py_ecc.optimized_bls12_381 import FQ
 
 from dot_ring.ring_proof.helpers import Helpers as H
 
@@ -222,10 +221,10 @@ class TestBLSCompression:
         # This is the generator point of BLS12-381 G1
         x = 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507
         y = 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569
-        
+
         point = (x, y)
         result = H.bls_g1_compress(point)
-        
+
         assert isinstance(result, str)
         assert len(result) == 96  # 48 bytes in hex
 
@@ -234,10 +233,10 @@ class TestBLSCompression:
         x = 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507
         y = 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569
         z = 1
-        
+
         point = (x, y, z)
         result = H.bls_g1_compress(point)
-        
+
         assert isinstance(result, str)
         assert len(result) == 96
 
@@ -246,13 +245,13 @@ class TestBLSCompression:
         # Compress a point first, then decompress
         x = 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507
         y = 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569
-        
+
         point = (x, y)
         compressed_hex = H.bls_g1_compress(point)
         compressed_bytes = bytes.fromhex(compressed_hex)
-        
+
         result = H.bls_g1_decompress(compressed_bytes)
-        
+
         assert isinstance(result, tuple)
         assert len(result) == 3  # (FQ, FQ, FQ)
 
@@ -260,12 +259,12 @@ class TestBLSCompression:
         """Test G1 point decompression from hex string."""
         x = 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507
         y = 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569
-        
+
         point = (x, y)
         compressed_hex = H.bls_g1_compress(point)
-        
+
         result = H.bls_g1_decompress(compressed_hex)
-        
+
         assert isinstance(result, tuple)
         assert len(result) == 3
 
@@ -274,23 +273,23 @@ class TestBLSCompression:
         # Use a simple G2 point structure
         # G2 points have FQ2 coordinates
         from py_ecc.optimized_bls12_381 import G2
-        
+
         result = H.bls_g2_compress(G2)
-        
+
         assert isinstance(result, str)
         assert len(result) == 192  # 96 bytes in hex (2x 48 bytes)
 
     def test_bls_g2_compress_affine(self):
         """Test G2 point compression with affine coordinates."""
         from py_ecc.optimized_bls12_381 import G2, normalize
-        
+
         # Normalize to get affine coordinates
         g2_affine = normalize(G2)
         x, y = g2_affine
-        
+
         # Create 2D point
         point = (x, y)
         result = H.bls_g2_compress(point)
-        
+
         assert isinstance(result, str)
         assert len(result) == 192

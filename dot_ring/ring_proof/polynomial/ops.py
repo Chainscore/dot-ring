@@ -2,7 +2,6 @@ from collections.abc import Sequence
 
 from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA, OMEGA_2048
 from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
-from dot_ring.curve.native_field.vector_ops import vect_add, vect_sub, vect_mul
 
 
 def mod_inverse(val: int, prime: int) -> int:
@@ -12,9 +11,7 @@ def mod_inverse(val: int, prime: int) -> int:
     return pow(val, prime - 2, prime)
 
 
-def poly_add(
-    poly1: list | Sequence[int], poly2: list | Sequence[int], prime: int
-) -> list[int]:
+def poly_add(poly1: list | Sequence[int], poly2: list | Sequence[int], prime: int) -> list[int]:
     """Add two polynomials in a prime field."""
     # Make them the same length
     result_len = max(len(poly1), len(poly2))
@@ -142,9 +139,7 @@ def poly_evaluate_single(poly: list | Sequence[int], x: int, prime: int) -> int:
     return result
 
 
-def poly_evaluate(
-    poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int
-) -> list[int] | int:
+def poly_evaluate(poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int) -> list[int] | int:
     """Evaluate polynomial at points xs.
 
     Uses FFT when xs is one of the predefined evaluation domains (D_512, D_2048).
@@ -204,12 +199,7 @@ def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[i
     L_i(x) = (x - x_j) / (x_i - x_j)
     """
     # Optimization for roots of unity domains
-    if (
-        x_coords is D_512
-        or (len(x_coords) == 512 and x_coords == D_512)
-        or x_coords is D_2048
-        or (len(x_coords) == 2048 and x_coords == D_2048)
-    ):
+    if x_coords is D_512 or (len(x_coords) == 512 and x_coords == D_512) or x_coords is D_2048 or (len(x_coords) == 2048 and x_coords == D_2048):
         n = len(x_coords)
         x_i = x_coords[i]
 
@@ -253,8 +243,6 @@ def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[i
     return basis_poly
 
 
-def vect_scalar_mul(
-    vec: list[int] | Sequence[int], scalar: int, mod: int | None = None
-) -> list[int]:
+def vect_scalar_mul(vec: list[int] | Sequence[int], scalar: int, mod: int | None = None) -> list[int]:
     """Multiply each element in the vector by the scalar"""
     return [(x * scalar) % mod if mod else x * scalar for x in vec]

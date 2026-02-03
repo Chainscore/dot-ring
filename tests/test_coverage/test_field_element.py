@@ -111,7 +111,7 @@ class TestFieldElementBasics:
         b = FieldElement(2, 4, 17)
         result = a * b
         assert result.re == 15  # (10 - 12) mod 17 = -2 mod 17 = 15
-        assert result.im == 9   # (20 + 6) mod 17 = 26 mod 17 = 9
+        assert result.im == 9  # (20 + 6) mod 17 = 26 mod 17 = 9
 
     def test_mul_with_int(self):
         """Test multiplication with integer."""
@@ -193,13 +193,13 @@ class TestFieldElementPower:
     def test_pow_positive(self):
         """Test positive exponent."""
         a = FieldElement(2, 0, 17)
-        result = a ** 4
+        result = a**4
         assert result.re == 16  # 2^4
 
     def test_pow_zero(self):
         """Test zero exponent."""
         a = FieldElement(5, 0, 17)
-        result = a ** 0
+        result = a**0
         assert result.re == 1
         assert result.im == 0
 
@@ -222,7 +222,7 @@ class TestFieldElementPower:
     def test_pow_fp2(self):
         """Test power of Fp2 element."""
         a = FieldElement(2, 3, 17)
-        result = a ** 3
+        result = a**3
         # Just verify it computes without error
         assert result is not None
 
@@ -230,7 +230,7 @@ class TestFieldElementPower:
         """Test that non-integer exponent raises TypeError."""
         a = FieldElement(2, 0, 17)
         with pytest.raises(TypeError, match="Exponent must be an integer"):
-            _ = a ** 2.5  # type: ignore
+            _ = a**2.5  # type: ignore
 
 
 class TestFieldElementComparison:
@@ -242,7 +242,7 @@ class TestFieldElementComparison:
         b = FieldElement(5, 3, 17)
         c = FieldElement(5, 4, 17)
         d = FieldElement(6, 3, 17)
-        
+
         assert a == b
         assert not (a == c)
         assert not (a == d)
@@ -282,7 +282,7 @@ class TestFieldElementUtilities:
         """Test is_zero returns False for non-zero element."""
         a = FieldElement(5, 0, 17)
         assert a.is_zero() is False
-        
+
         b = FieldElement(0, 3, 17)
         assert b.is_zero() is False
 

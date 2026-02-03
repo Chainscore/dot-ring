@@ -13,16 +13,9 @@ from dot_ring import blst
 from .utils import g1_to_blst, g2_to_blst
 
 
-def read_srs_file() -> (
-    tuple[list[tuple[int, int]], list[tuple[tuple[int, int], tuple[int, int]]]]
-):
+def read_srs_file() -> tuple[list[tuple[int, int]], list[tuple[tuple[int, int], tuple[int, int]]]]:
     base_dir = Path(__file__).resolve().parent
-    filename = (
-        base_dir.parent.parent
-        / "vrf"
-        / "data"
-        / "bls12-381-srs-2-11-uncompressed-zcash.bin"
-    )
+    filename = base_dir.parent.parent / "vrf" / "data" / "bls12-381-srs-2-11-uncompressed-zcash.bin"
     with open(filename, "rb") as f:
         data = f.read()
 
@@ -81,9 +74,7 @@ class SRS:
     blst_g1: Sequence[blst.P1]
     blst_g2: Sequence[blst.P2]
 
-    def __init__(
-        self, g1_raw: list, g2_raw: list, g1_points: list, g2_points: list
-    ) -> None:
+    def __init__(self, g1_raw: list, g2_raw: list, g1_points: list, g2_points: list) -> None:
         self.g1 = [self._to_jacobian_g1(p) for p in g1_raw]
         self.g2 = [self._to_jacobian_g2(p) for p in g2_raw[:2]]
         self.g1_points = g1_points

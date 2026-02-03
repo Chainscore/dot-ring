@@ -16,27 +16,15 @@ class BandersnatchSWParams:
     SUITE_STRING = b"Bandersnatch_SW_SHA-512_TAI"
     DST = b"ECVRF_Bandersnatch_XMD:SHA-512_TAI_RO_Bandersnatch_SW_SHA-512_TAI"
 
-    PRIME_FIELD: Final[
-        int
-    ] = 52435875175126190479447740508185965837690552500527637822603658699938581184513
-    ORDER: Final[
-        int
-    ] = 0x1CFB69D4CA675F520CCE760202687600FF8F87007419047174FD06B52876E7E1
+    PRIME_FIELD: Final[int] = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+    ORDER: Final[int] = 0x1CFB69D4CA675F520CCE760202687600FF8F87007419047174FD06B52876E7E1
     COFACTOR: Final[int] = 4
 
-    WEIERSTRASS_A: Final[
-        int
-    ] = 10773120815616481058602537765553212789256758185246796157495669123169359657269
-    WEIERSTRASS_B: Final[
-        int
-    ] = 29569587568322301171008055308580903175558631321415017492731745847794083609535
+    WEIERSTRASS_A: Final[int] = 10773120815616481058602537765553212789256758185246796157495669123169359657269
+    WEIERSTRASS_B: Final[int] = 29569587568322301171008055308580903175558631321415017492731745847794083609535
 
-    GENERATOR_X: Final[
-        int
-    ] = 30900340493481298850216505686589334086208278925799850409469406976849338430199
-    GENERATOR_Y: Final[
-        int
-    ] = 12663882780877899054958035777720958383845500985908634476792678820121468453298
+    GENERATOR_X: Final[int] = 30900340493481298850216505686589334086208278925799850409469406976849338430199
+    GENERATOR_Y: Final[int] = 12663882780877899054958035777720958383845500985908634476792678820121468453298
 
     Z: Final[int] = -11
     M: Final[int] = 1
@@ -45,12 +33,8 @@ class BandersnatchSWParams:
     S_in_bytes: Final[int] = 64
     H_A = hashlib.sha512
     ENDIAN = "little"
-    BBx: Final[
-        int
-    ] = 43295201540795761503961631609120105078472641399392666499799525033203881929458
-    BBy: Final[
-        int
-    ] = 47295792057744344182638225978402781315571475472700428341116949953237551542374
+    BBx: Final[int] = 43295201540795761503961631609120105078472641399392666499799525033203881929458
+    BBy: Final[int] = 47295792057744344182638225978402781315571475472700428341116949953237551542374
 
     CHALLENGE_LENGTH: Final[int] = 32
     Requires_Isogeny: Final[bool] = False
@@ -128,9 +112,7 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         # Serialize x-coordinate
         if self.x is None:
             raise ValueError("Cannot serialize identity point")
-        x_bytes = int(cast(int, self.x)).to_bytes(
-            (field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.ENDIAN)
-        )
+        x_bytes = int(cast(int, self.x)).to_bytes((field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.ENDIAN))
 
         # Copy x_bytes into buffer of total length
         result = bytearray(output_byte_len)
@@ -214,9 +196,7 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         H: Self | None = None
         front = b"\x01"
         back = b"\x00"
-        alpha_string = (
-            alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
-        )
+        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
 

@@ -25,7 +25,7 @@ from setuptools.command.build_ext import build_ext
 def get_compile_args() -> list[str]:
     if sys.platform == "win32":
         return ["/O2", "/arch:AVX2", "/D_CRT_SECURE_NO_WARNINGS"]
-    
+
     args = ["-O3", "-ffast-math", "-flto"]
     if sys.platform != "darwin":
         args.append("-march=native")

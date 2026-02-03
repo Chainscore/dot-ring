@@ -126,11 +126,7 @@ class MGCurve(Curve):
         """Check if two curves are equal."""
         if not isinstance(other, MGCurve):
             return False
-        return (
-            self.PRIME_FIELD == other.PRIME_FIELD
-            and self.A == other.A
-            and self.B == other.B
-        )
+        return self.PRIME_FIELD == other.PRIME_FIELD and self.A == other.A and self.B == other.B
 
     def __hash__(self) -> int:
         """Hash for use as dictionary keys."""
@@ -142,7 +138,4 @@ class MGCurve(Curve):
 
     def __repr__(self) -> str:
         """Detailed string representation."""
-        return (
-            f"MGCurve(PRIME_FIELD={self.PRIME_FIELD}, A={self.A}, B={self.B}, "
-            f"equation: {self.B}*v² = u³ + {self.A}*u² + u)"
-        )
+        return f"MGCurve(PRIME_FIELD={self.PRIME_FIELD}, A={self.A}, B={self.B}, equation: {self.B}*v² = u³ + {self.A}*u² + u)"

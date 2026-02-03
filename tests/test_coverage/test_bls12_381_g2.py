@@ -1,12 +1,9 @@
 """Additional tests for BLS12-381 G2 module."""
 
-import pytest
-
 from dot_ring.curve.specs.bls12_381_G2 import (
+    BLS12_381_G2_RO,
     BLS12_381_G2Curve,
     BLS12_381_G2Params,
-    BLS12_381_G2Point,
-    BLS12_381_G2_RO,
 )
 
 
@@ -16,7 +13,7 @@ class TestBLS12381G2Curve:
     def test_curve_parameters(self):
         """Test curve parameters are set."""
         curve = BLS12_381_G2Curve()
-        
+
         assert curve.PRIME_FIELD is not None
         assert curve.ORDER is not None
         assert curve.COFACTOR is not None
@@ -24,7 +21,7 @@ class TestBLS12381G2Curve:
     def test_curve_generator(self):
         """Test generator point."""
         curve = BLS12_381_G2Curve()
-        
+
         assert curve.GENERATOR_X is not None
         assert curve.GENERATOR_Y is not None
 

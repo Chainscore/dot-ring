@@ -4,6 +4,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
+from dot_ring.curve.native_field.vector_ops import vect_add, vect_mul, vect_sub
+
 # from concurrent.futures import ProcessPoolExecutor
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.constants import (
@@ -18,11 +20,7 @@ from dot_ring.ring_proof.constants import (
     SIZE,
     SeedPoint,
 )
-from dot_ring.ring_proof.polynomial.ops import (
-    lagrange_basis_polynomial,
-    poly_evaluate
-)
-from dot_ring.curve.native_field.vector_ops import vect_add, vect_sub, vect_mul
+from dot_ring.ring_proof.polynomial.ops import lagrange_basis_polynomial, poly_evaluate
 
 
 def _to_radix4(vec: Sequence[int]) -> list[int]:
@@ -86,9 +84,7 @@ class RingConstraintBuilder:
 
     # convenient classmethod for Column builders
     @classmethod
-    def from_columns(
-        cls, columns: Mapping[str, Sequence[int]], Result_plus_Seed: Any
-    ) -> RingConstraintBuilder:
+    def from_columns(cls, columns: Mapping[str, Sequence[int]], Result_plus_Seed: Any) -> RingConstraintBuilder:
         return cls(
             Result_plus_Seed=Result_plus_Seed,
             acc_ip=columns["accip"],
@@ -128,9 +124,7 @@ class RingConstraintBuilder:
 
         accx_w = _shift(self._accx4)
         accy_w = _shift(self._accy4)
-        te_coeff_a = (
-            BandersnatchParams.EDWARDS_A
-        )  # BandersnatchParams.EDWARDS_A % S_PRIME
+        te_coeff_a = BandersnatchParams.EDWARDS_A  # BandersnatchParams.EDWARDS_A % S_PRIME
         b = bx
         x1, x2, x3 = self._accx4, self._px4, accx_w
         y1, y2, y3 = self._accy4, self._py4, accy_w
@@ -145,9 +139,7 @@ class RingConstraintBuilder:
         x3_m_x1 = vect_sub(x3, x1, S_PRIME)
 
         term1 = vect_mul(x3, vect_add(y1_y2, a_x1_x2, S_PRIME), S_PRIME)
-        term2 = vect_mul(
-            b, vect_sub(term1, vect_add(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME
-        )
+        term2 = vect_mul(b, vect_sub(term1, vect_add(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME)
         term3 = vect_add(term2, vect_mul(one_m_b, x3_m_x1, S_PRIME), S_PRIME)
         c2x = vect_mul(term3, _NOT_LAST, S_PRIME)
 
@@ -193,9 +185,7 @@ class RingConstraintBuilder:
         y3_m_y1 = vect_sub(y3, y1, S_PRIME)
 
         term1 = vect_mul(y3, vect_sub(x1_y2, x2_y1, S_PRIME), S_PRIME)
-        term2 = vect_mul(
-            b, vect_sub(term1, vect_sub(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME
-        )
+        term2 = vect_mul(b, vect_sub(term1, vect_sub(x1_y1, y2_x2, S_PRIME), S_PRIME), S_PRIME)
         term3 = vect_add(term2, vect_mul(one_m_b, y3_m_y1, S_PRIME), S_PRIME)
         c3x = vect_mul(term3, _NOT_LAST, S_PRIME)
         return [c2x, c3x]

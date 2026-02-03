@@ -65,9 +65,7 @@ class TestCoverageGaps:
 
         from dot_ring.ring_proof.helpers import Helpers
 
-        invalid_s_bytes = Helpers.int_to_str(
-            invalid_s, "little", s_len
-        )  # Bandersnatch is little endian
+        invalid_s_bytes = Helpers.int_to_str(invalid_s, "little", s_len)  # Bandersnatch is little endian
 
         # Note: Helpers.int_to_str might mask the overflow if not careful, but here we want to inject bytes that decode to >= order.
         # If s_len is fixed, we might not be able to fit order+1 if order is max for that length.
@@ -76,9 +74,7 @@ class TestCoverageGaps:
 
         invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
 
-        with pytest.raises(
-            ValueError, match="Response scalar S is not less than the curve order"
-        ):
+        with pytest.raises(ValueError, match="Response scalar S is not less than the curve order"):
             IETF_VRF[Bandersnatch].ecvrf_decode_proof(invalid_proof)
 
     def test_ecvrf_proof_to_hash_string_input(self):
@@ -130,9 +126,7 @@ class TestCoverageGaps:
 
         invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
 
-        with pytest.raises(
-            ValueError, match="Response scalar s is not less than the curve order"
-        ):
+        with pytest.raises(ValueError, match="Response scalar s is not less than the curve order"):
             IETF_VRF[Bandersnatch].from_bytes(invalid_proof)
 
     def test_ietf_verify_invalid_public_key(self):
@@ -164,9 +158,7 @@ class TestCoverageGaps:
         invalid_proof = b"\xff" * (point_len * 4 + scalar_len * 2)
 
         # It might raise ValueError from string_to_point
-        with pytest.raises(
-            ValueError
-        ):  # Message might vary depending on which point fails first
+        with pytest.raises(ValueError):  # Message might vary depending on which point fails first
             PedersenVRF[Bandersnatch].from_bytes(invalid_proof)
 
     def test_pedersen_proof_to_hash_string(self):

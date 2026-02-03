@@ -26,9 +26,7 @@ class Ed448Params:
 
     # Curve parameters from RFC 8032
     PRIME_FIELD: Final[int] = 2**448 - 2**224 - 1
-    ORDER: Final[int] = (
-        2**446 - 0x8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D
-    )
+    ORDER: Final[int] = 2**446 - 0x8335DC163BB124B65129C96FDE933D8D723A70AADC873D6D54A7BB0D
     COFACTOR: Final[int] = 4
 
     # Generator point (x, y) - Valid Ed448 base point that satisfies the curve equation
@@ -38,9 +36,9 @@ class Ed448Params:
     # )
     # GENERATOR_Y: Final[int] = (
     #     60824814231572554857908961302747
-    GENERATOR_X: Final[
-        int
-    ] = 117812161263436946737282484343310064665180535357016373416879082147939404277809514858788439644911793978499419995990477371552926308078495
+    GENERATOR_X: Final[int] = (
+        117812161263436946737282484343310064665180535357016373416879082147939404277809514858788439644911793978499419995990477371552926308078495
+    )
     GENERATOR_Y: Final[int] = 19
 
     # Twisted Edwards parameters: ax² + y² = 1 + dx²y² (mod p)
@@ -211,13 +209,7 @@ class Ed448Point(TEAffinePoint):
         y_num = -(pow(u, 5, p) - 2 * pow(u, 3, p) - 4 * u * pow(v, 2, p) + u) % p
 
         # y denominator: u^5 - 2u^2v^2 - 2u^3 - 2v^2 + u
-        y_den = (
-            pow(u, 5, p)
-            - 2 * pow(u, 2, p) * pow(v, 2, p)
-            - 2 * pow(u, 3, p)
-            - 2 * pow(v, 2, p)
-            + u
-        ) % p
+        y_den = (pow(u, 5, p) - 2 * pow(u, 2, p) * pow(v, 2, p) - 2 * pow(u, 3, p) - 2 * pow(v, 2, p) + u) % p
 
         y = (y_num * cls.curve.inv(y_den)) % p
         return cls(x, y)

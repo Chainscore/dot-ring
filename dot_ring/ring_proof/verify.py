@@ -1,23 +1,27 @@
-from functools import lru_cache
+from functools import cache
 from typing import Any, cast
 
-from py_ecc.optimized_bls12_381 import curve_order  # type: ignore[import-untyped]
+from py_ecc.optimized_bls12_381 import (  # type: ignore[import-untyped]
+    curve_order,
+)
+from py_ecc.optimized_bls12_381 import (
+    normalize as nm,
+)
 
 from dot_ring import blst as _blst
 from dot_ring.curve.native_field.scalar import Scalar
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.constants import D_512 as D
 from dot_ring.ring_proof.constants import OMEGA, OMEGA_2048, S_PRIME, SIZE
+from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g1_to_blst
-from dot_ring.ring_proof.transcript.transcript import Transcript
 from dot_ring.ring_proof.transcript.phases import (
     phase1_alphas,
     phase2_eval_point,
     phase3_nu_vector,
 )
-from dot_ring.ring_proof.helpers import Helpers as H
-from py_ecc.optimized_bls12_381 import normalize as nm  # type: ignore[import-untyped]
+from dot_ring.ring_proof.transcript.transcript import Transcript
 
 blst = cast(Any, _blst)
 
@@ -28,7 +32,7 @@ D_S = [Scalar(d) for d in D]
 ONE_S = Scalar(1)
 ZERO_S = Scalar(0)
 EDWARDS_A_S = Scalar(BandersnatchParams.EDWARDS_A)
-INV_SIZE_S = SIZE_S ** -1
+INV_SIZE_S = SIZE_S**-1
 OMEGA_POW_SIZE_MINUS_4 = OMEGA_S ** (SIZE - 4)
 
 
@@ -42,10 +46,9 @@ def blst_msm(points: list, scalars: list) -> Any:
 
     return blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(points), scalars)
 
-@lru_cache(maxsize=None)
-def lagrange_at_zeta(
-    domain_size: int, index: int, zeta: int, omega: int, prime: int
-) -> Scalar:
+
+@cache
+def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime: int) -> Scalar:
     """
     Compute L_i(zeta) using closed-form formula for roots of unity domain.
 
@@ -62,7 +65,7 @@ def lagrange_at_zeta(
     elif index == SIZE - 4:
         omega_i = OMEGA_POW_SIZE_MINUS_4
     else:
-        omega_i = OMEGA_S ** index
+        omega_i = OMEGA_S**index
 
     # zeta - omega^i
     zeta_minus_omega_i = zeta_s - omega_i
@@ -72,13 +75,13 @@ def lagrange_at_zeta(
         return ONE_S  # L_i(omega^i) = 1
 
     # zeta^n - 1
-    zeta_n_minus_1 = (zeta_s ** domain_size) - ONE_S
+    zeta_n_minus_1 = (zeta_s**domain_size) - ONE_S
 
     # omega^i / n
     omega_i_over_n = omega_i * INV_SIZE_S
 
     # Final: (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
-    result = omega_i_over_n * zeta_n_minus_1 * (zeta_minus_omega_i ** -1)
+    result = omega_i_over_n * zeta_n_minus_1 * (zeta_minus_omega_i**-1)
 
     return result
 
@@ -87,14 +90,14 @@ class Verify:
     def __init__(
         self,
         proof: tuple,
-        vk: dict|bytes,
+        vk: dict | bytes,
         fixed_cols: list,
-        rl_to_proove: tuple|bytes,
+        rl_to_proove: tuple | bytes,
         rps: tuple,
         seed_point: tuple,
         Domain: list,
         raw_proof_bytes: dict | None = None,
-        transcript_challenge = b"Bandersnatch_SHA-512_ELL2"
+        transcript_challenge: bytes = b"Bandersnatch_SHA-512_ELL2",
     ) -> None:
         (
             self.Cb,
@@ -131,9 +134,9 @@ class Verify:
         self.Cpx_blst = g1_to_blst(self.Cpx)
         self.Cpy_blst = g1_to_blst(self.Cpy)
         self.Cs_blst = g1_to_blst(self.Cs)
-        
+
         self.t = Transcript(S_PRIME, transcript_challenge)
-        
+
         # Absorb into transcript
         self.t, self.alpha_list = phase1_alphas(
             self.t,
@@ -143,25 +146,16 @@ class Verify:
         )
 
         # Add quotient and get zeta
-        self.t, self.zeta_p = phase2_eval_point(
-            self.t, H.to_int(nm(self.proof_ptr[-4]))
-        )
+        self.t, self.zeta_p = phase2_eval_point(self.t, H.to_int(nm(self.proof_ptr[-4])))
 
         # Phase 3: Add evaluations and get ν challenges
-        evals_bytes = b"".join(
-            v.to_bytes(32, 'little') for v in self.proof_ptr[4:11]
-        )
-        lin_eval_bytes = self.proof_ptr[-3].to_bytes(32, 'little')
+        evals_bytes = b"".join(v.to_bytes(32, "little") for v in self.proof_ptr[4:11])
+        lin_eval_bytes = self.proof_ptr[-3].to_bytes(32, "little")
 
-        self.V_list = phase3_nu_vector(
-            self.t,
-            evals_bytes,
-            lin_eval_bytes
-        )
+        self.V_list = phase3_nu_vector(self.t, evals_bytes, lin_eval_bytes)
 
         # Save transcript
         self.cur_t = self.t
-
 
     def contributions_to_constraints_eval_at_zeta(
         self,
@@ -169,7 +163,7 @@ class Verify:
         # Convert to Scalar for optimized arithmetic
         zeta = Scalar(self.zeta_p)
         sx, sy = Scalar(self.sp[0]), Scalar(self.sp[1])
-        
+
         # Precompute common values
         zeta_minus_d4 = zeta - Scalar(self.D[-4])
 
@@ -178,8 +172,8 @@ class Verify:
 
         # Shared term: zeta^n - 1
         domain_size = len(self.D)
-        zeta_n_minus_1 = (zeta ** domain_size) - ONE_S
-        
+        zeta_n_minus_1 = (zeta**domain_size) - ONE_S
+
         # L_0: index=0, omega^0 = 1
         # omega^0 / n = 1/n = INV_SIZE_S
         # zeta - omega^0 = zeta - 1
@@ -188,7 +182,7 @@ class Verify:
         if zeta_minus_1 == ZERO_S:
             L_0_zeta = ONE_S
         else:
-            L_0_zeta = inv_size * zeta_n_minus_1 * (zeta_minus_1 ** -1)
+            L_0_zeta = inv_size * zeta_n_minus_1 * (zeta_minus_1**-1)
 
         # L_N_4: index=SIZE-4, omega^(SIZE-4) from the domain
         # omega^(SIZE-4) / n
@@ -198,7 +192,7 @@ class Verify:
         if zeta_minus_omega_i_N_4 == ZERO_S:
             L_N_4_zeta = ONE_S
         else:
-            L_N_4_zeta = omega_i_over_n_N_4 * zeta_n_minus_1 * (zeta_minus_omega_i_N_4 ** -1)
+            L_N_4_zeta = omega_i_over_n_N_4 * zeta_n_minus_1 * (zeta_minus_omega_i_N_4**-1)
 
         # Pre-fetch instance variables and convert to Scalar
         b = Scalar(self.b_zeta)
@@ -218,10 +212,10 @@ class Verify:
         x1_y1 = accx * accy
         x2_y2 = px * py
         one_minus_b = ONE_S - b
-        
+
         c2 = b * -(x1_y1 + x2_y2) + one_minus_b * -accx
         c2_zeta = c2 * zeta_minus_d4
-        
+
         c3 = b * -(x1_y1 - x2_y2) + one_minus_b * -accy
         c3_zeta = c3 * zeta_minus_d4
 
@@ -232,10 +226,15 @@ class Verify:
         c5_zeta = (accx - sx) * L_0_zeta + (accx - rps0) * L_N_4_zeta
         c6_zeta = (accy - sy) * L_0_zeta + (accy - rps1) * L_N_4_zeta
         c7_zeta = accip * L_0_zeta + (accip - ONE_S) * L_N_4_zeta
-        
+
         return (
-            c1_zeta, c2_zeta, c3_zeta, c4_zeta, 
-            c5_zeta, c6_zeta, c7_zeta
+            c1_zeta,
+            c2_zeta,
+            c3_zeta,
+            c4_zeta,
+            c5_zeta,
+            c6_zeta,
+            c7_zeta,
         )
 
     def divide(self, numr: int, denom: int) -> int:
@@ -253,7 +252,7 @@ class Verify:
         alphas_list = [Scalar(a) for a in self.alpha_list]
         zeta = Scalar(self.zeta_p)
         v_list = [Scalar(v) for v in self.V_list]
-        
+
         # cs are now Scalars
         cs = self.contributions_to_constraints_eval_at_zeta()
 
@@ -270,10 +269,10 @@ class Verify:
         # Re-calculating based on original quotient definition, but with optimized s_sum
         s_sum = linear_combination + Scalar(self.l_zeta_omega)
         domain_size = len(self.D)
-        zeta_pow_size_minus_1 = (zeta ** domain_size) - ONE_S
+        zeta_pow_size_minus_1 = (zeta**domain_size) - ONE_S
 
         # q_zeta = (s_sum * prod_sum) / zeta_pow_size_minus_1
-        q_zeta = (s_sum * prod_sum) * (zeta_pow_size_minus_1 ** -1)
+        q_zeta = (s_sum * prod_sum) * (zeta_pow_size_minus_1**-1)
 
         C_a_blst = [
             self.Cpx_blst,
@@ -298,7 +297,7 @@ class Verify:
         accip = Scalar(self.accip_zeta)
         accx = Scalar(self.accx_zeta)
         accy = Scalar(self.accy_zeta)
-        q = q_zeta # Scalar
+        q = q_zeta  # Scalar
 
         terms = [
             v_list[0] * px,
@@ -332,18 +331,14 @@ class Verify:
         x2, y2 = Scalar(self.px_zeta), Scalar(self.py_zeta)
         b = Scalar(self.b_zeta)
         coeff_a = EDWARDS_A_S
-        
+
         # S_PRIME is scalar field modulus, which Scalar handles implicitly
-        
-        C_acc_x_cl2 = (
-            b * (y1 * y2 + (coeff_a * x1 * x2)) + (ONE_S - b)
-        )
+
+        C_acc_x_cl2 = b * (y1 * y2 + (coeff_a * x1 * x2)) + (ONE_S - b)
         C_acc_x_f_cl2 = C_acc_x_cl2 * zeta_minus_d4
 
         # Cl3 scalars
-        C_acc_y_cl3 = (
-            (b * (x1 * y2 - x2 * y1)) + (ONE_S - b)
-        )
+        C_acc_y_cl3 = (b * (x1 * y2 - x2 * y1)) + (ONE_S - b)
         C_acc_y_f_cl3 = C_acc_y_cl3 * zeta_minus_d4
 
         # Combined scalars

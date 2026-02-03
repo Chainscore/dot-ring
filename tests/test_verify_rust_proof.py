@@ -7,19 +7,19 @@ import pytest
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dot_ring.ring_proof.verify import Verify
+from dot_ring import blst
 from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.pcs import srs
-from dot_ring import blst
+from dot_ring.ring_proof.verify import Verify
 
 # Import serialization utilities
 from tests.utils.arkworks_serde import (
-    deserialize_fq_field_element,
-    deserialize_bandersnatch_point,
-    deserialize_bls12_381_g1,
     compressed_g1_to_uncompressed_bytes,
     compressed_g2_to_uncompressed_bytes,
+    deserialize_bandersnatch_point,
+    deserialize_bls12_381_g1,
+    deserialize_fq_field_element,
 )
 
 
@@ -34,7 +34,7 @@ def load_test_parameters() -> dict:
         Dictionary with h, seed, result, domain_size, etc.
     """
     params_file = Path(__file__).parent / "vectors" / "others" / "test_parameters.json"
-    with open(params_file, 'r') as f:
+    with open(params_file) as f:
         return json.load(f)
 
 
@@ -79,10 +79,21 @@ def parse_proof_from_json(proof_json: dict) -> tuple:
     phi_zeta_omega = deserialize_bls12_381_g1(bytes.fromhex(proof["lin_at_zeta_omega_proof"]))
 
     proof_tuple = (
-        c_b, c_accip, c_accx, c_accy,
-        px_zeta, py_zeta, s_zeta, b_zeta,
-        accip_zeta, accx_zeta, accy_zeta,
-        c_q, l_zeta_omega, phi_zeta, phi_zeta_omega
+        c_b,
+        c_accip,
+        c_accx,
+        c_accy,
+        px_zeta,
+        py_zeta,
+        s_zeta,
+        b_zeta,
+        accip_zeta,
+        accx_zeta,
+        accy_zeta,
+        c_q,
+        l_zeta_omega,
+        phi_zeta,
+        phi_zeta_omega,
     )
 
     # Store raw bytes for transcript (matching arkworks serialization)
@@ -124,8 +135,9 @@ def parse_verifier_key(vk_json: dict, use_global_srs: bool = True) -> dict:
     c_s = deserialize_bls12_381_g1(vk_bytes[336:384])
 
     # Convert to format expected by Python verifier
-    from dot_ring.ring_proof.helpers import Helpers as H
     from py_ecc.optimized_bls12_381 import normalize as nm
+
+    from dot_ring.ring_proof.helpers import Helpers as H
 
     if use_global_srs:
         # Use the global SRS which has already been updated with Rust values
@@ -142,16 +154,9 @@ def parse_verifier_key(vk_json: dict, use_global_srs: bool = True) -> dict:
         g2_altered = H.altered_points(srs.srs.g2_points)
 
     # Create verifier_key dict in the format expected by Verify class
-    verifier_key_dict = {
-        "g1": g1_int,
-        "g2": g2_altered,
-        "commitments": [H.to_int(nm(c_px)), H.to_int(nm(c_py)), H.to_int(nm(c_s))]
-    }
+    verifier_key_dict = {"g1": g1_int, "g2": g2_altered, "commitments": [H.to_int(nm(c_px)), H.to_int(nm(c_py)), H.to_int(nm(c_s))]}
 
-    return {
-        "fixed_cols": [c_px, c_py, c_s],
-        "verifier_key": verifier_key_dict
-    }
+    return {"fixed_cols": [c_px, c_py, c_s], "verifier_key": verifier_key_dict}
 
 
 @pytest.fixture(scope="module")
@@ -223,12 +228,12 @@ def test_verify_rust_generated_proof(rust_parameters, proof_data):
 
     # Prepare raw bytes for transcript
     vk_uncompressed = (
-        compressed_g1_to_uncompressed_bytes(vk_compressed[0:48]) +
-        compressed_g2_to_uncompressed_bytes(vk_compressed[48:144]) +
-        compressed_g2_to_uncompressed_bytes(vk_compressed[144:240]) +
-        compressed_g1_to_uncompressed_bytes(vk_compressed[240:288]) +
-        compressed_g1_to_uncompressed_bytes(vk_compressed[288:336]) +
-        compressed_g1_to_uncompressed_bytes(vk_compressed[336:384])
+        compressed_g1_to_uncompressed_bytes(vk_compressed[0:48])
+        + compressed_g2_to_uncompressed_bytes(vk_compressed[48:144])
+        + compressed_g2_to_uncompressed_bytes(vk_compressed[144:240])
+        + compressed_g1_to_uncompressed_bytes(vk_compressed[240:288])
+        + compressed_g1_to_uncompressed_bytes(vk_compressed[288:336])
+        + compressed_g1_to_uncompressed_bytes(vk_compressed[336:384])
     )
 
     quotient_compressed = bytes.fromhex(proof_data["proof"]["quotient_commitment"])
@@ -245,7 +250,7 @@ def test_verify_rust_generated_proof(rust_parameters, proof_data):
         seed_point=seed_point,
         Domain=domain,
         raw_proof_bytes=raw_bytes,
-        transcript_challenge=b"w3f-ring-proof-test"
+        transcript_challenge=b"w3f-ring-proof-test",
     )
 
     # Verify proof

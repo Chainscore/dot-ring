@@ -33,41 +33,18 @@ class LAggPoly:
         self.a = BandersnatchParams.EDWARDS_A
 
     def evaluate_polys_at_zeta(self) -> None:
-        if (
-            self.fs[0].coeffs is None
-            or self.fs[1].coeffs is None
-            or self.fs[2].coeffs is None
-        ):
+        if self.fs[0].coeffs is None or self.fs[1].coeffs is None or self.fs[2].coeffs is None:
             raise ValueError("Fixed columns not interpolated")
-        if (
-            self.wts[0].coeffs is None
-            or self.wts[1].coeffs is None
-            or self.wts[2].coeffs is None
-            or self.wts[3].coeffs is None
-        ):
+        if self.wts[0].coeffs is None or self.wts[1].coeffs is None or self.wts[2].coeffs is None or self.wts[3].coeffs is None:
             raise ValueError("Witness columns not interpolated")
 
-        self.P_x_zeta = cast(
-            list[int], poly_evaluate(self.fs[0].coeffs, [self.zeta], S_PRIME)
-        )[0]
-        self.P_y_zeta = cast(
-            list[int], poly_evaluate(self.fs[1].coeffs, [self.zeta], S_PRIME)
-        )[0]
-        self.s_zeta = cast(
-            list[int], poly_evaluate(self.fs[2].coeffs, [self.zeta], S_PRIME)
-        )[0]
-        self.b_zeta = cast(
-            list[int], poly_evaluate(self.wts[0].coeffs, [self.zeta], S_PRIME)
-        )[0]
-        self.acc_ip_zeta = cast(
-            list[int], poly_evaluate(self.wts[3].coeffs, [self.zeta], S_PRIME)
-        )[0]
-        self.acc_x_zeta = cast(
-            list[int], poly_evaluate(self.wts[1].coeffs, [self.zeta], S_PRIME)
-        )[0]
-        self.acc_y_zeta = cast(
-            list[int], poly_evaluate(self.wts[2].coeffs, [self.zeta], S_PRIME)
-        )[0]
+        self.P_x_zeta = cast(list[int], poly_evaluate(self.fs[0].coeffs, [self.zeta], S_PRIME))[0]
+        self.P_y_zeta = cast(list[int], poly_evaluate(self.fs[1].coeffs, [self.zeta], S_PRIME))[0]
+        self.s_zeta = cast(list[int], poly_evaluate(self.fs[2].coeffs, [self.zeta], S_PRIME))[0]
+        self.b_zeta = cast(list[int], poly_evaluate(self.wts[0].coeffs, [self.zeta], S_PRIME))[0]
+        self.acc_ip_zeta = cast(list[int], poly_evaluate(self.wts[3].coeffs, [self.zeta], S_PRIME))[0]
+        self.acc_x_zeta = cast(list[int], poly_evaluate(self.wts[1].coeffs, [self.zeta], S_PRIME))[0]
+        self.acc_y_zeta = cast(list[int], poly_evaluate(self.wts[2].coeffs, [self.zeta], S_PRIME))[0]
 
     def compute_l1(self) -> list[int]:
         if self.wts[3].coeffs is None:
@@ -80,9 +57,7 @@ class LAggPoly:
         b = self.b_zeta
         coeff_a = self.a
 
-        C_acc_x = (
-            b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME
-        ) % S_PRIME
+        C_acc_x = (b * (y1 * y2 + (coeff_a * x1 * x2)) % S_PRIME + (1 - b) % S_PRIME) % S_PRIME
         C_acc_y = 0
         C_acc_x_f = C_acc_x * self.scalar_term
         C_acc_y_f = C_acc_y * self.scalar_term
@@ -134,9 +109,7 @@ class LAggPoly:
         l3 = self.compute_l3()
         l_agg = self.linearize(l1, l2, l3)
 
-        l_agg_zeta_omega = cast(
-            list[int], poly_evaluate(l_agg, [self.zeta_omega], S_PRIME)
-        )[0]
+        l_agg_zeta_omega = cast(list[int], poly_evaluate(l_agg, [self.zeta_omega], S_PRIME))[0]
         return (
             self.t,
             self.zeta,

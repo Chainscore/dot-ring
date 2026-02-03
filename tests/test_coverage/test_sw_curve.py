@@ -1,12 +1,10 @@
 """Tests for SW curve module to improve coverage using existing curve specs."""
 
-import pytest
-
-from dot_ring.curve.specs.secp256k1 import Secp256k1Curve, Secp256k1Params, Secp256k1_SW_Curve
-from dot_ring.curve.specs.p256 import P256Curve, P256Params
-from dot_ring.curve.specs.p384 import P384Curve, P384Params
-from dot_ring.curve.specs.p521 import P521Curve, P521Params
-from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1Curve, BLS12_381_G1Params
+from dot_ring.curve.specs.bls12_381_G1 import BLS12_381_G1Curve
+from dot_ring.curve.specs.p256 import P256Curve
+from dot_ring.curve.specs.p384 import P384Curve
+from dot_ring.curve.specs.p521 import P521Curve
+from dot_ring.curve.specs.secp256k1 import Secp256k1_SW_Curve
 
 
 class TestSWCurveIsOnCurve:
