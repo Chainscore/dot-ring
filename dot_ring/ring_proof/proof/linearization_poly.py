@@ -1,5 +1,6 @@
 from typing import cast
 
+from dot_ring.curve.native_field.vector_ops import vect_mul
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.columns.columns import Column
 from dot_ring.ring_proof.constants import D_512 as D
@@ -12,7 +13,6 @@ from dot_ring.ring_proof.polynomial.ops import (
 )
 from dot_ring.ring_proof.transcript.phases import phase2_eval_point
 from dot_ring.ring_proof.transcript.transcript import Transcript
-from dot_ring.curve.native_field.vector_ops import vect_mul
 
 
 class LAggPoly:
