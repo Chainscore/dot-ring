@@ -81,9 +81,7 @@ class PublicColumnBuilder:
         if len(ring_pk) < self.max_ring_size:
             ring_pk = self._pad_ring_with_padding_point(ring_pk)
         if len(ring_pk) > self.size - self.padding_rows:
-            raise ValueError(
-                f"ring size {len(ring_pk)} exceeds max supported size {self.size - self.padding_rows}"
-            )
+            raise ValueError(f"ring size {len(ring_pk)} exceeds max supported size {self.size - self.padding_rows}")
         # 1. ensure ring size
         fill_count = self.size - self.padding_rows - len(ring_pk)
         if fill_count > 0:

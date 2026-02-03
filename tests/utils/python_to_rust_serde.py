@@ -4,6 +4,7 @@ Arkworks-compatible serialization utilities.
 These helpers mirror the formats expected by tests.utils.arkworks_serde
 and are intended for exporting Python-generated proofs to arkworks.
 """
+
 from __future__ import annotations
 
 from typing import Any

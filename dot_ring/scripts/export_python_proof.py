@@ -31,12 +31,17 @@ from tests.utils.python_to_rust_serde import (
     serialize_ring_proof,
 )
 
-Blinding_Base = (int.from_bytes(bytes.fromhex("e8c5e337ffbd7839ed5aaee576faae32eea01bff684125758d874fa909e8980d"), "little"),
-                 int.from_bytes(bytes.fromhex("e93da06b869766b158d20b843ec648cc68e0b7ba2f7083acf0f154205d04e23e"), "little"))
-SeedPoint = (int.from_bytes(bytes.fromhex("20f354ea2af5f890e0cfac3b044aca2335fc26fa900fbe429fb059b0df319553"), "little"),
-             int.from_bytes(bytes.fromhex("6e5574f9077fb76c885c36196a832dbadd64142d305be5487724967acf959520"), "little"))
+Blinding_Base = (
+    int.from_bytes(bytes.fromhex("e8c5e337ffbd7839ed5aaee576faae32eea01bff684125758d874fa909e8980d"), "little"),
+    int.from_bytes(bytes.fromhex("e93da06b869766b158d20b843ec648cc68e0b7ba2f7083acf0f154205d04e23e"), "little"),
+)
+SeedPoint = (
+    int.from_bytes(bytes.fromhex("20f354ea2af5f890e0cfac3b044aca2335fc26fa900fbe429fb059b0df319553"), "little"),
+    int.from_bytes(bytes.fromhex("6e5574f9077fb76c885c36196a832dbadd64142d305be5487724967acf959520"), "little"),
+)
 
 blinding_factor = int.from_bytes(bytes.fromhex("2e98974f0b99a70d4fbe7c1ea62a5ada75c899deb30e9d27f9e5da79177c0619"), "big")
+
 
 @dataclass(frozen=True)
 class VariantSpec:

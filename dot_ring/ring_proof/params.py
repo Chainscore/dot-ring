@@ -101,25 +101,19 @@ class RingProofParams:
         if not _is_power_of_two(radix_domain_size):
             raise ValueError(f"radix_domain_size must be a power of two, got {radix_domain_size}")
         if radix_domain_size % self.domain_size != 0:
-            raise ValueError(
-                f"domain_size {self.domain_size} must divide radix_domain_size {radix_domain_size}"
-            )
+            raise ValueError(f"domain_size {self.domain_size} must divide radix_domain_size {radix_domain_size}")
         if radix_domain_size > self.base_root_size:
             root, size = _extend_root_to_size(self.base_root, self.base_root_size, radix_domain_size, self.prime)
             object.__setattr__(self, "base_root", root)
             object.__setattr__(self, "base_root_size", size)
         if self.base_root_size % radix_domain_size != 0:
-            raise ValueError(
-                f"radix_domain_size {radix_domain_size} must divide base_root_size {self.base_root_size}"
-            )
+            raise ValueError(f"radix_domain_size {radix_domain_size} must divide base_root_size {self.base_root_size}")
         if self.padding_rows < 1:
             raise ValueError("padding_rows must be >= 1 to preserve accumulator structure")
         if self.padding_rows >= self.domain_size:
             raise ValueError("padding_rows must be less than domain_size")
         if self.max_ring_size > self.domain_size - self.padding_rows:
-            raise ValueError(
-                f"max_ring_size {self.max_ring_size} exceeds supported size {self.domain_size - self.padding_rows}"
-            )
+            raise ValueError(f"max_ring_size {self.max_ring_size} exceeds supported size {self.domain_size - self.padding_rows}")
 
     @property
     def omega(self) -> int:

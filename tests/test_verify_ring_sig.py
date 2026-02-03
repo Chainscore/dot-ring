@@ -158,11 +158,7 @@ def verify_vector(vector_path: Path) -> None:
 
 def get_vector_paths() -> list[Path]:
     vectors_dir = Path(__file__).parent / "vectors" / "others"
-    paths = sorted(
-        p
-        for p in vectors_dir.glob("*.json")
-        if p.name != "test_parameters.json"
-    )
+    paths = sorted(p for p in vectors_dir.glob("*.json") if p.name != "test_parameters.json")
     if not paths:
         pytest.skip(f"No JSON vectors found in {vectors_dir}")
     return paths
