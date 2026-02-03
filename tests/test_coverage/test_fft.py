@@ -1,6 +1,6 @@
 """Tests for FFT module to improve coverage."""
 
-from dot_ring.ring_proof.constants import OMEGA, S_PRIME
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA, S_PRIME
 from dot_ring.ring_proof.polynomial.fft import (
     _fft_in_place,
     _get_bit_reverse,

@@ -4,7 +4,7 @@ import pytest
 from dot_ring.curve.native_field.scalar import Scalar
 from py_ecc.optimized_bls12_381 import curve_order
 
-from dot_ring.ring_proof.constants import OMEGA, OMEGA_2048, S_PRIME, SIZE
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA, OMEGA_2048, S_PRIME, DEFAULT_SIZE as SIZE
 from dot_ring.ring_proof.pcs.srs import srs
 from dot_ring.ring_proof.verify import Verify, blst_msm, lagrange_at_zeta
 
@@ -115,6 +115,8 @@ class TestVerifyHelpers:
         verifier.py_zeta = 17
         verifier.s_zeta = 19
         verifier.Result_plus_Seed = (23, 29)
+        
+        verifier.last_index = len(verifier.D) - 1
 
         result = verifier.contributions_to_constraints_eval_at_zeta()
 
@@ -138,6 +140,8 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[2]
         verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
         verifier.l_zeta_omega = 13
+        
+        verifier.last_index = len(verifier.D) - 1
 
         _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
         expected_omega = pow(OMEGA_2048, 2048 // 1024, S_PRIME)
@@ -162,6 +166,8 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[2]
         verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
         verifier.l_zeta_omega = 13
+        
+        verifier.last_index = len(verifier.D) - 1
 
         _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
         expected_omega = pow(OMEGA_2048, 2048 // 16, S_PRIME)
@@ -197,6 +203,8 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[6]
         verifier.Cq_blst = srs.blst_g1[7]
         verifier.Phi_zeta_blst = srs.blst_g1[8]
+        
+        verifier.last_index = len(verifier.D) - 1
 
         _, phi, zeta, agg = verifier._prepare_quotient_poly_verification()
 

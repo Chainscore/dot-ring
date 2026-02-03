@@ -1,6 +1,6 @@
 """Additional tests for interpolation module to improve coverage."""
 
-from dot_ring.ring_proof.constants import OMEGA, S_PRIME
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA, S_PRIME
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
 
 
