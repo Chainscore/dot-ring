@@ -4,7 +4,9 @@ import pytest
 from dot_ring.curve.native_field.scalar import Scalar
 from py_ecc.optimized_bls12_381 import curve_order
 
-from dot_ring.ring_proof.constants import OMEGA, OMEGA_2048, S_PRIME, SIZE
+from dot_ring.ring_proof.constants import DEFAULT_SIZE as SIZE
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
+from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.pcs.srs import srs
 from dot_ring.ring_proof.verify import Verify, blst_msm, lagrange_at_zeta
 
@@ -100,6 +102,21 @@ class TestVerifyHelpers:
         with pytest.raises(NotImplementedError):
             verifier.evaluation_of_linearization_poly_at_zeta_omega()
 
+    def test_init_rejects_invalid_padding_rows(self):
+        """Verify init validates padding_rows against domain size."""
+        proof = (0,) * 15
+        with pytest.raises(ValueError, match="padding_rows"):
+            Verify(
+                proof=proof,
+                vk={},
+                fixed_cols=[0, 0, 0],
+                rl_to_proove=(0, 0),
+                rps=(0, 0),
+                seed_point=(0, 0),
+                Domain=[1, 2, 3],
+                padding_rows=3,
+            )
+
     def test_contributions_handles_zeta_equal_domain_point(self):
         """Zeta equal to a domain point should hit the zero-difference branches."""
         verifier = Verify.__new__(Verify)
@@ -115,6 +132,8 @@ class TestVerifyHelpers:
         verifier.py_zeta = 17
         verifier.s_zeta = 19
         verifier.Result_plus_Seed = (23, 29)
+
+        verifier.last_index = len(verifier.D) - 1
 
         result = verifier.contributions_to_constraints_eval_at_zeta()
 
@@ -139,6 +158,8 @@ class TestVerifyHelpers:
         verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
         verifier.l_zeta_omega = 13
 
+        verifier.last_index = len(verifier.D) - 1
+
         _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
         expected_omega = pow(OMEGA_2048, 2048 // 1024, S_PRIME)
         expected_zeta_omega = (verifier.zeta_p * expected_omega) % S_PRIME
@@ -162,6 +183,8 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[2]
         verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
         verifier.l_zeta_omega = 13
+
+        verifier.last_index = len(verifier.D) - 1
 
         _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
         expected_omega = pow(OMEGA_2048, 2048 // 16, S_PRIME)
@@ -197,6 +220,8 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[6]
         verifier.Cq_blst = srs.blst_g1[7]
         verifier.Phi_zeta_blst = srs.blst_g1[8]
+
+        verifier.last_index = len(verifier.D) - 1
 
         _, phi, zeta, agg = verifier._prepare_quotient_poly_verification()
 

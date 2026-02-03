@@ -1,4 +1,3 @@
-from dot_ring.ring_proof.constants import SIZE
 from dot_ring.ring_proof.polynomial.fft import _fft_in_place
 
 
@@ -26,11 +25,6 @@ def fft(a: list[int], omega: int, p: int) -> list[int]:  # coeffs to evaluation 
 
 def poly_interpolate_fft(a: list[int], omega: int, p: int) -> list[int]:  # funcs like inverse_fft from evals to poly coeffs
     n = len(a)
-    N = next_power_of_two(n)
-    omega_2048 = 49307615728544765012166121802278658070711169839041683575071795236746050763237
-    if N > SIZE:
-        omega = pow(omega_2048, (2048 // N), p)
-
     omega_inv = modinv(omega, p)
     y = fft(a, omega_inv, p)
     n_inv = modinv(n, p)

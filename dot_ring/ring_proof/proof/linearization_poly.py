@@ -3,8 +3,6 @@ from typing import cast
 from dot_ring.curve.native_field.vector_ops import vect_mul
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.columns.columns import Column
-from dot_ring.ring_proof.constants import D_512 as D
-from dot_ring.ring_proof.constants import OMEGA as omega
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     poly_add,
@@ -23,10 +21,14 @@ class LAggPoly:
         fixed_cols: list[Column],
         witness_res: list[Column],
         alphas: list[int],
+        domain: list[int],
+        omega: int,
+        padding_rows: int = 4,
     ) -> None:
         self.t, self.zeta = phase2_eval_point(cur_t, C_q)
         self.zeta_omega = (self.zeta * omega) % S_PRIME
-        self.scalar_term = (self.zeta - D[-4]) % S_PRIME
+        last_index = len(domain) - padding_rows
+        self.scalar_term = (self.zeta - domain[last_index]) % S_PRIME
         self.fs = fixed_cols
         self.wts = witness_res
         self.alphas = alphas
