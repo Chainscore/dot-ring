@@ -115,7 +115,7 @@ class TestVerifyHelpers:
         verifier.py_zeta = 17
         verifier.s_zeta = 19
         verifier.Result_plus_Seed = (23, 29)
-        
+
         verifier.last_index = len(verifier.D) - 1
 
         result = verifier.contributions_to_constraints_eval_at_zeta()
@@ -140,7 +140,7 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[2]
         verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
         verifier.l_zeta_omega = 13
-        
+
         verifier.last_index = len(verifier.D) - 1
 
         _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
@@ -166,7 +166,7 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[2]
         verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
         verifier.l_zeta_omega = 13
-        
+
         verifier.last_index = len(verifier.D) - 1
 
         _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
@@ -203,7 +203,7 @@ class TestVerifyHelpers:
         verifier.Caccy_blst = srs.blst_g1[6]
         verifier.Cq_blst = srs.blst_g1[7]
         verifier.Phi_zeta_blst = srs.blst_g1[8]
-        
+
         verifier.last_index = len(verifier.D) - 1
 
         _, phi, zeta, agg = verifier._prepare_quotient_poly_verification()
