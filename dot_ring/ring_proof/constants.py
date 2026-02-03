@@ -37,25 +37,28 @@ PaddingPoint: tuple[int, int] = (
 S_A: int = 10773120815616481058602537765553212789256758185246796157495669123169359657269
 S_B: int = 29569587568322301171008055308580903175558631321415017492731745847794083609535
 
+DEFAULT_SIZE: int = 512
 
 OMEGA_2048: int = 49307615728544765012166121802278658070711169839041683575071795236746050763237
-
-
-# 512‑th root
-OMEGA_USED: int = 4214636447306890335450803789410475782380792963881561516561680164772024173390
-
-# Compute the 512‑th root ourselves to cross‑check
-SIZE: int = 512  # FFT domain size for witness polynomials
-OMEGA: int = pow(OMEGA_2048, 2048 // SIZE, S_PRIME)
-
-
-# if OMEGA != OMEGA_USED:  # Guardrail to detect accidental param drift
-#     raise ValueError("Computed 512‑th root does not match reference value")
+OMEGA_1024 = pow(OMEGA_2048, 2048 // 1024, S_PRIME)
+OMEGA_512: int = pow(OMEGA_2048, 2048 // 512, S_PRIME)
 
 # Pre‑compute the entire evaluation domain for fast access.
-D_512: list[int] = [pow(OMEGA, i, S_PRIME) for i in range(SIZE)]
+D_512: list[int] = [pow(OMEGA_512, i, S_PRIME) for i in range(512)]
+D_1024: list[int] = [pow(OMEGA_1024, i, S_PRIME) for i in range(1024)]
 D_2048: list[int] = [pow(OMEGA_2048, i, S_PRIME) for i in range(2048)]
 
+OMEGAS = {
+    512: OMEGA_512,
+    1024: OMEGA_1024,
+    2048: OMEGA_2048,
+}
+
+EVAL_DOMAINS = {
+    512: D_512,
+    1024: D_1024,
+    2048: D_2048,
+}
 
 MAX_RING_SIZE: int = 255  # Upper bound enforced by the constraint system
 

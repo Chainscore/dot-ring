@@ -12,7 +12,7 @@ from dot_ring import blst as _blst
 from dot_ring.curve.native_field.scalar import Scalar
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.constants import D_512 as D
-from dot_ring.ring_proof.constants import OMEGA, OMEGA_2048, S_PRIME, SIZE
+from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA, OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g1_to_blst
@@ -26,14 +26,9 @@ from dot_ring.ring_proof.transcript.transcript import Transcript
 blst = cast(Any, _blst)
 
 # Pre-compute Scalar constants
-OMEGA_S = Scalar(OMEGA)
-SIZE_S = Scalar(SIZE)
-D_S = [Scalar(d) for d in D]
 ONE_S = Scalar(1)
 ZERO_S = Scalar(0)
 EDWARDS_A_S = Scalar(BandersnatchParams.EDWARDS_A)
-INV_SIZE_S = SIZE_S**-1
-OMEGA_POW_SIZE_MINUS_4 = OMEGA_S ** (SIZE - 4)
 
 
 def blst_msm(points: list, scalars: list) -> Any:
@@ -59,13 +54,12 @@ def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime:
     # Use Scalar for optimized arithmetic
     zeta_s = Scalar(zeta)
 
+    omega_s = Scalar(omega)
     # omega^i
     if index == 0:
         omega_i = ONE_S
-    elif index == SIZE - 4:
-        omega_i = OMEGA_POW_SIZE_MINUS_4
     else:
-        omega_i = OMEGA_S**index
+        omega_i = omega_s**index
 
     # zeta - omega^i
     zeta_minus_omega_i = zeta_s - omega_i
@@ -78,7 +72,8 @@ def lagrange_at_zeta(domain_size: int, index: int, zeta: int, omega: int, prime:
     zeta_n_minus_1 = (zeta_s**domain_size) - ONE_S
 
     # omega^i / n
-    omega_i_over_n = omega_i * INV_SIZE_S
+    inv_size = Scalar(domain_size) ** -1
+    omega_i_over_n = omega_i * inv_size
 
     # Final: (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
     result = omega_i_over_n * zeta_n_minus_1 * (zeta_minus_omega_i**-1)
@@ -98,6 +93,7 @@ class Verify:
         Domain: list,
         raw_proof_bytes: dict | None = None,
         transcript_challenge: bytes = b"Bandersnatch_SHA-512_ELL2",
+        padding_rows: int = 4,
     ) -> None:
         (
             self.Cb,
@@ -122,6 +118,10 @@ class Verify:
         self.Cpx, self.Cpy, self.Cs = fixed_cols
         self.relation_to_proove = rl_to_proove
         self.Result_plus_Seed, self.sp, self.D = rps, seed_point, Domain
+        self.padding_rows = padding_rows
+        if self.padding_rows < 1 or self.padding_rows >= len(self.D):
+            raise ValueError("padding_rows must be >= 1 and less than domain size")
+        self.last_index = len(self.D) - self.padding_rows
 
         self.Cb_blst = g1_to_blst(self.Cb)
         self.Caccip_blst = g1_to_blst(self.Caccip)
@@ -165,7 +165,7 @@ class Verify:
         sx, sy = Scalar(self.sp[0]), Scalar(self.sp[1])
 
         # Precompute common values
-        zeta_minus_d4 = zeta - Scalar(self.D[-4])
+        zeta_minus_d4 = zeta - Scalar(self.D[self.last_index])
 
         # Inline lagrange_at_zeta for index=0 and index=SIZE-4
         # L_i(zeta) = (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
@@ -186,7 +186,7 @@ class Verify:
 
         # L_N_4: index=SIZE-4, omega^(SIZE-4) from the domain
         # omega^(SIZE-4) / n
-        omega_i_N_4 = Scalar(self.D[-4])
+        omega_i_N_4 = Scalar(self.D[self.last_index])
         omega_i_over_n_N_4 = omega_i_N_4 * inv_size
         zeta_minus_omega_i_N_4 = zeta - omega_i_N_4
         if zeta_minus_omega_i_N_4 == ZERO_S:
@@ -321,7 +321,7 @@ class Verify:
         alphas_list = [Scalar(a) for a in self.alpha_list]
         zeta = Scalar(self.zeta_p)
 
-        zeta_minus_d4 = zeta - Scalar(self.D[-4])
+        zeta_minus_d4 = zeta - Scalar(self.D[self.last_index])
 
         # Cl1 scalar
         scalar_cl1 = zeta_minus_d4

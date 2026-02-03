@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dot_ring import blst
-from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA_2048, S_PRIME
+from dot_ring.ring_proof.constants import EVAL_DOMAINS
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.pcs import srs
 from dot_ring.ring_proof.verify import Verify
@@ -90,23 +90,13 @@ def parse_verifier_key(vk_hex: str) -> tuple[bytes, list]:
     return vk_bytes, [c_px, c_py, c_s]
 
 
-def compute_domain(domain_size: int) -> list[int]:
-    if domain_size == 512:
-        return D_512
-    if domain_size == 1024:
-        omega_1024 = pow(OMEGA_2048, 2048 // 1024, S_PRIME)
-        return [pow(omega_1024, i, S_PRIME) for i in range(1024)]
-    if domain_size == 2048:
-        return D_2048
-    raise ValueError(f"Unsupported domain size: {domain_size}")
-
-
 def verify_vector(vector_path: Path) -> None:
     with open(vector_path) as f:
         proof_data = json.load(f)
 
     params = proof_data["metadata"]["parameters"]
-    domain = compute_domain(params["domain_size"])
+    domain = EVAL_DOMAINS[params["domain_size"]]
+    padding_rows = params.get("padding_rows", 4)
 
     seed_x_bytes = bytes.fromhex(params["seed"]["x"])
     seed_y_bytes = bytes.fromhex(params["seed"]["y"])
@@ -161,6 +151,7 @@ def verify_vector(vector_path: Path) -> None:
         Domain=domain,
         raw_proof_bytes=raw_bytes,
         transcript_challenge=b"w3f-ring-proof-test",
+        padding_rows=padding_rows,
     )
 
     assert verifier.is_valid(), f"Verification failed for {vector_path.name}"
@@ -168,7 +159,11 @@ def verify_vector(vector_path: Path) -> None:
 
 def get_vector_paths() -> list[Path]:
     vectors_dir = Path(__file__).parent / "vectors" / "others"
-    paths = sorted(p for p in vectors_dir.glob("*.json"))
+    paths = sorted(
+        p
+        for p in vectors_dir.glob("*.json")
+        if p.name != "test_parameters.json"
+    )
     if not paths:
         pytest.skip(f"No JSON vectors found in {vectors_dir}")
     return paths
