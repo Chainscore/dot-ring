@@ -60,32 +60,24 @@ class TestIETFVRF:
 
         # Verify output point matches
         gamma_bytes = proof.output_point.point_to_string()
-        assert (
-            gamma_bytes == expected_gamma
-        ), f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
+        assert gamma_bytes == expected_gamma, f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
 
         # Verify proof challenge
         challenge_len = curve.curve.CHALLENGE_LENGTH
         c_bytes = Helpers.int_to_str(proof.c, curve.curve.ENDIAN, challenge_len)
-        assert (
-            c_bytes == expected_c
-        ), f"challenge mismatch: expected {expected_c.hex()}, got {c_bytes.hex()}"
+        assert c_bytes == expected_c, f"challenge mismatch: expected {expected_c.hex()}, got {c_bytes.hex()}"
 
         # Verify proof response
         scalar_len = (curve.curve.PRIME_FIELD.bit_length() + 7) // 8
         s_bytes = Helpers.int_to_str(proof.s, curve.curve.ENDIAN, scalar_len)
-        assert (
-            s_bytes == expected_s
-        ), f"response mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
+        assert s_bytes == expected_s, f"response mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
 
         # Verify the proof
         assert proof.verify(pk, alpha, ad, salt), "Proof verification failed"
 
         # Verify output hash
         beta = IETF_VRF[curve].proof_to_hash(proof.output_point)
-        assert (
-            beta == expected_beta
-        ), f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
+        assert beta == expected_beta, f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
 
 
 # Bandersnatch IETF vectors
@@ -172,9 +164,7 @@ class TestPedersenVRF:
 
         # Verify output point matches
         gamma_bytes = proof.output_point.point_to_string()
-        assert (
-            gamma_bytes == expected_gamma
-        ), f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
+        assert gamma_bytes == expected_gamma, f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
 
         # Verify proof components
         assert proof.blinded_pk.point_to_string() == expected_pk_com, "pk_com mismatch"
@@ -185,23 +175,17 @@ class TestPedersenVRF:
 
         scalar_len = (curve.curve.PRIME_FIELD.bit_length() + 7) // 8
         s_bytes = Helpers.int_to_str(proof.s, curve.curve.ENDIAN, scalar_len)
-        assert (
-            s_bytes == expected_s
-        ), f"s mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
+        assert s_bytes == expected_s, f"s mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
 
         sb_bytes = Helpers.int_to_str(proof.sb, curve.curve.ENDIAN, scalar_len)
-        assert (
-            sb_bytes == expected_sb
-        ), f"sb mismatch: expected {expected_sb.hex()}, got {sb_bytes.hex()}"
+        assert sb_bytes == expected_sb, f"sb mismatch: expected {expected_sb.hex()}, got {sb_bytes.hex()}"
 
         # Verify the proof
         assert proof.verify(alpha, ad), "Proof verification failed"
 
         # Verify output hash
         beta = PedersenVRF[curve].proof_to_hash(proof.output_point)
-        assert (
-            beta == expected_beta
-        ), f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
+        assert beta == expected_beta, f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
 
 
 # Bandersnatch Pedersen vectors
@@ -290,9 +274,7 @@ class TestRingVRF:
 
         # Verify output point matches
         gamma_bytes = proof.pedersen_proof.output_point.point_to_string()
-        assert (
-            gamma_bytes == expected_gamma
-        ), f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
+        assert gamma_bytes == expected_gamma, f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
 
         # Construct ring root and verify
         ring_root = RingVRF[curve].construct_ring_root(ring_pks)
@@ -300,9 +282,7 @@ class TestRingVRF:
 
         # Verify output hash
         beta = RingVRF[curve].proof_to_hash(proof.pedersen_proof.output_point)
-        assert (
-            beta == expected_beta
-        ), f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
+        assert beta == expected_beta, f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
 
 
 # Bandersnatch Ring vectors
@@ -341,12 +321,8 @@ class TestNegativeCases:
     def test_wrong_public_key_ietf(self):
         """IETF VRF verification should fail with wrong public key."""
         # Generate a valid proof
-        sk1 = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
-        sk2 = bytes.fromhex(
-            "0202020202020202020202020202020202020202020202020202020202020202"
-        )
+        sk1 = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
+        sk2 = bytes.fromhex("0202020202020202020202020202020202020202020202020202020202020202")
 
         pk1 = IETF_VRF[Bandersnatch].get_public_key(sk1)
         pk2 = IETF_VRF[Bandersnatch].get_public_key(sk2)
@@ -365,9 +341,7 @@ class TestNegativeCases:
 
     def test_wrong_input_ietf(self):
         """IETF VRF verification should fail with wrong input."""
-        sk = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         pk = IETF_VRF[Bandersnatch].get_public_key(sk)
 
         alpha1 = b"correct_input"
@@ -385,9 +359,7 @@ class TestNegativeCases:
 
     def test_wrong_ad_ietf(self):
         """IETF VRF verification should fail with wrong additional data."""
-        sk = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         pk = IETF_VRF[Bandersnatch].get_public_key(sk)
 
         alpha = b"test_input"
@@ -405,9 +377,7 @@ class TestNegativeCases:
 
     def test_wrong_input_pedersen(self):
         """Pedersen VRF verification should fail with wrong input."""
-        sk = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
 
         alpha1 = b"correct_input"
         alpha2 = b"wrong_input"
@@ -424,9 +394,7 @@ class TestNegativeCases:
 
     def test_wrong_ring_root(self):
         """Ring VRF verification should fail with wrong ring root."""
-        sk = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         pk = RingVRF[Bandersnatch].get_public_key(sk)
 
         # Create two different rings
@@ -465,44 +433,29 @@ class TestDeterminism:
 
     def test_ietf_deterministic(self):
         """IETF VRF proofs should be deterministic."""
-        sk = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         alpha = b"deterministic_test"
         ad = b"test_ad"
 
         proof1 = IETF_VRF[Bandersnatch].prove(alpha, sk, ad)
         proof2 = IETF_VRF[Bandersnatch].prove(alpha, sk, ad)
 
-        assert (
-            proof1.output_point.point_to_string()
-            == proof2.output_point.point_to_string()
-        )
+        assert proof1.output_point.point_to_string() == proof2.output_point.point_to_string()
         assert proof1.c == proof2.c
         assert proof1.s == proof2.s
 
     def test_pedersen_deterministic(self):
         """Pedersen VRF proofs should be deterministic."""
-        sk = bytes.fromhex(
-            "0101010101010101010101010101010101010101010101010101010101010101"
-        )
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         alpha = b"deterministic_test"
         ad = b"test_ad"
 
         proof1 = PedersenVRF[Bandersnatch].prove(alpha, sk, ad)
         proof2 = PedersenVRF[Bandersnatch].prove(alpha, sk, ad)
 
-        assert (
-            proof1.output_point.point_to_string()
-            == proof2.output_point.point_to_string()
-        )
-        assert (
-            proof1.blinded_pk.point_to_string() == proof2.blinded_pk.point_to_string()
-        )
-        assert (
-            proof1.result_point.point_to_string()
-            == proof2.result_point.point_to_string()
-        )
+        assert proof1.output_point.point_to_string() == proof2.output_point.point_to_string()
+        assert proof1.blinded_pk.point_to_string() == proof2.blinded_pk.point_to_string()
+        assert proof1.result_point.point_to_string() == proof2.result_point.point_to_string()
         assert proof1.ok.point_to_string() == proof2.ok.point_to_string()
         assert proof1.s == proof2.s
         assert proof1.sb == proof2.sb

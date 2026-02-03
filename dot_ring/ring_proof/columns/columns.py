@@ -52,9 +52,7 @@ class PublicColumnBuilder:
     prime: int = S_PRIME
     omega: int = OMEGA
 
-    def _pad_ring_with_padding_point(
-        self, pk_ring: list[tuple[int, int]], size: int = MAX_RING_SIZE
-    ) -> list[tuple[int, int]]:
+    def _pad_ring_with_padding_point(self, pk_ring: list[tuple[int, int]], size: int = MAX_RING_SIZE) -> list[tuple[int, int]]:
         """Pad ring in‑place with the special padding point until size."""
         # padding_sw = sw.from_twisted_edwards(PaddingPoint)
         padding_sw = PaddingPoint
@@ -62,17 +60,12 @@ class PublicColumnBuilder:
             pk_ring.append(padding_sw)
         return pk_ring
 
-    def _h_vector(
-        self, blinding_base: tuple[int, int] = Blinding_Base
-    ) -> list[tuple[int, int]]:
+    def _h_vector(self, blinding_base: tuple[int, int] = Blinding_Base) -> list[tuple[int, int]]:
         """Return `[2⁰·H, 2¹·H, …]` in short‑Weierstrass coords."""
         # sw_bb = sw.from_twisted_edwards(blinding_base)
         sw_bb = blinding_base
         # print("Blinding Base:",sw_bb)
-        res = [
-            cast(tuple[int, int], TE.mul(pow(2, i, S_PRIME), sw_bb))
-            for i in range(self.size)
-        ]
+        res = [cast(tuple[int, int], TE.mul(pow(2, i, S_PRIME), sw_bb)) for i in range(self.size)]
         return res  # B_Neck
 
     def build(self, ring_pk: list[tuple[int, int]]) -> tuple[Column, Column, Column]:
@@ -119,18 +112,12 @@ class WitnessColumnBuilder:
         bv.append(0)  # padding bit
         return bv
 
-    def _conditional_sum_accumulator(
-        self, b_vector: list[int]
-    ) -> tuple[list[int], list[int]]:
+    def _conditional_sum_accumulator(self, b_vector: list[int]) -> tuple[list[int], list[int]]:
         seed_sw = SeedPoint
 
         acc = [seed_sw]
         for i in range(1, self.size - 3):
-            next_pt = (
-                acc[i - 1]
-                if b_vector[i - 1] == 0
-                else cast(tuple[int, int], TE.add(acc[i - 1], self.ring_pk[i - 1]))
-            )
+            next_pt = acc[i - 1] if b_vector[i - 1] == 0 else cast(tuple[int, int], TE.add(acc[i - 1], self.ring_pk[i - 1]))
             acc.append(next_pt)
         return H.unzip(acc)
 

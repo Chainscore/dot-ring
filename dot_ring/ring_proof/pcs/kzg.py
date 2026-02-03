@@ -81,9 +81,7 @@ class KZG:
             result = blst.P1()  # point at infinity
         else:
             # Use Pippenger multi-scalar multiplication
-            result = blst.P1_Affines.mult_pippenger(
-                blst.P1_Affines.as_memory(blst_points), active_scalars
-            )
+            result = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), active_scalars)
         return blst_p1_to_fq_tuple(result)
 
     @classmethod
@@ -193,28 +191,26 @@ class KZG:
 
         lhs_points = []
         lhs_scalars = []
-        
+
         rhs_points = []
         rhs_scalars = []
 
         sum_v = 0
-        
-        for coeff, (commitment, proof, point, value) in zip(
-            coeffs, verifications, strict=False
-        ):
+
+        for coeff, (commitment, proof, point, value) in zip(coeffs, verifications, strict=False):
             comm_blst = commitment
             proof_blst = proof
 
             # LHS terms
             lhs_points.append(comm_blst)
             lhs_scalars.append(coeff)
-            
+
             sum_v = (sum_v + coeff * value) % order
-            
+
             coeff_z = (coeff * point) % order
             lhs_points.append(proof_blst)
             lhs_scalars.append(coeff_z)
-            
+
             # RHS terms
             rhs_points.append(proof_blst)
             rhs_scalars.append(coeff)
@@ -223,13 +219,9 @@ class KZG:
         lhs_points.append(g1_gen)
         lhs_scalars.append((-sum_v) % order)
 
-        lhs_point = blst.P1_Affines.mult_pippenger(
-            blst.P1_Affines.as_memory(lhs_points), lhs_scalars
-        )
-        
-        rhs_point = blst.P1_Affines.mult_pippenger(
-            blst.P1_Affines.as_memory(rhs_points), rhs_scalars
-        )
+        lhs_point = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(lhs_points), lhs_scalars)
+
+        rhs_point = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(rhs_points), rhs_scalars)
 
         lhs = blst_miller_loop(lhs_point, g2_gen)
         rhs = blst_miller_loop(rhs_point, g2_tau)

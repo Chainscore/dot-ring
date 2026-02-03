@@ -5,10 +5,11 @@ Usage:
     python scripts/setup_cython.py build_ext --inplace
 """
 
-from Cython.Build import cythonize
-from setuptools import Extension, setup
 import sys
 from pathlib import Path
+
+from Cython.Build import cythonize
+from setuptools import setup
 
 # Add project root to sys.path
 sys.path.append(str(Path(__file__).parent.parent))

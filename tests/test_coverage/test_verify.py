@@ -1,11 +1,12 @@
 """Additional tests to improve coverage for verify module."""
 
 import pytest
+from dot_ring.curve.native_field.scalar import Scalar
+from py_ecc.optimized_bls12_381 import curve_order
 
-from dot_ring.ring_proof.verify import lagrange_at_zeta, blst_msm
-from dot_ring.ring_proof.constants import SIZE, OMEGA, S_PRIME
+from dot_ring.ring_proof.constants import OMEGA, OMEGA_2048, S_PRIME, SIZE
 from dot_ring.ring_proof.pcs.srs import srs
-from dot_ring import blst
+from dot_ring.ring_proof.verify import Verify, blst_msm, lagrange_at_zeta
 
 
 class TestVerifyHelpers:
@@ -19,9 +20,9 @@ class TestVerifyHelpers:
         zeta = 12345  # arbitrary point
         omega = OMEGA
         prime = S_PRIME
-        
+
         result = lagrange_at_zeta(domain_size, index, zeta, omega, prime)
-        
+
         # Just verify it returns a scalar-like value
         assert result is not None
 
@@ -32,12 +33,12 @@ class TestVerifyHelpers:
         index = 5
         omega = OMEGA
         prime = S_PRIME
-        
+
         # zeta = omega^index
         zeta = pow(omega, index, prime)
-        
+
         result = lagrange_at_zeta(domain_size, index, zeta, omega, prime)
-        
+
         # Should be 1
         # The Scalar class has an internal value
         assert int(result) == 1
@@ -49,9 +50,9 @@ class TestVerifyHelpers:
         zeta = 99999
         omega = OMEGA
         prime = S_PRIME
-        
+
         result = lagrange_at_zeta(domain_size, index, zeta, omega, prime)
-        
+
         assert result is not None
 
     def test_lagrange_at_zeta_index_size_minus_4(self):
@@ -61,9 +62,9 @@ class TestVerifyHelpers:
         zeta = 12345
         omega = OMEGA
         prime = S_PRIME
-        
+
         result = lagrange_at_zeta(domain_size, index, zeta, omega, prime)
-        
+
         assert result is not None
 
     def test_lagrange_at_zeta_caching(self):
@@ -73,11 +74,135 @@ class TestVerifyHelpers:
         zeta = 54321
         omega = OMEGA
         prime = S_PRIME
-        
+
         result1 = lagrange_at_zeta(domain_size, index, zeta, omega, prime)
         result2 = lagrange_at_zeta(domain_size, index, zeta, omega, prime)
-        
+
         assert result1 == result2
+
+    def test_divide_modular_inverse(self):
+        """Test modular division helper."""
+        verifier = Verify.__new__(Verify)
+
+        numerator = 10
+        denominator = 3
+        expected = (numerator * pow(denominator, -1, curve_order)) % curve_order
+
+        assert verifier.divide(numerator, denominator) == expected
+
+    def test_legacy_methods_raise(self):
+        """Legacy methods should raise NotImplementedError."""
+        verifier = Verify.__new__(Verify)
+
+        with pytest.raises(NotImplementedError):
+            verifier.evaluation_of_quotient_poly_at_zeta()
+
+        with pytest.raises(NotImplementedError):
+            verifier.evaluation_of_linearization_poly_at_zeta_omega()
+
+    def test_contributions_handles_zeta_equal_domain_point(self):
+        """Zeta equal to a domain point should hit the zero-difference branches."""
+        verifier = Verify.__new__(Verify)
+
+        verifier.zeta_p = 1
+        verifier.sp = (2, 3)
+        verifier.D = [1, 2, 3, 4]
+        verifier.b_zeta = 1
+        verifier.accx_zeta = 5
+        verifier.accy_zeta = 7
+        verifier.accip_zeta = 11
+        verifier.px_zeta = 13
+        verifier.py_zeta = 17
+        verifier.s_zeta = 19
+        verifier.Result_plus_Seed = (23, 29)
+
+        result = verifier.contributions_to_constraints_eval_at_zeta()
+
+        assert len(result) == 7
+        assert all(isinstance(value, Scalar) for value in result)
+
+    def test_linearization_uses_expected_omega(self):
+        """Verify omega selection for non-512 domains."""
+        verifier = Verify.__new__(Verify)
+
+        verifier.alpha_list = [1, 2, 3]
+        verifier.zeta_p = 7
+        verifier.D = list(range(1024))
+        verifier.accx_zeta = 2
+        verifier.accy_zeta = 3
+        verifier.px_zeta = 5
+        verifier.py_zeta = 7
+        verifier.b_zeta = 11
+        verifier.Caccip_blst = srs.blst_g1[0]
+        verifier.Caccx_blst = srs.blst_g1[1]
+        verifier.Caccy_blst = srs.blst_g1[2]
+        verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
+        verifier.l_zeta_omega = 13
+
+        _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
+        expected_omega = pow(OMEGA_2048, 2048 // 1024, S_PRIME)
+        expected_zeta_omega = (verifier.zeta_p * expected_omega) % S_PRIME
+
+        assert zeta_omega == expected_zeta_omega
+
+    def test_linearization_uses_fallback_omega(self):
+        """Verify omega selection for non-standard domain sizes."""
+        verifier = Verify.__new__(Verify)
+
+        verifier.alpha_list = [1, 2, 3]
+        verifier.zeta_p = 7
+        verifier.D = list(range(16))
+        verifier.accx_zeta = 2
+        verifier.accy_zeta = 3
+        verifier.px_zeta = 5
+        verifier.py_zeta = 7
+        verifier.b_zeta = 11
+        verifier.Caccip_blst = srs.blst_g1[0]
+        verifier.Caccx_blst = srs.blst_g1[1]
+        verifier.Caccy_blst = srs.blst_g1[2]
+        verifier.Phi_zeta_omega_blst = srs.blst_g1[3]
+        verifier.l_zeta_omega = 13
+
+        _, _, zeta_omega, _ = verifier._prepare_linearization_poly_verification()
+        expected_omega = pow(OMEGA_2048, 2048 // 16, S_PRIME)
+        expected_zeta_omega = (verifier.zeta_p * expected_omega) % S_PRIME
+
+        assert zeta_omega == expected_zeta_omega
+
+    def test_prepare_quotient_poly_verification_smoke(self):
+        """Smoke test for quotient verification preparation."""
+        verifier = Verify.__new__(Verify)
+
+        verifier.alpha_list = [1, 2, 3, 4, 5, 6, 7]
+        verifier.zeta_p = 7
+        verifier.V_list = [1, 2, 3, 4, 5, 6, 7, 8]
+        verifier.D = [1, 2, 3, 4]
+        verifier.sp = (2, 3)
+        verifier.Result_plus_Seed = (23, 29)
+        verifier.b_zeta = 1
+        verifier.accx_zeta = 5
+        verifier.accy_zeta = 7
+        verifier.accip_zeta = 11
+        verifier.px_zeta = 13
+        verifier.py_zeta = 17
+        verifier.s_zeta = 19
+        verifier.l_zeta_omega = 31
+
+        verifier.Cpx_blst = srs.blst_g1[0]
+        verifier.Cpy_blst = srs.blst_g1[1]
+        verifier.Cs_blst = srs.blst_g1[2]
+        verifier.Cb_blst = srs.blst_g1[3]
+        verifier.Caccip_blst = srs.blst_g1[4]
+        verifier.Caccx_blst = srs.blst_g1[5]
+        verifier.Caccy_blst = srs.blst_g1[6]
+        verifier.Cq_blst = srs.blst_g1[7]
+        verifier.Phi_zeta_blst = srs.blst_g1[8]
+
+        _, phi, zeta, agg = verifier._prepare_quotient_poly_verification()
+
+        assert phi is verifier.Phi_zeta_blst
+        assert zeta == verifier.zeta_p
+        assert isinstance(agg, int)
 
 
 class TestBLSTMSM:
@@ -86,7 +211,7 @@ class TestBLSTMSM:
     def test_blst_msm_empty(self):
         """Test MSM with empty inputs."""
         result = blst_msm([], [])
-        
+
         # Should return point at infinity
         assert result.is_inf()
 
@@ -94,9 +219,9 @@ class TestBLSTMSM:
         """Test MSM with single point."""
         points = [srs.blst_g1[0]]
         scalars = [5]
-        
+
         result = blst_msm(points, scalars)
-        
+
         assert result is not None
         assert not result.is_inf()
 
@@ -104,7 +229,7 @@ class TestBLSTMSM:
         """Test MSM with multiple points."""
         points = [srs.blst_g1[0], srs.blst_g1[1], srs.blst_g1[2]]
         scalars = [1, 2, 3]
-        
+
         result = blst_msm(points, scalars)
-        
+
         assert result is not None

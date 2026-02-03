@@ -106,9 +106,7 @@ def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:
     return [(c * inv_n) % prime for c in coeffs]
 
 
-def evaluate_poly_over_domain(
-    poly: list[int], domain: list[int], omega: int, prime: int
-) -> list[int]:
+def evaluate_poly_over_domain(poly: list[int], domain: list[int], omega: int, prime: int) -> list[int]:
     """Evaluate polynomial over a structured domain using FFT.
 
     Assumes domain = [omega^0, omega^1, ..., omega^(n-1)] mod prime.
@@ -144,9 +142,7 @@ def evaluate_poly_over_domain(
     return coeffs
 
 
-def evaluate_poly_fft(
-    poly: list[int], domain_size: int, omega: int, prime: int, coset_offset: int = 1
-) -> list[int]:
+def evaluate_poly_fft(poly: list[int], domain_size: int, omega: int, prime: int, coset_offset: int = 1) -> list[int]:
     """Evaluate polynomial over a coset domain using FFT.
 
     Args:

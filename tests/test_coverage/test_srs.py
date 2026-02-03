@@ -1,8 +1,6 @@
 """Additional tests for SRS module to improve coverage."""
 
-import pytest
-
-from dot_ring.ring_proof.pcs.srs import srs, SRS
+from dot_ring.ring_proof.pcs.srs import SRS, srs
 
 
 class TestSRS:

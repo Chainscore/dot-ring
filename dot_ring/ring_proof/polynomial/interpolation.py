@@ -24,14 +24,10 @@ def fft(a: list[int], omega: int, p: int) -> list[int]:  # coeffs to evaluation 
     return coeffs
 
 
-def poly_interpolate_fft(
-    a: list[int], omega: int, p: int
-) -> list[int]:  # funcs like inverse_fft from evals to poly coeffs
+def poly_interpolate_fft(a: list[int], omega: int, p: int) -> list[int]:  # funcs like inverse_fft from evals to poly coeffs
     n = len(a)
     N = next_power_of_two(n)
-    omega_2048 = (
-        49307615728544765012166121802278658070711169839041683575071795236746050763237
-    )
+    omega_2048 = 49307615728544765012166121802278658070711169839041683575071795236746050763237
     if N > SIZE:
         omega = pow(omega_2048, (2048 // N), p)
 
@@ -48,14 +44,10 @@ def next_power_of_two(n: int) -> int:
 def poly_mul_fft(a: list[int], b: list[int], prime: int) -> list[int]:
     target_len = 2048
     N = next_power_of_two(target_len)
-    omega = (
-        49307615728544765012166121802278658070711169839041683575071795236746050763237
-    )
+    omega = 49307615728544765012166121802278658070711169839041683575071795236746050763237
     # Scale root of unity if needed
     root_order = N
-    omega_N = pow(
-        omega, (2048 // root_order), prime
-    )  # If omega is for 2048, scale down
+    omega_N = pow(omega, (2048 // root_order), prime)  # If omega is for 2048, scale down
 
     # Pad inputs
     A = a + [0] * (N - len(a))

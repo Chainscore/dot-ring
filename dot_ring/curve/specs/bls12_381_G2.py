@@ -29,19 +29,15 @@ class BLS12_381_G2Params:
     SUITE_STRING = b"BLS12381G2_XMD:SHA-256_SSWU_RO_"
     DST = b"QUUX-V01-CS02-with-BLS12381G2_XMD:SHA-256_SSWU_RO_"  # Use the suite string as DST by default per RFC 9380
     # Base field characteristic (modulus)
-    PRIME_FIELD: Final[
-        int
-    ] = 0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAAAB
+    PRIME_FIELD: Final[int] = 0x1A0111EA397FE69A4B1BA7B6434BACD764774B84F38512BF6730D2A0F6B0F6241EABFFFEB153FFFFB9FEFFFFFFFFAAAB
 
     # Subgroup order (r)
-    ORDER: Final[
-        int
-    ] = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
+    ORDER: Final[int] = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
 
     # Cofactor (h)
-    COFACTOR: Final[
-        int
-    ] = 0xBC69F08F2EE75B3584C6A0EA91B352888E2A8E9145AD7689986FF031508FFE1329C2F178731DB956D82BF015D1212B02EC0EC69D7477C1AE954CBC06689F6A359894C0ADEBBF6B4E8020005AAA95551  # noqa: E501
+    COFACTOR: Final[int] = (
+        0xBC69F08F2EE75B3584C6A0EA91B352888E2A8E9145AD7689986FF031508FFE1329C2F178731DB956D82BF015D1212B02EC0EC69D7477C1AE954CBC06689F6A359894C0ADEBBF6B4E8020005AAA95551  # noqa: E501
+    )
 
     # Generator point (G2)
     GENERATOR_X: Final[Fp2] = (
@@ -301,9 +297,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return self.__class__(x, y)
 
     @classmethod
-    def sswu_hash2_curve_ro(
-        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
-    ) -> dict | Self:
+    def sswu_hash2_curve_ro(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> dict | Self:
         """
         Encode a string to a curve point using SSWU map with 3-isogeny (Random Oracle variant).
 
@@ -333,9 +327,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return cast(Self, R)
 
     @classmethod
-    def sswu_hash2_curve_nu(
-        cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False
-    ) -> Self | Any:
+    def sswu_hash2_curve_nu(cls, alpha_string: bytes, salt: bytes = b"", General_Check: bool = False) -> Self | Any:
         """
         Encode a string to a curve point using Elligator 2.
 
@@ -448,9 +440,7 @@ class BLS12_381_G2Point(SWAffinePoint):
         return x, cast(FieldElement, y)
 
     @classmethod
-    def _apply_3_isogeny(
-        cls, point: tuple[FieldElement, FieldElement]
-    ) -> tuple[FieldElement, FieldElement]:
+    def _apply_3_isogeny(cls, point: tuple[FieldElement, FieldElement]) -> tuple[FieldElement, FieldElement]:
         x_prime, y_prime = point
         p = cls.curve.PRIME_FIELD
 
@@ -524,16 +514,12 @@ class BLS12_381_G2Point(SWAffinePoint):
             p,
         )
 
-        x_num = (
-            k_1_3 * (x_prime**3) + k_1_2 * (x_prime**2) + k_1_1 * x_prime + k_1_0
-        )
+        x_num = k_1_3 * (x_prime**3) + k_1_2 * (x_prime**2) + k_1_1 * x_prime + k_1_0
         x_den = x_prime**2 + k_2_1 * x_prime + k_2_0
         x = x_num / x_den  # can use inv as well
 
         # Calculate y numerator and denominator
-        y_num = (
-            k_3_3 * (x_prime**3) + k_3_2 * (x_prime**2) + k_3_1 * x_prime + k_3_0
-        )
+        y_num = k_3_3 * (x_prime**3) + k_3_2 * (x_prime**2) + k_3_1 * x_prime + k_3_0
         y_den = x_prime**3 + k_4_2 * (x_prime**2) + k_4_1 * x_prime + k_4_0
         y = y_prime * (y_num / y_den)  # can u inv() as well
 

@@ -119,21 +119,13 @@ class RingVRF(VRF[Any]):
 
         commitment_size = 48  # Size of compressed G1 point
 
-        c_b_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        c_b_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
-        c_accip_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        c_accip_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
-        c_accx_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        c_accx_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
-        c_accy_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        c_accy_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
 
         px_zeta = H.to_scalar_int(proof[offset : offset + 32])
@@ -151,21 +143,15 @@ class RingVRF(VRF[Any]):
         accy_zeta = H.to_scalar_int(proof[offset : offset + 32])
         offset += 32
 
-        c_q_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        c_q_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
 
         l_zeta_omega = H.to_scalar_int(proof[offset : offset + 32])
         offset += 32
 
-        open_agg_zeta_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        open_agg_zeta_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
-        open_l_zeta_omega_commitment = H.bls_g1_decompress(
-            proof[offset : offset + commitment_size].hex()
-        )
+        open_l_zeta_omega_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
         offset += commitment_size
         return cls(
             pedersen_proof=pedersen_proof,
@@ -183,12 +169,8 @@ class RingVRF(VRF[Any]):
             c_q=Column(name="c_q", evals=[], commitment=c_q_commitment),
             l_zeta_omega=l_zeta_omega,
             # TODO: Fix Opening initialization; unsafe scalar 0 used temporarily
-            open_agg_zeta=Opening(
-                proof=open_agg_zeta_commitment, y=0
-            ),  # We only need opening proof to verify
-            open_l_zeta_omega=Opening(
-                proof=open_l_zeta_omega_commitment, y=0
-            ),  # We only need opening proof to verify
+            open_agg_zeta=Opening(proof=open_agg_zeta_commitment, y=0),  # We only need opening proof to verify
+            open_l_zeta_omega=Opening(proof=open_l_zeta_omega_commitment, y=0),  # We only need opening proof to verify
         )
 
     @classmethod
@@ -243,9 +225,7 @@ class RingVRF(VRF[Any]):
         fixed_cols = ring_root.build(keys_as_bs_points)
         s_v = fixed_cols[-1].evals
         producer_index = keys_as_bs_points.index(producer_key_pt)
-        witness_obj = WitnessColumnBuilder(
-            keys_as_bs_points, s_v, producer_index, blinding_factor
-        )
+        witness_obj = WitnessColumnBuilder(keys_as_bs_points, s_v, producer_index, blinding_factor)
         witness_res = witness_obj.build()
         witness_relation_res = witness_obj.result(Blinding_Base)
         Result_plus_Seed = witness_obj.result_p_seed(witness_relation_res)
@@ -360,9 +340,7 @@ class RingVRF(VRF[Any]):
         for c in fixed_cols_cmts:
             assert c is not None
             fixed_cols_cmts_safe.append(c)
-        comm_keys_affine = H.bls_projective_2_affine(
-            cast(list[Any], fixed_cols_cmts_safe)
-        )
+        comm_keys_affine = H.bls_projective_2_affine(cast(list[Any], fixed_cols_cmts_safe))
         comm_keys_int = [H.to_int(pt) for pt in comm_keys_affine]
         verifier_key: dict[str, Any] = {
             "g1": srs.g1_points[0],
@@ -437,9 +415,7 @@ class RingVRF(VRF[Any]):
         pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove(alpha, secret_key, ad)  # type: ignore[misc]
 
         # ring_proof
-        ring_proof = cls.generate_bls_signature(
-            pedersen_proof._blinding_factor, producer_key, keys
-        )
+        ring_proof = cls.generate_bls_signature(pedersen_proof._blinding_factor, producer_key, keys)
 
         return cls(pedersen_proof, *ring_proof)
 
@@ -472,8 +448,6 @@ class RingVRF(VRF[Any]):
         if self.pedersen_proof is None:
             raise ValueError("Pedersen proof is missing")
         p_proof_valid = self.pedersen_proof.verify(input, ad_data)
-        ring_proof_valid = self.verify_ring_proof(
-            self.pedersen_proof.blinded_pk, ring_root
-        )
+        ring_proof_valid = self.verify_ring_proof(self.pedersen_proof.blinded_pk, ring_root)
 
         return p_proof_valid and ring_proof_valid

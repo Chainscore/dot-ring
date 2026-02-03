@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from dot_ring.curve.native_field.vector_ops import vect_add
 from dot_ring.ring_proof.constants import D_512 as D
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.interpolation import (
@@ -10,7 +11,6 @@ from dot_ring.ring_proof.polynomial.interpolation import (
 )
 from dot_ring.ring_proof.polynomial.ops import (
     poly_multiply,
-    vect_add,
     vect_scalar_mul,
 )
 

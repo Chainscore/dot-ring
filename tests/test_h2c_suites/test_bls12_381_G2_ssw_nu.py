@@ -13,9 +13,7 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Load test vectors
-        test_vectors_path = os.path.join(
-            os.path.dirname(__file__), "../vectors/h2c", "bls12_381_G2_nu.json"
-        )
+        test_vectors_path = os.path.join(os.path.dirname(__file__), "../vectors/h2c", "bls12_381_G2_nu.json")
         with open(test_vectors_path) as f:
             cls.test_vectors = json.load(f)
 
@@ -45,9 +43,7 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
                 )
 
                 # Encode message to curve
-                result = BLS12_381_G2Point.encode_to_curve(
-                    msg.encode("utf-8"), b"", True
-                )
+                result = BLS12_381_G2Point.encode_to_curve(msg.encode("utf-8"), b"", True)
 
                 # Extract computed values
                 computed_P = result["R"]

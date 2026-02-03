@@ -34,9 +34,7 @@ class FieldElement:
         if isinstance(other, FieldElement):
             if self.p != other.p:
                 raise ValueError("Cannot add elements from different fields")
-            return FieldElement(
-                (self.re + other.re) % self.p, (self.im + other.im) % self.p, self.p
-            )
+            return FieldElement((self.re + other.re) % self.p, (self.im + other.im) % self.p, self.p)
         return FieldElement((self.re + other) % self.p, self.im, self.p)
 
     def __sub__(self, other: FieldElement | int) -> FieldElement:
@@ -44,9 +42,7 @@ class FieldElement:
         if isinstance(other, FieldElement):
             if self.p != other.p:
                 raise ValueError("Cannot subtract elements from different fields")
-            return FieldElement(
-                (self.re - other.re) % self.p, (self.im - other.im) % self.p, self.p
-            )
+            return FieldElement((self.re - other.re) % self.p, (self.im - other.im) % self.p, self.p)
         return FieldElement((self.re - other) % self.p, self.im, self.p)
 
     def __mul__(self, other: FieldElement | int) -> FieldElement:
@@ -58,9 +54,7 @@ class FieldElement:
             re = (self.re * other.re - self.im * other.im) % self.p
             im = (self.re * other.im + self.im * other.re) % self.p
             return FieldElement(re, im, self.p)
-        return FieldElement(
-            (self.re * other) % self.p, (self.im * other) % self.p, self.p
-        )
+        return FieldElement((self.re * other) % self.p, (self.im * other) % self.p, self.p)
 
     def __truediv__(self, other: FieldElement | int) -> FieldElement:
         """Divide two field elements or a field element by an integer."""
@@ -74,9 +68,7 @@ class FieldElement:
         # For Fp2, the inverse of (a + bi) is (a - bi)/(a² + b²)
         denom = (self.re * self.re + self.im * self.im) % self.p
         inv_denom = pow(denom, -1, self.p)
-        return FieldElement(
-            (self.re * inv_denom) % self.p, (-self.im * inv_denom) % self.p, self.p
-        )
+        return FieldElement((self.re * inv_denom) % self.p, (-self.im * inv_denom) % self.p, self.p)
 
     def __neg__(self) -> FieldElement:
         """Negate the field element."""

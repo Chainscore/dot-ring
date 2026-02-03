@@ -24,9 +24,7 @@ def test_ring_proof():
         start_time = time.time()
         ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
         ring_time = time.time()
-        print(
-            f"\nTime taken for Ring Root Construction: \t\t {ring_time - start_time} seconds"
-        )
+        print(f"\nTime taken for Ring Root Construction: \t\t {ring_time - start_time} seconds")
 
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
         ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
@@ -34,21 +32,13 @@ def test_ring_proof():
         proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
 
         end_time = time.time()
-        print(
-            f"Time taken for Ring VRF Proof Generation: \t {end_time - ring_time} seconds"
-        )
+        print(f"Time taken for Ring VRF Proof Generation: \t {end_time - ring_time} seconds")
 
         assert p_k.hex() == item["pk"], "Invalid Public Key"
         assert ring_root.to_bytes().hex() == item["ring_pks_com"], "Invalid Ring Root"
         assert (
             ring_vrf_proof.to_bytes().hex()
-            == item["gamma"]
-            + item["proof_pk_com"]
-            + item["proof_r"]
-            + item["proof_ok"]
-            + item["proof_s"]
-            + item["proof_sb"]
-            + item["ring_proof"]
+            == item["gamma"] + item["proof_pk_com"] + item["proof_r"] + item["proof_ok"] + item["proof_s"] + item["proof_sb"] + item["ring_proof"]
         ), "Unexpected Proof"
         start = time.time()
         assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"

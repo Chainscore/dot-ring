@@ -11,7 +11,7 @@ __all__ = ["serialize"]
 def serialize(obj: Any) -> bytes:
     """Serialize objects into bytes format exactly as in the original implementation."""
     # Handle Scalar types by converting to int
-    if type(obj).__name__ == 'Scalar':
+    if type(obj).__name__ == "Scalar":
         return serialize(int(obj))
 
     if isinstance(obj, int):

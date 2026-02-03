@@ -35,7 +35,7 @@ def phase2_eval_point(t: Transcript, C_q_commitment: Any) -> Any:
 
 def phase3_nu_vector(
     t: Transcript,
-    rel_poly_evals: list[int],
+    rel_poly_evals: list[int] | bytes,
     agg_poly_eval: int,
 ) -> list[int]:
     """Append evaluation bundle and linearisation eval, return 8 ν‑challenges."""

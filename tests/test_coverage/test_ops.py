@@ -2,21 +2,21 @@
 
 import pytest
 
+from dot_ring.ring_proof.constants import D_512, D_2048, S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
+    get_root_of_unity,
+    lagrange_basis_polynomial,
     mod_inverse,
     poly_add,
-    poly_subtract,
+    poly_division_general,
+    poly_evaluate,
+    poly_evaluate_single,
+    poly_mul_linear,
     poly_multiply,
     poly_scalar,
-    poly_evaluate_single,
-    poly_evaluate,
-    poly_division_general,
-    poly_mul_linear,
-    lagrange_basis_polynomial,
-    get_root_of_unity,
+    poly_subtract,
     vect_scalar_mul,
 )
-from dot_ring.ring_proof.constants import D_512, D_2048, S_PRIME, OMEGA
 
 
 class TestPolynomialOps:
@@ -99,9 +99,9 @@ class TestPolynomialOps:
         # Create polynomials large enough to trigger FFT
         p1 = list(range(1, 65))  # 64 coefficients
         p2 = list(range(1, 65))
-        
+
         result = poly_multiply(p1, p2, S_PRIME)
-        
+
         # Result should have len(p1) + len(p2) - 1 = 127 coefficients
         assert len(result) == 127
 
@@ -231,15 +231,15 @@ class TestPolynomialOps:
         # L_0(x) at points [0, 1, 2]
         # L_0(x) = (x-1)(x-2) / (0-1)(0-2) = (x-1)(x-2) / 2
         basis = lagrange_basis_polynomial(x_coords, 0, 17)
-        
+
         # Verify L_0(0) = 1
         val_at_0 = poly_evaluate_single(basis, 0, 17)
         assert val_at_0 == 1
-        
+
         # Verify L_0(1) = 0
         val_at_1 = poly_evaluate_single(basis, 1, 17)
         assert val_at_1 == 0
-        
+
         # Verify L_0(2) = 0
         val_at_2 = poly_evaluate_single(basis, 2, 17)
         assert val_at_2 == 0
@@ -262,7 +262,7 @@ class TestPolynomialOps:
         root1 = get_root_of_unity(8, S_PRIME)
         # Second call should be cached
         root2 = get_root_of_unity(8, S_PRIME)
-        
+
         assert root1 == root2
         # Verify it's actually a root of unity
         assert pow(root1, 8, S_PRIME) == 1

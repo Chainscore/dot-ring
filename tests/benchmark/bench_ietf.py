@@ -21,12 +21,7 @@ from dot_ring.vrf.ietf.ietf import IETF_VRF
 
 def load_test_data():
     """Load test vector data."""
-    vector_path = (
-        Path(__file__).parent
-        / "vectors"
-        / "ark-vrf"
-        / "bandersnatch_ed_sha512_ell2_ietf.json"
-    )
+    vector_path = Path(__file__).parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_ietf.json"
     with open(vector_path) as f:
         return json.load(f)[0]
 

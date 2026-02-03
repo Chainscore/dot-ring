@@ -23,6 +23,9 @@ from setuptools.command.build_ext import build_ext
 
 
 def get_compile_args() -> list[str]:
+    if sys.platform == "win32":
+        return ["/O2", "/arch:AVX2", "/D_CRT_SECURE_NO_WARNINGS"]
+
     args = ["-O3", "-ffast-math", "-flto"]
     if sys.platform != "darwin":
         args.append("-march=native")
@@ -59,7 +62,7 @@ def build_cython_extensions() -> list[Extension]:
             ],
             include_dirs=["dot_ring/curve/native_field"],
             extra_compile_args=compile_args,
-            extra_link_args=["-flto"],
+            extra_link_args=[] if sys.platform == "win32" else ["-flto"],
         ),
         Extension(
             "dot_ring.curve.native_field.vector_ops",
@@ -69,7 +72,7 @@ def build_cython_extensions() -> list[Extension]:
             ],
             include_dirs=["dot_ring/curve/native_field"],
             extra_compile_args=compile_args,
-            extra_link_args=["-flto"],
+            extra_link_args=[] if sys.platform == "win32" else ["-flto"],
         ),
     ]
 
@@ -139,7 +142,7 @@ class CustomBuildExt(build_ext):
         os.chmod(run_me, 0o755)
 
         if sys.platform == "win32":
-            subprocess.check_call(["sh", str(run_me)], cwd=bindings_dir)
+            subprocess.check_call([sys.executable, str(run_me)], cwd=bindings_dir)
         else:
             subprocess.check_call([str(run_me)], cwd=bindings_dir)
 

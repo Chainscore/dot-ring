@@ -133,9 +133,7 @@ class TestVectorGenerator:
             point_len *= 2
         return cast(int, point_len)
 
-    def generate_ietf_vector(
-        self, comment: str, seed: int, alpha: bytes, salt: bytes, ad: bytes
-    ) -> dict[str, Any]:
+    def generate_ietf_vector(self, comment: str, seed: int, alpha: bytes, salt: bytes, ad: bytes) -> dict[str, Any]:
         """Generate a single IETF VRF test vector."""
         sk = self._secret_from_seed(seed)
         curve = self.curve
@@ -175,9 +173,7 @@ class TestVectorGenerator:
             "proof_s": s_bytes.hex(),
         }
 
-    def generate_pedersen_vector(
-        self, comment: str, seed: int, alpha: bytes, salt: bytes, ad: bytes
-    ) -> dict[str, Any]:
+    def generate_pedersen_vector(self, comment: str, seed: int, alpha: bytes, salt: bytes, ad: bytes) -> dict[str, Any]:
         """Generate a single Pedersen VRF test vector."""
         sk = self._secret_from_seed(seed)
         curve = self.curve
@@ -195,14 +191,10 @@ class TestVectorGenerator:
         scalar_len = self._get_scalar_len()
 
         # Get blinding factor
-        sk_scalar = (
-            Helpers.str_to_int(sk, self.curve.curve.ENDIAN) % self.curve.curve.ORDER
-        )
+        sk_scalar = Helpers.str_to_int(sk, self.curve.curve.ENDIAN) % self.curve.curve.ORDER
         sk_bytes = sk_scalar.to_bytes(scalar_len, self.curve.curve.ENDIAN)
         blinding = PedersenVRF[curve].blinding(sk_bytes, h.point_to_string(), ad)  # type: ignore[valid-type, misc]
-        blinding_bytes = Helpers.int_to_str(
-            blinding, self.curve.curve.ENDIAN, scalar_len
-        )
+        blinding_bytes = Helpers.int_to_str(blinding, self.curve.curve.ENDIAN, scalar_len)
 
         s_bytes = Helpers.int_to_str(proof.s, self.curve.curve.ENDIAN, scalar_len)
         sb_bytes = Helpers.int_to_str(proof.sb, self.curve.curve.ENDIAN, scalar_len)
@@ -267,23 +259,13 @@ class TestVectorGenerator:
         scalar_len = self._get_scalar_len()
 
         # Get blinding factor
-        sk_scalar = (
-            Helpers.str_to_int(sk, self.curve.curve.ENDIAN) % self.curve.curve.ORDER
-        )
+        sk_scalar = Helpers.str_to_int(sk, self.curve.curve.ENDIAN) % self.curve.curve.ORDER
         sk_bytes = sk_scalar.to_bytes(scalar_len, self.curve.curve.ENDIAN)
-        blinding = PedersenVRF.__class_getitem__(curve).blinding(
-            sk_bytes, h.point_to_string(), ad
-        )
-        blinding_bytes = Helpers.int_to_str(
-            blinding, self.curve.curve.ENDIAN, scalar_len
-        )
+        blinding = PedersenVRF.__class_getitem__(curve).blinding(sk_bytes, h.point_to_string(), ad)
+        blinding_bytes = Helpers.int_to_str(blinding, self.curve.curve.ENDIAN, scalar_len)
 
-        s_bytes = Helpers.int_to_str(
-            ring_proof.pedersen_proof.s, self.curve.curve.ENDIAN, scalar_len
-        )
-        sb_bytes = Helpers.int_to_str(
-            ring_proof.pedersen_proof.sb, self.curve.curve.ENDIAN, scalar_len
-        )
+        s_bytes = Helpers.int_to_str(ring_proof.pedersen_proof.s, self.curve.curve.ENDIAN, scalar_len)
+        sb_bytes = Helpers.int_to_str(ring_proof.pedersen_proof.sb, self.curve.curve.ENDIAN, scalar_len)
 
         # Construct ring root
         # Construct ring root
@@ -506,9 +488,7 @@ def generate_ring_vectors(generator: TestVectorGenerator) -> list[dict]:
     for i, (seed, alpha, ad, idx, _desc) in enumerate(test_cases, 1):
         comment = f"{suite} - vector-{i}"
         try:
-            vector = generator.generate_ring_vector(
-                comment, seed, alpha, b"", ad, prover_idx=idx
-            )
+            vector = generator.generate_ring_vector(comment, seed, alpha, b"", ad, prover_idx=idx)
             vectors.append(vector)
         except Exception as e:
             print(f"Warning: Failed to generate ring vector {i}: {e}")
@@ -537,9 +517,7 @@ def generate_ring_edge_case_vectors(generator: TestVectorGenerator) -> list[dict
     for i, (seed, alpha, ad, idx, desc) in enumerate(edge_cases, 1):
         comment = f"{suite} - edge-{i} - {desc}"
         try:
-            vector = generator.generate_ring_vector(
-                comment, seed, alpha, b"", ad, prover_idx=idx
-            )
+            vector = generator.generate_ring_vector(comment, seed, alpha, b"", ad, prover_idx=idx)
             vectors.append(vector)
         except Exception as e:
             print(f"Warning: Failed to generate ring edge case {i} ({desc}): {e}")

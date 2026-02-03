@@ -30,9 +30,7 @@ class Curve25519Params:
     COFACTOR: Final[int] = 8
     # Generator point (u, v) - corresponds to the base point of edwards25519
     GENERATOR_U: Final[int] = 9
-    GENERATOR_V: Final[
-        int
-    ] = 14781619447589544791020593568409986887264606134616475288964881837755586237401
+    GENERATOR_V: Final[int] = 14781619447589544791020593568409986887264606134616475288964881837755586237401
 
     # Montgomery curve parameters: v² = u³ + Au² + u
     A: Final[int] = 486662
@@ -53,12 +51,8 @@ class Curve25519Params:
     CHALLENGE_LENGTH: Final[int] = 16
 
     # Blinding base for Pedersen VRF (project-specific: keep if you need them)
-    BBu: Final[
-        int
-    ] = GENERATOR_U  # 0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
-    BBv: Final[
-        int
-    ] = GENERATOR_V  # 0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
+    BBu: Final[int] = GENERATOR_U  # 0x2a4f9ef57d59ee131c7c4e1d9b4e3a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1
+    BBv: Final[int] = GENERATOR_V  # 0x1a8d1d5a5f9e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8
     UNCOMPRESSED = True
     POINT_LEN: Final[int] = 32
 
