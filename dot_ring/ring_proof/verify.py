@@ -1,23 +1,23 @@
-from typing import Any, cast
 from functools import lru_cache
+from typing import Any, cast
 
 from py_ecc.optimized_bls12_381 import curve_order  # type: ignore[import-untyped]
-from py_ecc.optimized_bls12_381 import normalize as nm  # type: ignore[import-untyped]
 
-from dot_ring import blst as _blst  # type: ignore[import-untyped]
+from dot_ring import blst as _blst
 from dot_ring.curve.native_field.scalar import Scalar
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.constants import D_512 as D
-from dot_ring.ring_proof.constants import OMEGA, S_PRIME, SIZE
-from dot_ring.ring_proof.helpers import Helpers as H
+from dot_ring.ring_proof.constants import OMEGA, OMEGA_2048, S_PRIME, SIZE
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g1_to_blst
+from dot_ring.ring_proof.transcript.transcript import Transcript
 from dot_ring.ring_proof.transcript.phases import (
     phase1_alphas,
     phase2_eval_point,
     phase3_nu_vector,
 )
-from dot_ring.ring_proof.transcript.transcript import Transcript
+from dot_ring.ring_proof.helpers import Helpers as H
+from py_ecc.optimized_bls12_381 import normalize as nm  # type: ignore[import-untyped]
 
 blst = cast(Any, _blst)
 
@@ -54,10 +54,8 @@ def lagrange_at_zeta(
     This is O(1) instead of O(n) polynomial evaluation!
     """
     # Use Scalar for optimized arithmetic
-    # n_s = Scalar(domain_size) # Use SIZE_S global
-    # omega_s = Scalar(omega) # Use OMEGA_S global
     zeta_s = Scalar(zeta)
-    
+
     # omega^i
     if index == 0:
         omega_i = ONE_S
@@ -65,7 +63,7 @@ def lagrange_at_zeta(
         omega_i = OMEGA_POW_SIZE_MINUS_4
     else:
         omega_i = OMEGA_S ** index
-    
+
     # zeta - omega^i
     zeta_minus_omega_i = zeta_s - omega_i
 
@@ -77,7 +75,6 @@ def lagrange_at_zeta(
     zeta_n_minus_1 = (zeta_s ** domain_size) - ONE_S
 
     # omega^i / n
-    # inv_n = SIZE_S ** -1 # Use INV_SIZE_S global
     omega_i_over_n = omega_i * INV_SIZE_S
 
     # Final: (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
@@ -90,12 +87,14 @@ class Verify:
     def __init__(
         self,
         proof: tuple,
-        vk: dict,
+        vk: dict|bytes,
         fixed_cols: list,
-        rl_to_proove: tuple,
+        rl_to_proove: tuple|bytes,
         rps: tuple,
         seed_point: tuple,
         Domain: list,
+        raw_proof_bytes: dict | None = None,
+        transcript_challenge = b"Bandersnatch_SHA-512_ELL2"
     ) -> None:
         (
             self.Cb,
@@ -132,22 +131,37 @@ class Verify:
         self.Cpx_blst = g1_to_blst(self.Cpx)
         self.Cpy_blst = g1_to_blst(self.Cpy)
         self.Cs_blst = g1_to_blst(self.Cs)
-
-        # can even put as separate function
-        self.t = Transcript(S_PRIME, b"Bandersnatch_SHA-512_ELL2")
-        self.cur_t, self.alpha_list = phase1_alphas(
+        
+        self.t = Transcript(S_PRIME, transcript_challenge)
+        
+        # Absorb into transcript
+        self.t, self.alpha_list = phase1_alphas(
             self.t,
             self.verifier_key,
             self.relation_to_proove,
             list(H.to_int(nm(cmt)) for cmt in self.proof_ptr[:4]),
-        )  # cb, caccip, caccx, caccy
+        )
 
-        self.cur_t, self.zeta_p = phase2_eval_point(
-            self.cur_t, H.to_int(nm(self.proof_ptr[-4]))
+        # Add quotient and get zeta
+        self.t, self.zeta_p = phase2_eval_point(
+            self.t, H.to_int(nm(self.proof_ptr[-4]))
         )
+
+        # Phase 3: Add evaluations and get ν challenges
+        evals_bytes = b"".join(
+            v.to_bytes(32, 'little') for v in self.proof_ptr[4:11]
+        )
+        lin_eval_bytes = self.proof_ptr[-3].to_bytes(32, 'little')
+
         self.V_list = phase3_nu_vector(
-            self.cur_t, list(self.proof_ptr[4:11]), self.proof_ptr[-3]
+            self.t,
+            evals_bytes,
+            lin_eval_bytes
         )
+
+        # Save transcript
+        self.cur_t = self.t
+
 
     def contributions_to_constraints_eval_at_zeta(
         self,
@@ -157,27 +171,29 @@ class Verify:
         sx, sy = Scalar(self.sp[0]), Scalar(self.sp[1])
         
         # Precompute common values
-        zeta_minus_d4 = zeta - D_S[-4]
+        zeta_minus_d4 = zeta - Scalar(self.D[-4])
 
         # Inline lagrange_at_zeta for index=0 and index=SIZE-4
         # L_i(zeta) = (omega^i / n) * (zeta^n - 1) / (zeta - omega^i)
-        
+
         # Shared term: zeta^n - 1
-        zeta_n_minus_1 = (zeta ** SIZE) - ONE_S
+        domain_size = len(self.D)
+        zeta_n_minus_1 = (zeta ** domain_size) - ONE_S
         
         # L_0: index=0, omega^0 = 1
         # omega^0 / n = 1/n = INV_SIZE_S
         # zeta - omega^0 = zeta - 1
+        inv_size = Scalar(domain_size) ** -1
         zeta_minus_1 = zeta - ONE_S
         if zeta_minus_1 == ZERO_S:
             L_0_zeta = ONE_S
         else:
-            L_0_zeta = INV_SIZE_S * zeta_n_minus_1 * (zeta_minus_1 ** -1)
-            
-        # L_N_4: index=SIZE-4, omega^(SIZE-4) = OMEGA_POW_SIZE_MINUS_4
-        # omega^(SIZE-4) / n = OMEGA_POW_SIZE_MINUS_4 * INV_SIZE_S
-        omega_i_N_4 = OMEGA_POW_SIZE_MINUS_4
-        omega_i_over_n_N_4 = omega_i_N_4 * INV_SIZE_S
+            L_0_zeta = inv_size * zeta_n_minus_1 * (zeta_minus_1 ** -1)
+
+        # L_N_4: index=SIZE-4, omega^(SIZE-4) from the domain
+        # omega^(SIZE-4) / n
+        omega_i_N_4 = Scalar(self.D[-4])
+        omega_i_over_n_N_4 = omega_i_N_4 * inv_size
         zeta_minus_omega_i_N_4 = zeta - omega_i_N_4
         if zeta_minus_omega_i_N_4 == ZERO_S:
             L_N_4_zeta = ONE_S
@@ -244,25 +260,20 @@ class Verify:
         # Precompute vanishing polynomial evaluation - combine pow operations
         prod_sum = ONE_S
         for k in range(1, 4):
-            prod_sum = prod_sum * (zeta - D_S[-k])
+            prod_sum = prod_sum * (zeta - Scalar(self.D[-k]))
 
         # Calculate numerator efficiently
         linear_combination = ZERO_S
         for alpha, c in zip(alphas_list, cs, strict=False):
             linear_combination = linear_combination + alpha * c
 
-        numerator = linear_combination
-
         # Re-calculating based on original quotient definition, but with optimized s_sum
         s_sum = linear_combination + Scalar(self.l_zeta_omega)
-        zeta_pow_size_minus_1 = (zeta ** SIZE) - ONE_S
-        
+        domain_size = len(self.D)
+        zeta_pow_size_minus_1 = (zeta ** domain_size) - ONE_S
+
         # q_zeta = (s_sum * prod_sum) / zeta_pow_size_minus_1
         q_zeta = (s_sum * prod_sum) * (zeta_pow_size_minus_1 ** -1)
-        
-        # Convert q_zeta to int for blst_msm if needed, or keep as Scalar if blst_msm handles it?
-        # blst_msm expects ints.
-        q_zeta_int = int(q_zeta)
 
         C_a_blst = [
             self.Cpx_blst,
@@ -310,8 +321,8 @@ class Verify:
         """Prepare KZG verification data for linearization polynomial"""
         alphas_list = [Scalar(a) for a in self.alpha_list]
         zeta = Scalar(self.zeta_p)
-        
-        zeta_minus_d4 = zeta - D_S[-4]
+
+        zeta_minus_d4 = zeta - Scalar(self.D[-4])
 
         # Cl1 scalar
         scalar_cl1 = zeta_minus_d4
@@ -345,15 +356,27 @@ class Verify:
         scalars = [int(scalar_accip), int(scalar_accx), int(scalar_accy)]
         Cl = blst_msm(points, scalars)
 
-        zeta_omega = zeta * Scalar(OMEGA)
+        # Compute omega for the actual domain size
+        domain_size = len(self.D)
+        if domain_size == 512:
+            omega = OMEGA
+        elif domain_size == 1024:
+            omega = pow(OMEGA_2048, 2048 // 1024, S_PRIME)
+        elif domain_size == 2048:
+            omega = OMEGA_2048
+        else:
+            # Fallback: compute from OMEGA_2048
+            omega = pow(OMEGA_2048, 2048 // domain_size, S_PRIME)
+
+        zeta_omega = zeta * Scalar(omega)
 
         return (Cl, self.Phi_zeta_omega_blst, int(zeta_omega), int(Scalar(self.l_zeta_omega)))
 
     # Legacy methods for backwards compatibility
     def evaluation_of_quotient_poly_at_zeta(self) -> bool:
         """Legacy method - use is_valid() with batch verification instead"""
+        raise NotImplementedError("Use is_valid() with batch verification instead")
 
     def evaluation_of_linearization_poly_at_zeta_omega(self) -> bool:
         """Legacy method - use is_valid() with batch verification instead"""
-        verification = self._prepare_linearization_poly_verification()
-        return KZG.verify(*verification)
+        raise NotImplementedError("Use is_valid() with batch verification instead")
