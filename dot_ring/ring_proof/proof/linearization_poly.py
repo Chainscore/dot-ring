@@ -9,10 +9,10 @@ from dot_ring.ring_proof.polynomial.ops import (
     poly_add,
     poly_evaluate,
     poly_scalar,
-    vect_mul,
 )
 from dot_ring.ring_proof.transcript.phases import phase2_eval_point
 from dot_ring.ring_proof.transcript.transcript import Transcript
+from dot_ring.curve.native_field.vector_ops import vect_mul
 
 
 class LAggPoly:

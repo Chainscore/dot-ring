@@ -10,9 +10,10 @@ from dot_ring.ring_proof.polynomial.interpolation import (
 )
 from dot_ring.ring_proof.polynomial.ops import (
     poly_multiply,
-    vect_add,
     vect_scalar_mul,
 )
+
+from dot_ring.curve.native_field.vector_ops import vect_add
 
 __all__ = [
     "vanishing_poly",
