@@ -10,13 +10,9 @@ on:
       - "*.*.*"
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    if: startsWith(github.ref, 'refs/tags/') || matrix.os == 'macos-latest'
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  build_wheels_macos:
+    name: Build wheels on macos-latest
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +49,50 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-macos-latest
+          path: ./wheelhouse/*.whl
+
+  build_wheels_linux:
+    name: Build wheels on ubuntu-latest
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (Linux ARM64)
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21
+        env:
+          # Python versions to build
+          CIBW_SKIP: "pp* cp38-* cp39-* cp310-* *-musllinux_*"
+          
+          # Use manylinux_2_28 (glibc 2.28+)
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          
+          # Install system dependencies (use EPEL for pre-built swig)
+          CIBW_BEFORE_ALL_LINUX: >
+            dnf install -y epel-release &&
+            dnf install -y swig pcre2-devel gcc-c++ make
+          CIBW_BEFORE_ALL_MACOS: brew install swig
+          
+          # Set macOS deployment target (blst requires 11.0+)
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
+          
+          # Install Python build dependencies
+          CIBW_BEFORE_BUILD: pip install Cython setuptools wheel "packaging>=24.2"
+          
+          # Architectures to build
+          CIBW_ARCHS_LINUX: x86_64 aarch64
+          CIBW_ARCHS_MACOS: x86_64 arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-ubuntu-latest
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -79,7 +118,7 @@ jobs:
           path: dist/*.tar.gz
 
   release:
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels_macos, build_wheels_linux, build_sdist]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -97,7 +136,7 @@ jobs:
           generate_release_notes: true
 
   publish:
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels_macos, build_wheels_linux, build_sdist]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
