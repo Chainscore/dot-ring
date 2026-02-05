@@ -51,6 +51,7 @@ from dot_ring.curve.specs.secp256k1 import Secp256k1_NU, Secp256k1_RO
 from dot_ring.vrf.ietf.ietf import IETF_VRF
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring.keygen import secret_from_seed
 
 # =============================================================================
 # Convenience aliases
@@ -114,4 +115,5 @@ __all__ = [
     "BLS12_381_G2",
     "BLS12_381_G2_RO",
     "BLS12_381_G2_NU",
+    "secret_from_seed",
 ]
