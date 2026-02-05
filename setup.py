@@ -177,7 +177,7 @@ class CustomBuildExt(build_ext):
 if __name__ == "__main__":
     setup(
         name="dot-ring",
-        version="0.1.2",
+        use_scm_version=True,
         packages=find_packages(exclude=["tests*", "perf*"]) + ["dot_ring.blst"],
         ext_modules=cythonize(
             cython_extensions,
