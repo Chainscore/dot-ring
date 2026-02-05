@@ -54,6 +54,15 @@ alpha = b"input data"
 ad = b"additional data"
 ```
 
+Deterministic key generation from a seed (matching ark-vrf):
+
+```python
+from dot_ring import Bandersnatch, secret_from_seed
+
+seed = (0).to_bytes(32, "little")
+public_key, secret_scalar = secret_from_seed(seed, Bandersnatch)
+```
+
 ### IETF VRF
 
 ```python

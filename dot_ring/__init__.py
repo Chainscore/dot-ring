@@ -48,6 +48,7 @@ from dot_ring.curve.specs.p256 import P256_NU, P256_RO
 from dot_ring.curve.specs.p384 import P384_NU, P384_RO
 from dot_ring.curve.specs.p521 import P521_NU, P521_RO
 from dot_ring.curve.specs.secp256k1 import Secp256k1_NU, Secp256k1_RO
+from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.ietf.ietf import IETF_VRF
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 from dot_ring.vrf.ring.ring_vrf import RingVRF
@@ -114,4 +115,5 @@ __all__ = [
     "BLS12_381_G2",
     "BLS12_381_G2_RO",
     "BLS12_381_G2_NU",
+    "secret_from_seed",
 ]
