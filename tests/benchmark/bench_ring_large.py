@@ -84,14 +84,14 @@ def benchmark_large_ring_proof(
     # =========================================================================
     print("Warming up...")
     for i in range(warmup_iters):
-        print(f"  Warmup iteration {i+1}/{warmup_iters}...")
+        print(f"  Warmup iteration {i + 1}/{warmup_iters}...")
         # Pass ring_root to avoid rebuilding it
         ring = Ring(keys, params)
         ring_root = RingRoot.from_ring(ring, params)
         ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
         ring_vrf_proof.verify(alpha, ad, ring, ring_root)
     print("Warmup complete")
-    
+
     # =========================================================================
     # Benchmark Ring Root Construction
     # =========================================================================
@@ -105,13 +105,13 @@ def benchmark_large_ring_proof(
         root_const_times.append(elapsed)
 
     # =========================================================================
-    # Benchmark Proof Generation 
+    # Benchmark Proof Generation
     # =========================================================================
     print("\nBenchmarking Proof Generation...")
     proof_times = []
     proofs = []
     for i in range(bench_iters):
-        print(f"  Iteration {i+1}/{bench_iters}...")
+        print(f"  Iteration {i + 1}/{bench_iters}...")
         start = time.perf_counter()
         # Pass ring_root to avoid rebuilding - this is the key optimization!
         ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
@@ -125,7 +125,7 @@ def benchmark_large_ring_proof(
     print("\nBenchmarking Verification...")
     verify_times = []
     for i, proof in enumerate(proofs):
-        print(f"  Iteration {i+1}/{bench_iters}...")
+        print(f"  Iteration {i + 1}/{bench_iters}...")
         start = time.perf_counter()
         result = proof.verify(alpha, ad, ring, ring_root)
         elapsed = (time.perf_counter() - start) * 1000

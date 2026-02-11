@@ -44,7 +44,7 @@ class Ring:
 
         if len(keys) > params.domain_size - params.padding_rows:
             raise ValueError(f"ring size {len(keys)} exceeds max supported size {params.domain_size - params.padding_rows}")
-        
+
         self.nm_points = []
         for key in keys:
             if isinstance(key, (str, bytes)):
@@ -56,11 +56,11 @@ class Ring:
             else:
                 # Handle non-string/bytes keys if necessary, or skip/raise
                 continue
-            
+
         # Pad with special point if needed
         while len(self.nm_points) < params.max_ring_size:
             self.nm_points.append(PaddingPoint)
-            
+
         # Ensure ring size
         fill_count = params.domain_size - params.padding_rows - len(self.nm_points)
         if fill_count > 0:
@@ -68,14 +68,14 @@ class Ring:
             self.nm_points.extend(h_vec[:fill_count])
         if params.padding_rows > 0:
             self.nm_points.extend([(0, 0)] * params.padding_rows)
-            
+
 
 @dataclass
 class RingRoot:
     px: Column
     py: Column
     s: Column
-    
+
     @classmethod
     def from_ring(cls, ring: Ring, params: RingProofParams):
         # Px, Py, s points

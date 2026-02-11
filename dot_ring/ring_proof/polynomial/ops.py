@@ -104,7 +104,6 @@ def poly_division_general(coeffs: list[int], domain_size: int) -> list[int]:
     return quotient
 
 
-
 def poly_evaluate(poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int) -> list[int] | int:
     """Evaluate polynomial at points xs.
 

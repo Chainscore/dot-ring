@@ -216,10 +216,10 @@ class RingVRF(VRF[Any]):
             cast(int, producer_key_point.x),
             cast(int, producer_key_point.y),
         )
-        
+
         if not ring_root:
             ring_root = RingRoot.from_ring(ring, params)  # ring_root builder
-            
+
         s_v = ring_root.s.evals
         producer_index = ring.nm_points.index(producer_key_pt)
         witness_obj = WitnessColumnBuilder.from_params(
@@ -416,9 +416,7 @@ class RingVRF(VRF[Any]):
         """
         pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove(alpha, secret_key, ad)  # type: ignore[misc]
 
-        ring_proof = cls.generate_bls_signature(
-            pedersen_proof._blinding_factor, producer_key, ring=ring, ring_root=ring_root
-        )
+        ring_proof = cls.generate_bls_signature(pedersen_proof._blinding_factor, producer_key, ring=ring, ring_root=ring_root)
 
         return cls(pedersen_proof, *ring_proof)
 
@@ -434,13 +432,7 @@ class RingVRF(VRF[Any]):
         """
         return [keys[32 * i : 32 * (i + 1)] for i in range(len(keys) // 32)]
 
-    def verify(
-        self,
-        input: bytes,
-        ad_data: bytes,
-        ring: Ring,
-        ring_root: RingRoot
-    ) -> bool:
+    def verify(self, input: bytes, ad_data: bytes, ring: Ring, ring_root: RingRoot) -> bool:
         """
         Verify ring VRF proof (pedersen_proof + ring_proof)
         """

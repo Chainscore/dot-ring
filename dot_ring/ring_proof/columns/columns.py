@@ -42,7 +42,6 @@ class Column:
             self.commitment = KZG.commit(self.coeffs)
 
 
-
 @dataclass(slots=True)
 class WitnessColumnBuilder:
     ring_pk: list[tuple[int, int]]
