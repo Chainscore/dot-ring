@@ -1,6 +1,6 @@
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.pcs.kzg import KZG
-from dot_ring.ring_proof.polynomial.ops import poly_add, poly_scalar
+from dot_ring.ring_proof.polynomial.poly_ops import poly_add, poly_scalar_mul
 
 
 class AggPoly:
@@ -20,7 +20,7 @@ class AggPoly:
         V_list = cf_vectors
         agg_poly = [0]
         for i in range(len(poly_I)):
-            agg_poly = poly_add(agg_poly, poly_scalar(poly_I[i], V_list[i], S_PRIME), S_PRIME)
+            agg_poly = poly_add(agg_poly, poly_scalar_mul(poly_I[i], V_list[i], S_PRIME), S_PRIME)
         return agg_poly
 
     # two proof openings

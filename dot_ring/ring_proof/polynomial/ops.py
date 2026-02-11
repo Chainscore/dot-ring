@@ -3,6 +3,14 @@ from collections.abc import Sequence
 from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA_2048
 from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
 from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
+from dot_ring.ring_proof.polynomial.poly_ops import (
+    poly_evaluate_single,
+    poly_mul_linear,
+    poly_multiply_naive,
+)
+from dot_ring.ring_proof.polynomial.poly_ops import (
+    poly_scalar_mul as poly_scalar_mul_fast,
+)
 
 
 def mod_inverse(val: int, prime: int) -> int:
@@ -10,33 +18,6 @@ def mod_inverse(val: int, prime: int) -> int:
     if pow(val, prime - 1, prime) != 1:
         raise ValueError("No inverse exists")
     return pow(val, prime - 2, prime)
-
-
-def poly_add(poly1: list | Sequence[int], poly2: list | Sequence[int], prime: int) -> list[int]:
-    """Add two polynomials in a prime field."""
-    # Make them the same length
-    result_len = max(len(poly1), len(poly2))
-    result = [0] * result_len
-
-    for i in range(len(poly1)):
-        result[i] = poly1[i]
-    for i in range(len(poly2)):
-        result[i] = (result[i] + poly2[i]) % prime
-    return result
-
-
-def poly_subtract(poly1: list[int], poly2: list[int], prime: int) -> list[int]:
-    """Subtract poly2 from poly1 in a prime field."""
-    # Make them the same length
-    result_len = max(len(poly1), len(poly2))
-    result = [0] * result_len
-
-    for i in range(len(poly1)):
-        result[i] = poly1[i]
-
-    for i in range(len(poly2)):
-        result[i] = (result[i] - poly2[i]) % prime
-    return result
 
 
 GENERATOR = 5
@@ -84,11 +65,7 @@ def poly_multiply(poly1: list[int], poly2: list[int], prime: int) -> list[int]:
         # Truncate to expected length (higher terms should be 0)
         return coeffs[:result_len]
 
-    result = [0] * result_len
-    for i in range(len(poly1)):
-        for j in range(len(poly2)):
-            result[i + j] = (result[i + j] + poly1[i] * poly2[j]) % prime
-    return result
+    return poly_multiply_naive(poly1, poly2, prime)
 
 
 def poly_division_general(coeffs: list[int], domain_size: int) -> list[int]:
@@ -127,19 +104,6 @@ def poly_division_general(coeffs: list[int], domain_size: int) -> list[int]:
     return quotient
 
 
-def poly_scalar(poly: list | Sequence[int], scalar: int, prime: int) -> list[int]:
-    """Multiply a polynomial by a scalar in a prime field."""
-    result = [(coef * scalar) % prime for coef in poly]
-    return result
-
-
-def poly_evaluate_single(poly: list | Sequence[int], x: int, prime: int) -> int:
-    result = 0
-    for coef in reversed(poly):
-        result = (result * x + coef) % prime
-    return result
-
-
 def poly_evaluate(poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int) -> list[int] | int:
     """Evaluate polynomial at points xs.
 
@@ -170,27 +134,6 @@ def poly_evaluate(poly: list | Sequence[int], xs: list | int | Sequence[int], pr
         # Fall back to Horner evaluation for arbitrary points
         results = [poly_evaluate_single(poly, x, prime) for x in xs]
         return results
-
-
-def poly_mul_linear(poly: list[int], a: int, b: int, prime: int) -> list[int]:
-    """Multiply poly by (ax + b) in O(n) time."""
-    # result = poly * (ax + b) = a * (poly * x) + b * poly
-    # poly * x is [0] + poly
-    # result[i] = a * poly[i-1] + b * poly[i]
-
-    n = len(poly)
-    result = [0] * (n + 1)
-
-    # Handle first element (i=0): result[0] = b * poly[0]
-    result[0] = (b * poly[0]) % prime
-
-    for i in range(1, n):
-        result[i] = (a * poly[i - 1] + b * poly[i]) % prime
-
-    # Handle last element (i=n): result[n] = a * poly[n-1]
-    result[n] = (a * poly[n - 1]) % prime
-
-    return result
 
 
 def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[int]:
@@ -239,7 +182,7 @@ def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[i
     # inv_denominator = mod_inverse(denominator, prime)
     inv_denominator = pow(denominator, -1, prime)
     # Scale the numerator polynomial
-    basis_poly = poly_scalar(numerator, inv_denominator, prime)
+    basis_poly = poly_scalar_mul_fast(numerator, inv_denominator, prime)
 
     return basis_poly
 

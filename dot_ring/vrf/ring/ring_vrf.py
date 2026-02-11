@@ -5,7 +5,6 @@ from py_ecc.optimized_bls12_381 import normalize as nm
 
 from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
-from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
 from dot_ring.ring_proof.constants import (
     S_PRIME,
     Blinding_Base,
@@ -16,7 +15,6 @@ from dot_ring.ring_proof.constraints.aggregation import aggregate_constraints
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.helpers import Helpers as H
-from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import Opening
 from dot_ring.ring_proof.pcs.srs import srs
 from dot_ring.ring_proof.proof.aggregation_poly import AggPoly
@@ -28,7 +26,7 @@ from dot_ring.ring_proof.verify import Verify
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 from ..vrf import VRF
-from .ring_root import RingRoot
+from .ring_root import Ring, RingRoot
 
 
 @dataclass
@@ -177,9 +175,9 @@ class RingVRF(VRF[Any]):
         cls,
         blinding_factor: int,
         producer_key: bytes | str,
-        keys: list[Any] | str | bytes,
+        ring: Ring,
         transcript_challenge: bytes = b"Bandersnatch_SHA-512_ELL2",
-        params: RingProofParams | None = None,
+        ring_root: RingRoot | None = None,
     ) -> tuple[
         Column,
         Column,
@@ -198,9 +196,17 @@ class RingVRF(VRF[Any]):
         Any,
     ]:
         """
-        Returns the Ring Proof as an output
+        Returns the Ring Proof as an output.
+
+        Args:
+            blinding_factor: Blinding factor from Pedersen VRF
+            producer_key: Public key of the prover
+            ring: Ring object containing member keys and params
+            transcript_challenge: Challenge for Fiat-Shamir
+            ring_root: Optional pre-computed ring root for performance
         """
-        params = params or RingProofParams()
+        # Use params from the ring object
+        params = ring.params
         producer_key_point = cls.cv.point.string_to_point(producer_key)
 
         if isinstance(producer_key_point, str) or producer_key_point.is_identity():
@@ -210,25 +216,14 @@ class RingVRF(VRF[Any]):
             cast(int, producer_key_point.x),
             cast(int, producer_key_point.y),
         )
-        keys_as_bs_points = []
 
-        for key in keys:
-            if isinstance(key, (str, bytes)):
-                point = cls.cv.point.string_to_point(key)
-                if isinstance(point, str):
-                    # Handle invalid point string
-                    continue
-                keys_as_bs_points.append((cast(int, point.x), cast(int, point.y)))
-            else:
-                # Handle non-string/bytes keys if necessary, or skip/raise
-                continue
+        if not ring_root:
+            ring_root = RingRoot.from_ring(ring, params)  # ring_root builder
 
-        ring_root = PC.from_params(params)  # ring_root builder
-        fixed_cols = ring_root.build(keys_as_bs_points)
-        s_v = fixed_cols[-1].evals
-        producer_index = keys_as_bs_points.index(producer_key_pt)
+        s_v = ring_root.s.evals
+        producer_index = ring.nm_points.index(producer_key_pt)
         witness_obj = WitnessColumnBuilder.from_params(
-            keys_as_bs_points,
+            ring.nm_points,
             s_v,
             producer_index,
             blinding_factor,
@@ -239,9 +234,9 @@ class RingVRF(VRF[Any]):
         Result_plus_Seed = witness_obj.result_p_seed(witness_relation_res)
         constraints = RingConstraintBuilder(
             Result_plus_Seed=Result_plus_Seed,  # type: ignore
-            px=cast(list[int], fixed_cols[0].coeffs),
-            py=cast(list[int], fixed_cols[1].coeffs),
-            s=cast(list[int], fixed_cols[2].coeffs),
+            px=cast(list[int], ring_root.px.coeffs),
+            py=cast(list[int], ring_root.py.coeffs),
+            s=cast(list[int], ring_root.s.coeffs),
             b=cast(list[int], witness_res[0].coeffs),
             acc_x=cast(list[int], witness_res[1].coeffs),
             acc_y=cast(list[int], witness_res[2].coeffs),
@@ -251,9 +246,9 @@ class RingVRF(VRF[Any]):
 
         constraint_dict = constraints.compute()
         fixed_col_commits = [
-            H.to_int(nm(fixed_cols[0].commitment)),
-            H.to_int(nm(fixed_cols[1].commitment)),
-            H.to_int(nm(fixed_cols[2].commitment)),
+            H.to_int(nm(ring_root.px.commitment)),
+            H.to_int(nm(ring_root.py.commitment)),
+            H.to_int(nm(ring_root.s.commitment)),
         ]
 
         ws = witness_res
@@ -282,7 +277,7 @@ class RingVRF(VRF[Any]):
         l_obj = LAggPoly(
             t,
             list(H.to_int(C_q_nm)),
-            list(fixed_cols),
+            list([ring_root.px, ring_root.py, ring_root.s]),
             list(ws),
             alpha,
             domain=params.domain,
@@ -294,7 +289,7 @@ class RingVRF(VRF[Any]):
             zeta,
             zeta_omega,
             l_agg,
-            list(fixed_cols),
+            list([ring_root.px, ring_root.py, ring_root.s]),
             list(ws),
             Q_p,
             phase3_nu_vector(current_t, list(rel_poly_evals.values()), l_zw),
@@ -330,16 +325,12 @@ class RingVRF(VRF[Any]):
     def verify_ring_proof(
         self,
         message: bytes | CurvePoint,
-        ring_root: RingRoot | bytes,
-        params: RingProofParams | None = None,
+        ring: Ring,
+        ring_root: RingRoot,
     ) -> bool:
         """
         Verifies the Ring Proof
         """
-        params = params or RingProofParams()
-        # Decompress ring_root once at the start
-        if isinstance(ring_root, bytes):
-            ring_root = RingRoot.from_bytes(ring_root)
         fixed_cols_cmts = [
             ring_root.px.commitment,
             ring_root.py.commitment,
@@ -391,36 +382,9 @@ class RingVRF(VRF[Any]):
             rltn,
             res_plus_seed,
             SeedPoint,
-            params.domain,
-            padding_rows=params.padding_rows,
+            ring.params.domain,
+            padding_rows=ring.params.padding_rows,
         ).is_valid()
-
-    @classmethod
-    def construct_ring_root(
-        cls,
-        keys: list[bytes],
-        params: RingProofParams | None = None,
-    ) -> RingRoot:
-        """
-        Constructs the Ring Root
-        """
-        params = params or RingProofParams()
-        keys_as_bs_points = []
-        for key in keys:
-            if not isinstance(key, (str, bytes)):
-                continue
-            point = cls.cv.point.string_to_point(key)
-
-            if isinstance(point, str) or point.is_identity():
-                keys_as_bs_points.append((PaddingPoint[0], PaddingPoint[1]))
-
-            else:
-                keys_as_bs_points.append((cast(int, point.x), cast(int, point.y)))
-
-        ring_root = PC.from_params(params)  # ring_root builder
-        fixed_cols = ring_root.build(keys_as_bs_points)
-
-        return RingRoot(*fixed_cols)
 
     @classmethod
     def prove(
@@ -429,17 +393,30 @@ class RingVRF(VRF[Any]):
         ad: bytes,
         secret_key: bytes,
         producer_key: bytes,
-        keys: list[bytes],
-        params: RingProofParams | None = None,
+        ring: Ring,
+        ring_root: RingRoot | None = None,
     ) -> "RingVRF":
         """
-        Generate ring VRF proof (pedersen vrf proof + ring_proof)
+        Generate ring VRF proof (pedersen vrf proof + ring_proof).
+
+        Args:
+            alpha: VRF input
+            ad: Additional data
+            secret_key: Prover's secret key
+            producer_key: Prover's public key
+            ring: Ring object containing member keys. Params are auto-constructed if not provided to Ring.
+            ring_root: Pre-computed ring root. If provided, skips expensive ring column construction (~335ms for 1023 members).
+
+        Returns:
+            RingVRF proof
+
+        Examples:
+            >>> ring = Ring(keys)  # Automatically determines optimal domain size
+            >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring)
         """
-        # pedersen_proof
         pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove(alpha, secret_key, ad)  # type: ignore[misc]
 
-        # ring_proof
-        ring_proof = cls.generate_bls_signature(pedersen_proof._blinding_factor, producer_key, keys, params=params)
+        ring_proof = cls.generate_bls_signature(pedersen_proof._blinding_factor, producer_key, ring=ring, ring_root=ring_root)
 
         return cls(pedersen_proof, *ring_proof)
 
@@ -455,24 +432,13 @@ class RingVRF(VRF[Any]):
         """
         return [keys[32 * i : 32 * (i + 1)] for i in range(len(keys) // 32)]
 
-    def verify(
-        self,
-        input: bytes,
-        ad_data: bytes,
-        ring_root: RingRoot | bytes,
-        params: RingProofParams | None = None,
-    ) -> bool:
+    def verify(self, input: bytes, ad_data: bytes, ring: Ring, ring_root: RingRoot) -> bool:
         """
         Verify ring VRF proof (pedersen_proof + ring_proof)
         """
-        # Decompress ring_root once at the start
-        if isinstance(ring_root, bytes):
-            ring_root = RingRoot.from_bytes(ring_root)
-
-        # is pedersen proof valid
         if self.pedersen_proof is None:
             raise ValueError("Pedersen proof is missing")
         p_proof_valid = self.pedersen_proof.verify(input, ad_data)
-        ring_proof_valid = self.verify_ring_proof(self.pedersen_proof.blinded_pk, ring_root, params=params)
+        ring_proof_valid = self.verify_ring_proof(self.pedersen_proof.blinded_pk, ring, ring_root)
 
         return p_proof_valid and ring_proof_valid

@@ -5,8 +5,10 @@ import os
 from time import time
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ietf.ietf import IETF_VRF
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 HERE = os.path.dirname(__file__)
@@ -119,11 +121,13 @@ def test_ring_proof():
         ad = bytes.fromhex(item["ad"])
         keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item["ring_pks"]))
         start = time()
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
         ring_time = time()
         print(f"\nTime taken for Ring Root Construction: \t\t {1000 * (ring_time - start):.2f} ms")
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
-        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
         pk_time = time()
         print(f"Time taken for Proof Generation: \t {1000 * (pk_time - ring_time):.2f} ms")
         proof_bytes = ring_vrf_proof.to_bytes()
@@ -136,10 +140,10 @@ def test_ring_proof():
             == item["gamma"] + item["proof_pk_com"] + item["proof_r"] + item["proof_ok"] + item["proof_s"] + item["proof_sb"] + item["ring_proof"]
         ), "Unexpected Proof"
 
-        assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
+        assert ring_vrf_proof.verify(alpha, ad, ring, ring_root), "Verification Failed"
         assert proof_rt.to_bytes() == proof_bytes
         start = time()
-        assert proof_rt.verify(alpha, ad, ring_root)
+        assert proof_rt.verify(alpha, ad, ring, ring_root)
         verify_time = time()
         print(f"Time taken for Proof Verification: \t {1000 * (verify_time - start):.2f} ms")
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")

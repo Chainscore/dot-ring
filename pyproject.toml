@@ -124,7 +124,7 @@ disallow_untyped_defs = true
 exclude = ["build/"]
 
 [[tool.mypy.overrides]]
-module = ["dot_ring.curve.field_arithmetic", "dot_ring.curve.fast_math", "dot_ring.ring_proof.polynomial.ntt", "dot_ring.blst.*", "py_ecc.*"]
+module = ["dot_ring.curve.field_arithmetic", "dot_ring.curve.fast_math", "dot_ring.ring_proof.polynomial.ntt", "dot_ring.ring_proof.polynomial.poly_ops", "dot_ring.blst.*", "py_ecc.*"]
 ignore_missing_imports = true
 disallow_untyped_defs = false
 check_untyped_defs = false

@@ -7,6 +7,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "dot_ring" / "blst" / "bindings" / "python"))
 
 from dot_ring import Bandersnatch
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 
@@ -28,17 +29,26 @@ def ring_data(request):
     alpha = b"test_message"
     ad = b"test_ad"
 
-    ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+    ring = Ring(keys)
+    ring_root = RingRoot.from_ring(ring, ring.params)
 
     # Pre-calculate a proof for verification benchmark
-    proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
+    proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
 
-    return {"s_k": s_k, "p_k": p_k, "keys": keys, "alpha": alpha, "ad": ad, "ring_root": ring_root, "proof": proof}
+    return {"s_k": s_k, "p_k": p_k, "ring": ring, "alpha": alpha, "ad": ad, "ring_root": ring_root, "proof": proof}
 
 
 def test_prove(benchmark, ring_data):
-    benchmark(RingVRF[Bandersnatch].prove, ring_data["alpha"], ring_data["ad"], ring_data["s_k"], ring_data["p_k"], ring_data["keys"])
+    benchmark(
+        RingVRF[Bandersnatch].prove,
+        ring_data["alpha"],
+        ring_data["ad"],
+        ring_data["s_k"],
+        ring_data["p_k"],
+        ring_data["ring"],
+        ring_data["ring_root"],
+    )
 
 
 def test_verify(benchmark, ring_data):
-    benchmark(ring_data["proof"].verify, ring_data["alpha"], ring_data["ad"], ring_data["ring_root"])
+    benchmark(ring_data["proof"].verify, ring_data["alpha"], ring_data["ad"], ring_data["ring"], ring_data["ring_root"])

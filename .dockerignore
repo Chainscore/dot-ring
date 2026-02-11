@@ -1,23 +1,93 @@
+# Git
 .git
 .gitignore
-.dockerignore
-.blst
-.venv
+.gitattributes
+.github
+
+# Python
 __pycache__
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-env
-venv
-ENV
-env.bak
-venv.bak
-build
-dist
-*.egg-info
-.mypy_cache
-.pytest_cache
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+testenv/
+
+# Testing
+.pytest_cache/
 .coverage
-htmlcov
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
 .DS_Store
+
+# Build artifacts
+.blst/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.pyd
+*.pyc
+
+# Documentation
+docs/_build/
+
+# Output and temporary files
+output/
+*.log
+*.tmp
+perf/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Other
+*.md
+!README.md
+LICENSE

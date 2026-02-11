@@ -55,6 +55,12 @@ def build_cython_extensions() -> list[Extension]:
             extra_compile_args=["-O3", "-ffast-math"],
         ),
         Extension(
+            "dot_ring.ring_proof.polynomial.poly_ops",
+            ["dot_ring/ring_proof/polynomial/poly_ops.pyx"],
+            extra_compile_args=compile_args,
+            extra_link_args=[] if sys.platform == "win32" else ["-flto"],
+        ),
+        Extension(
             "dot_ring.curve.native_field.scalar",
             [
                 "dot_ring/curve/native_field/scalar.pyx",

@@ -2,6 +2,8 @@ import pytest
 
 from dot_ring import IETF_VRF, Bandersnatch, PedersenVRF
 from dot_ring.curve.specs.ed448 import Ed448_RO
+from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 
 
 class TestCoverageGaps:
@@ -207,7 +209,10 @@ class TestCoverageGaps:
         pk = PedersenVRF[Bandersnatch].get_public_key(sk)
         keys = [pk]
 
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
+        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
         proof_bytes = proof.to_bytes()
 
         # Parse with skip_pedersen=True
@@ -239,20 +244,19 @@ class TestCoverageGaps:
         pk = PedersenVRF[Bandersnatch].get_public_key(sk)
         keys = [pk]
 
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
+        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
         proof_bytes = proof.to_bytes()
         ring_proof_bytes = proof_bytes[192:]
         parsed = RingVRF[Bandersnatch].from_bytes(ring_proof_bytes, skip_pedersen=True)
 
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
-
         with pytest.raises(ValueError, match="Pedersen proof is missing"):
-            parsed.verify(alpha, ad, ring_root)
+            parsed.verify(alpha, ad, ring, ring_root)
 
     def test_ring_construct_ring_root_invalid_keys(self):
-        """Test construct_ring_root with invalid keys."""
-        from dot_ring.vrf.ring.ring_vrf import RingVRF
-
+        """Test Ring construction with invalid keys."""
         # Invalid key string
         invalid_key = b"invalid"
         # Identity point (if we can construct one as string)
@@ -263,11 +267,14 @@ class TestCoverageGaps:
         ]  # 33 bytes of zeros might be invalid or identity?
 
         # Should not raise, but handle gracefully (skip or use padding)
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        assert ring is not None
+        ring_root = RingRoot.from_ring(ring, params)
         assert ring_root is not None
 
     def test_ring_verify_ring_proof_bytes_input(self):
-        """Test verify_ring_proof handles bytes input for message and ring_root."""
+        """Test verify_ring_proof handles bytes input for message."""
         from dot_ring.vrf.ring.ring_vrf import RingVRF
 
         alpha = b"test"
@@ -276,28 +283,30 @@ class TestCoverageGaps:
         pk = PedersenVRF[Bandersnatch].get_public_key(sk)
         keys = [pk]
 
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, keys)
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
-        ring_root_bytes = ring_root.to_bytes()
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
+        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
 
         # message is usually a point (blinded_pk), but verify_ring_proof accepts bytes too.
         # But wait, verify_ring_proof takes `message: bytes | CurvePoint`.
-        # In `verify`, it calls `self.verify_ring_proof(self.pedersen_proof.blinded_pk, ring_root)`.
+        # In `verify`, it calls `self.verify_ring_proof(self.pedersen_proof.blinded_pk, ring, ring_root)`.
         # `blinded_pk` is a CurvePoint.
         # If we pass bytes, it tries to decode.
 
         # Let's call verify_ring_proof directly with bytes
         blinded_pk_bytes = proof.pedersen_proof.blinded_pk.point_to_string()
 
-        valid = proof.verify_ring_proof(blinded_pk_bytes, ring_root_bytes)
+        valid = proof.verify_ring_proof(blinded_pk_bytes, ring, ring_root)
         assert valid
 
     def test_ring_construct_ring_root_non_bytes_key(self):
-        """Test construct_ring_root with non-bytes/str key."""
-        from dot_ring.vrf.ring.ring_vrf import RingVRF
-
+        """Test Ring construction with non-bytes/str key."""
         keys = [123]  # type: ignore
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        assert ring is not None
+        ring_root = RingRoot.from_ring(ring, params)
         assert ring_root is not None
 
     def test_ring_verify_ring_proof_invalid_message(self):
@@ -310,10 +319,12 @@ class TestCoverageGaps:
         pk = PedersenVRF[Bandersnatch].get_public_key(sk)
         keys = [pk]
 
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, keys)
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
+        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
 
         invalid_message = b"\xff" * 33
 
         with pytest.raises(ValueError, match="Invalid message point"):
-            proof.verify_ring_proof(invalid_message, ring_root)
+            proof.verify_ring_proof(invalid_message, ring, ring_root)

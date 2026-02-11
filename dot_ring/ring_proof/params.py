@@ -2,12 +2,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import ClassVar
 
+from dot_ring.curve.curve import CurveVariant
+from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.constants import D_2048, DEFAULT_SIZE, MAX_RING_SIZE, OMEGA_2048, S_PRIME
 
 
 def _is_power_of_two(n: int) -> bool:
     return n > 0 and (n & (n - 1)) == 0
+
+
+def _next_power_of_two(n: int) -> int:
+    """Find the next power of 2 greater than or equal to n."""
+    if n <= 0:
+        return 1
+    if _is_power_of_two(n):
+        return n
+    return 1 << (n.bit_length())
 
 
 def _omega_for_domain(domain_size: int, prime: int = S_PRIME, base_root: int = OMEGA_2048, base_size: int = 2048) -> int:
@@ -90,6 +102,7 @@ class RingProofParams:
     prime: int = S_PRIME
     base_root: int = OMEGA_2048
     base_root_size: int = 2048
+    cv: ClassVar[CurveVariant] = Bandersnatch
 
     def __post_init__(self) -> None:
         radix_domain_size = self.radix_domain_size
@@ -144,3 +157,57 @@ class RingProofParams:
     @property
     def max_effective_ring_size(self) -> int:
         return self.domain_size - self.padding_rows
+
+    @classmethod
+    def from_ring_size(
+        cls,
+        ring_size: int,
+        padding_rows: int = 4,
+        prime: int = S_PRIME,
+        base_root: int = OMEGA_2048,
+        base_root_size: int = 2048,
+    ) -> RingProofParams:
+        """
+        Automatically construct RingProofParams based on ring size.
+
+        Calculates the minimum domain size needed to accommodate the ring
+        and constructs appropriate parameters.
+
+        Args:
+            ring_size: Number of members in the ring
+            padding_rows: Number of padding rows (default: 4)
+            prime: Field prime (default: S_PRIME)
+            base_root: Base root of unity (default: OMEGA_2048)
+            base_root_size: Base root size (default: 2048)
+
+        Returns:
+            RingProofParams configured for the given ring size
+        """
+        if ring_size <= 0:
+            raise ValueError(f"ring_size must be positive, got {ring_size}")
+
+        # Calculate minimum domain size needed:
+        # domain_size >= ring_size + padding_rows
+        min_domain_size = ring_size + padding_rows
+
+        # Round up to next power of 2
+        domain_size = _next_power_of_two(min_domain_size)
+
+        # Ensure domain_size is reasonable (between 16 and 8192)
+        if domain_size < 16:
+            domain_size = 16
+        elif domain_size > 8192:
+            raise ValueError(
+                f"Ring size {ring_size} requires domain size {domain_size}, "
+                f"which exceeds maximum supported size of 8192. "
+                f"Maximum ring size is {8192 - padding_rows}."
+            )
+
+        return cls(
+            domain_size=domain_size,
+            max_ring_size=ring_size,
+            padding_rows=padding_rows,
+            prime=prime,
+            base_root=base_root,
+            base_root_size=base_root_size,
+        )

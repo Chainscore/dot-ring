@@ -1,8 +1,9 @@
 import pytest
 
-from dot_ring.ring_proof.columns.columns import Column, PublicColumnBuilder, WitnessColumnBuilder
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, S_PRIME, PaddingPoint
+from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
+from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, S_PRIME
 from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.ring.ring_root import Ring
 
 
 def test_column_interpolate_rejects_oversize_evals():
@@ -17,23 +18,25 @@ def test_column_commit_requires_coeffs():
         col.commit()
 
 
-def test_public_builder_from_params_and_padding():
+def test_ring_from_params():
+    """Test Ring construction with explicit params"""
     params = RingProofParams(domain_size=8, max_ring_size=3, padding_rows=1)
-    builder = PublicColumnBuilder.from_params(params)
-    assert builder.size == 8
-    assert builder.max_ring_size == 3
+    # Create dummy keys (just using some bytes)
+    keys = [b"key1" * 8, b"key2" * 8]
+    ring = Ring(keys, params)
 
-    ring = [(1, 1)]
-    padded = builder._pad_ring_with_padding_point(ring)
-    assert len(padded) == builder.max_ring_size
-    assert padded[-1] == PaddingPoint
+    assert ring.params == params
+    assert len(ring.nm_points) == params.domain_size
 
 
-def test_public_builder_rejects_oversize_ring():
-    builder = PublicColumnBuilder(size=8, max_ring_size=2, padding_rows=1)
-    ring_pk = [(0, 0)] * 8
+def test_ring_rejects_oversize_ring():
+    """Test Ring rejects rings that are too large"""
+    params = RingProofParams(domain_size=8, max_ring_size=2, padding_rows=1)
+    # Create 8 keys which exceeds max_ring_size=2 and domain_size-padding_rows=7
+    keys = [b"key" + bytes([i]) * 8 for i in range(8)]
+
     with pytest.raises(ValueError, match="exceeds max supported size"):
-        builder.build(ring_pk)
+        Ring(keys, params)
 
 
 def test_witness_builder_from_params_and_bits_vector_error():

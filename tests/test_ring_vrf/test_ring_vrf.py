@@ -3,6 +3,8 @@ import os
 import time
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 HERE = os.path.dirname(__file__)
@@ -22,12 +24,14 @@ def test_ring_proof():
         keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item["ring_pks"]))
 
         start_time = time.time()
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        params = RingProofParams()
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
         ring_time = time.time()
         print(f"\nTime taken for Ring Root Construction: \t\t {ring_time - start_time} seconds")
 
         p_k = RingVRF[Bandersnatch].get_public_key(s_k)
-        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
         proof_bytes = ring_vrf_proof.to_bytes()
         proof_rt = RingVRF[Bandersnatch].from_bytes(proof_bytes)
 
@@ -41,13 +45,13 @@ def test_ring_proof():
             == item["gamma"] + item["proof_pk_com"] + item["proof_r"] + item["proof_ok"] + item["proof_s"] + item["proof_sb"] + item["ring_proof"]
         ), "Unexpected Proof"
         start = time.time()
-        assert ring_vrf_proof.verify(alpha, ad, ring_root), "Verification Failed"
+        assert ring_vrf_proof.verify(alpha, ad, ring, ring_root), "Verification Failed"
         print(
             "Time taken for Ring VRF Proof Verification: \t ",
             time.time() - start,
             " seconds",
         )
         assert proof_rt.to_bytes() == proof_bytes
-        assert proof_rt.verify(alpha, ad, ring_root)
+        assert proof_rt.verify(alpha, ad, ring, ring_root)
 
         print(f"✅ Testcase {index + 1} of {os.path.basename(file_path)}")
