@@ -1,10 +1,9 @@
 import pytest
 
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
 from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, S_PRIME
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
+from dot_ring.vrf.ring.ring_root import Ring
 
 
 def test_column_interpolate_rejects_oversize_evals():

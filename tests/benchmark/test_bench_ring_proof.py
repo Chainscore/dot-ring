@@ -39,7 +39,15 @@ def ring_data(request):
 
 
 def test_prove(benchmark, ring_data):
-    benchmark(RingVRF[Bandersnatch].prove, ring_data["alpha"], ring_data["ad"], ring_data["s_k"], ring_data["p_k"], ring_data["ring"], ring_data["ring_root"])
+    benchmark(
+        RingVRF[Bandersnatch].prove, 
+        ring_data["alpha"], 
+        ring_data["ad"], 
+        ring_data["s_k"], 
+        ring_data["p_k"], 
+        ring_data["ring"], 
+        ring_data["ring_root"]
+    )
 
 
 def test_verify(benchmark, ring_data):
