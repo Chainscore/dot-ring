@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import cast
 
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, Blinding_Base, PaddingPoint, SeedPoint
+from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, SeedPoint
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
@@ -41,72 +41,6 @@ class Column:
         if self.commitment is None:
             self.commitment = KZG.commit(self.coeffs)
 
-
-@dataclass(slots=True)
-class PublicColumnBuilder:
-    size: int = DEFAULT_SIZE
-    prime: int = S_PRIME
-    omega: int = OMEGAS[DEFAULT_SIZE]
-    max_ring_size: int = MAX_RING_SIZE
-    padding_rows: int = 4
-
-    @classmethod
-    def from_params(cls, params: RingProofParams) -> PublicColumnBuilder:
-        return cls(
-            size=params.domain_size,
-            prime=params.prime,
-            omega=params.omega,
-            max_ring_size=params.max_ring_size,
-            padding_rows=params.padding_rows,
-        )
-
-    def _pad_ring_with_padding_point(self, pk_ring: list[tuple[int, int]]) -> list[tuple[int, int]]:
-        """Pad ring in‑place with the special padding point until size."""
-        # padding_sw = sw.from_twisted_edwards(PaddingPoint)
-        padding_sw = PaddingPoint
-        while len(pk_ring) < self.max_ring_size:
-            pk_ring.append(padding_sw)
-        return pk_ring
-
-    def _h_vector(self, blinding_base: tuple[int, int] = Blinding_Base) -> list[tuple[int, int]]:
-        """Return `[2⁰·H, 2¹·H, …]` in short‑Weierstrass coords."""
-        # sw_bb = sw.from_twisted_edwards(blinding_base)
-        sw_bb = blinding_base
-        # print("Blinding Base:",sw_bb)
-        res = [cast(tuple[int, int], TE.mul(pow(2, i, S_PRIME), sw_bb)) for i in range(self.size)]
-        return res  # B_Neck
-
-    def build(self, ring_pk: list[tuple[int, int]]) -> tuple[Column, Column, Column]:
-        """Return (Px, Py, s) columns fully committed."""
-        if len(ring_pk) < self.max_ring_size:
-            ring_pk = self._pad_ring_with_padding_point(ring_pk)
-        if len(ring_pk) > self.size - self.padding_rows:
-            raise ValueError(f"ring size {len(ring_pk)} exceeds max supported size {self.size - self.padding_rows}")
-        # 1. ensure ring size
-        fill_count = self.size - self.padding_rows - len(ring_pk)
-        if fill_count > 0:
-            if self.size == len(_H_VEC_DEFAULT):
-                h_vec = _H_VEC_DEFAULT
-            else:
-                h_vec = self._h_vector()
-            ring_pk.extend(h_vec[:fill_count])
-        if self.padding_rows > 0:
-            ring_pk.extend([(0, 0)] * self.padding_rows)
-
-        # 2. unzip into x/y vectors
-        px, py = H.unzip(ring_pk)
-
-        # 3. selector vector
-        sel = [1 if i < self.max_ring_size else 0 for i in range(self.size)]
-
-        # 4. Columns
-        col_px = Column("Px", px, size=self.size)
-        col_py = Column("Py", py, size=self.size)
-        col_s = Column("s", sel, size=self.size)
-        for col in (col_px, col_py, col_s):
-            col.interpolate(self.omega, self.prime)
-            col.commit()
-        return col_px, col_py, col_s
 
 
 @dataclass(slots=True)

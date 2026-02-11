@@ -20,12 +20,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "blst" / "bindings" / "python"))
 
 from dot_ring import Bandersnatch
+from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 
 def load_test_data():
     """Load test vector data."""
-    vector_path = Path(__file__).parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_ring.json"
+    vector_path = Path(__file__).parent.parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_ring.json"
     with open(vector_path) as f:
         return json.load(f)[0]
 
@@ -34,7 +36,7 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     """Benchmark ring proof generation and verification."""
 
     print("=" * 60)
-    print("Ring VRF Proof Benchmark (Python/Cython + gmpy2 + BLST)")
+    print("Ring VRF Proof Benchmark")
     print("=" * 60)
     print()
 
@@ -58,10 +60,12 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     # Warmup
     # =========================================================================
     print("Warming up...")
+    params = RingProofParams()
     for _ in range(warmup_iters):
-        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
-        ring_vrf_proof.verify(alpha, ad, ring_root)
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root=ring_root)
+        ring_vrf_proof.verify(alpha, ad, ring, ring_root)
 
     # =========================================================================
     # Benchmark Ring Root Construction
@@ -71,7 +75,8 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     ring_root = None
     for _ in range(bench_iters):
         start = time.perf_counter()
-        ring_root = RingVRF[Bandersnatch].construct_ring_root(keys)
+        ring = Ring(keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
         elapsed = (time.perf_counter() - start) * 1000
         ring_root_times.append(elapsed)
 
@@ -81,9 +86,11 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     print("Benchmarking Proof Generation...")
     proof_times = []
     proofs = []
+    ring = Ring(keys, params)
+    ring_root = RingRoot.from_ring(ring, params)
     for _ in range(bench_iters):
         start = time.perf_counter()
-        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, keys)
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
         elapsed = (time.perf_counter() - start) * 1000
         proof_times.append(elapsed)
         proofs.append(ring_vrf_proof)
@@ -95,7 +102,7 @@ def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):
     verify_times = []
     for proof in proofs:
         start = time.perf_counter()
-        result = proof.verify(alpha, ad, ring_root)
+        result = proof.verify(alpha, ad, ring, ring_root)
         elapsed = (time.perf_counter() - start) * 1000
         verify_times.append(elapsed)
         assert result, "Verification failed!"

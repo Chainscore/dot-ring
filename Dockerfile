@@ -1,20 +1,11 @@
-# Base Python image
 FROM python:3.12-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies needed for blst Python binding and Cython
-RUN apt-get update && apt-get install -y \
-    git \
-    gcc \
-    g++ \
-    python3-dev \
-    make \
-    swig \
-    libgmp-dev \
-    libmpfr-dev \
-    libmpc-dev \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git gcc g++ make swig \
+    python3-dev libgmp-dev libmpfr-dev libmpc-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -23,18 +14,20 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 # Copy project files
 COPY . .
 
-# Install dependencies
-RUN uv sync --extra dev
+# Set version for setuptools-scm
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=1.0.0
 
-# Setup environment (blst + cython)
-RUN uv run python scripts/setup_env.py
+# Install build tools first
+RUN uv pip install --system setuptools wheel Cython build
+
+# Build blst and Cython extensions
+RUN python scripts/setup_env.py
+
+# Install project with all dependencies from pyproject.toml
+RUN uv pip install --system --no-build-isolation -e ".[dev]"
 
 # Run tests
-RUN uv run pytest tests/ \
-    --cov=dot_ring \
-    --cov-report=term-missing \
-    --cov-report=html \
-    -v \
-    --tb=short
+RUN uv run pytest tests/ -v --tb=short
 
-CMD ["uv", "run", "python"]
+# Default: run tests
+CMD ["uv", "run", "pytest", "tests/", "-v"]

@@ -1,20 +1,17 @@
 """Tests for polynomial operations module to improve coverage."""
 
 import pytest
+from dot_ring.ring_proof.polynomial.poly_ops import poly_add, poly_evaluate_single, poly_mul_linear, poly_subtract
+from dot_ring.ring_proof.polynomial.poly_ops import poly_scalar_mul as poly_scalar
 
 from dot_ring.ring_proof.constants import D_512, D_2048, S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     get_root_of_unity,
     lagrange_basis_polynomial,
     mod_inverse,
-    poly_add,
     poly_division_general,
     poly_evaluate,
-    poly_evaluate_single,
-    poly_mul_linear,
     poly_multiply,
-    poly_scalar,
-    poly_subtract,
     vect_scalar_mul,
 )
 

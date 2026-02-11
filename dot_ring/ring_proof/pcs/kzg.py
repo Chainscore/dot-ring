@@ -8,7 +8,7 @@ import py_ecc.optimized_bls12_381 as bls  # type: ignore[import-untyped]
 
 import dot_ring.blst as _blst  # type: ignore[import-untyped]
 
-from ..polynomial.ops import poly_evaluate_single
+from ..polynomial.poly_ops import poly_evaluate_single
 from .pairing import blst_final_verify, blst_miller_loop
 from .srs import G1Point, srs
 from .utils import CoeffVector, Scalar, blst_p1_to_fq_tuple, g1_to_blst, synthetic_div

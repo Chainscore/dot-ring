@@ -4,11 +4,9 @@ from dot_ring.curve.native_field.vector_ops import vect_mul
 from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.columns.columns import Column
 from dot_ring.ring_proof.constants import S_PRIME
-from dot_ring.ring_proof.polynomial.ops import (
-    poly_add,
-    poly_evaluate,
-    poly_scalar,
-)
+from dot_ring.ring_proof.polynomial.ops import poly_evaluate
+from dot_ring.ring_proof.polynomial.poly_ops import poly_add
+from dot_ring.ring_proof.polynomial.poly_ops import poly_scalar_mul as poly_scalar
 from dot_ring.ring_proof.transcript.phases import phase2_eval_point
 from dot_ring.ring_proof.transcript.transcript import Transcript
 
@@ -71,11 +69,6 @@ class LAggPoly:
         res = poly_add(term1, term2, S_PRIME)
         return res
 
-        # inner = (self.b_zeta * pow((self.acc_x_zeta - self.P_x_zeta) % S_PRIME, 2, S_PRIME)) % S_PRIME
-        # left = poly_scalar(self.wts[1].coeffs, inner, S_PRIME)
-        # right = poly_scalar(self.wts[2].coeffs, (1 - self.b_zeta) % S_PRIME, S_PRIME)
-        # return poly_scalar(poly_add(left, right, S_PRIME), self.scalar_term, S_PRIME)
-
     def compute_l3(self) -> list[int]:
         b = self.b_zeta
         x1, y1 = self.acc_x_zeta, self.acc_y_zeta
@@ -91,12 +84,6 @@ class LAggPoly:
         term2 = poly_scalar(self.wts[2].coeffs, C_acc_y, S_PRIME)
         res = poly_add(term1, term2, S_PRIME)
         return res
-
-        # term1_scalar = (self.b_zeta * ((self.acc_y_zeta - self.P_y_zeta) % S_PRIME) + (1 - self.b_zeta)) % S_PRIME
-        # term2_scalar = (self.b_zeta * ((self.acc_x_zeta - self.P_x_zeta) % S_PRIME)) % S_PRIME
-        # term1 = poly_scalar(self.wts[1].coeffs, term1_scalar, S_PRIME)
-        # term2 = poly_scalar(self.wts[2].coeffs, term2_scalar, S_PRIME)
-        # return poly_scalar(poly_add(term1, term2, S_PRIME), self.scalar_term, S_PRIME)
 
     def linearize(self, l1: list[int], l2: list[int], l3: list[int]) -> list[int]:
         l_agg = [0]

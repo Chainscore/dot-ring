@@ -7,6 +7,8 @@ import pytest
 
 from dot_ring import IETF_VRF, P256, Bandersnatch, Ed25519, PedersenVRF, RingVRF
 from dot_ring.ring_proof.helpers import Helpers
+from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 
 # Alias
 Secp256r1 = P256
@@ -269,16 +271,20 @@ class TestRingVRF:
         for i in range(0, len(ring_pks_bytes), point_len):
             ring_pks.append(ring_pks_bytes[i : i + point_len])
 
+        # Construct ring and ring root
+        params = RingProofParams()
+        ring = Ring(ring_pks, params)
+        ring_root = RingRoot.from_ring(ring, params)
+
         # Generate proof
-        proof = RingVRF[curve].prove(alpha, ad, sk, pk, ring_pks)
+        proof = RingVRF[curve].prove(alpha, ad, sk, pk, ring, ring_root)
 
         # Verify output point matches
         gamma_bytes = proof.pedersen_proof.output_point.point_to_string()
         assert gamma_bytes == expected_gamma, f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
 
-        # Construct ring root and verify
-        ring_root = RingVRF[curve].construct_ring_root(ring_pks)
-        assert proof.verify(alpha, ad, ring_root), "Proof verification failed"
+        # Verify proof
+        assert proof.verify(alpha, ad, ring, ring_root), "Proof verification failed"
 
         # Verify output hash
         beta = RingVRF[curve].proof_to_hash(proof.pedersen_proof.output_point)
@@ -411,16 +417,21 @@ class TestNegativeCases:
         alpha = b"test_input"
         ad = b"test_ad"
 
+        # Construct rings and ring roots
+        params = RingProofParams()
+        ring_obj1 = Ring(ring1, params)
+        ring_root1 = RingRoot.from_ring(ring_obj1, params)
+        ring_obj2 = Ring(ring2, params)
+        ring_root2 = RingRoot.from_ring(ring_obj2, params)
+
         # Generate proof for ring1
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring1)
+        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring_obj1, ring_root1)
 
         # Verify with correct ring should pass
-        ring_root1 = RingVRF[Bandersnatch].construct_ring_root(ring1)
-        assert proof.verify(alpha, ad, ring_root1)
+        assert proof.verify(alpha, ad, ring_obj1, ring_root1)
 
         # Verify with wrong ring should fail
-        ring_root2 = RingVRF[Bandersnatch].construct_ring_root(ring2)
-        assert not proof.verify(alpha, ad, ring_root2)
+        assert not proof.verify(alpha, ad, ring_obj2, ring_root2)
 
 
 # =============================================================================

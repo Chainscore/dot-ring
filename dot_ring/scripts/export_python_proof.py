@@ -19,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from py_ecc.optimized_bls12_381 import normalize as nm
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchParams, BandersnatchPoint
-from dot_ring.ring_proof.columns.columns import PublicColumnBuilder as PC
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.srs import srs
+from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 from tests.utils.python_to_rust_serde import (
     serialize_bls12_381_g1,
@@ -140,9 +140,9 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
     prover_index = min(variant.prover_index, variant.ring_size - 1)
     keys_bytes, keys_points, prover_index = generate_test_keys(num_keys=variant.ring_size, prover_index=prover_index)
 
-    # Build fixed columns (this mutates the list, so use a copy)
-    ring_keys_for_columns = list(keys_points)
-    fixed_cols = PC.from_params(params).build(ring_keys_for_columns)
+    # Build ring and ring root
+    ring = Ring(keys_bytes, params)
+    ring_root = RingRoot.from_ring(ring, params)
 
     # Producer key
     producer_key_bytes = keys_bytes[prover_index]
@@ -152,9 +152,9 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
     proof_components = RingVRF[Bandersnatch].generate_bls_signature(
         blinding_factor=blinding_factor,
         producer_key=producer_key_bytes,
-        keys=keys_bytes,
+        ring=ring,
         transcript_challenge=b"w3f-ring-proof-test",
-        params=params,
+        ring_root=ring_root,
     )
 
     # Compute result point (blinded public key)
@@ -206,9 +206,9 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
 
     # Serialize fixed column commitments
     fixed_cols_cmts_affine = [
-        nm(fixed_cols[0].commitment),
-        nm(fixed_cols[1].commitment),
-        nm(fixed_cols[2].commitment),
+        nm(ring_root.px.commitment),
+        nm(ring_root.py.commitment),
+        nm(ring_root.s.commitment),
     ]
 
     verifier_key_bytes = bytearray()

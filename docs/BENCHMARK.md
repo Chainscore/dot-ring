@@ -36,15 +36,25 @@ VRF with Pedersen commitment for public key blinding.
 
 ## Ring VRF
 
-Ring VRF with SNARK-based ring membership proof (8-member ring).
+Ring VRF with SNARK-based ring membership proof.
+**Proof size**: 784 bytes (constant across all ring sizes)
+
+### 8-member ring (domain size: 512)
 
 | Operation | Min | Mean | Stddev |
 |-----------|-----|------|--------|
-| Ring Root Construction | 28.11 ms | 28.54 ms | 0.42 ms |
-| Proof Generation | 251.16 ms | 253.68 ms | 1.88 ms |
-| Verification | 3.98 ms | 4.16 ms | 0.12 ms |
+| Ring Root Construction | 28.07 ms | 28.28 ms | 0.14 ms |
+| Proof Generation | 153.35 ms | 155.18 ms | 1.42 ms |
+| Verification | 4.05 ms | 4.35 ms | 0.19 ms |
 
-**Proof size**: 784 bytes
+### 1023-member ring (domain size: 2048)
+
+| Operation | Min | Mean | Stddev |
+|-----------|-----|------|--------|
+| Ring Root Construction | 330.76 ms | 334.71 ms | 5.07 ms |
+| Proof Generation | 525.28 ms | 543.04 ms | 29.13 ms |
+| Verification | 4.09 ms | 4.22 ms | 0.14 ms |
+
 
 ---
 
@@ -52,11 +62,14 @@ Ring VRF with SNARK-based ring membership proof (8-member ring).
 
 ```bash
 # IETF VRF
-uv run python tests/bench_ietf.py
+uv run python tests/benchmark/bench_ietf.py
 
 # Pedersen VRF
-uv run python tests/bench_pedersen.py
+uv run python tests/benchmark/bench_pedersen.py
 
-# Ring VRF
-uv run python tests/bench_ring_proof.py
+# Ring VRF (8-member ring, domain size 512)
+uv run python tests/benchmark/bench_ring_proof.py
+
+# Ring VRF (1023-member ring, domain size 2048)
+uv run python tests/benchmark/bench_ring_large.py
 ```
