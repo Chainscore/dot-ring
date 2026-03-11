@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from dataclasses import dataclass
 from typing import cast
 
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, SeedPoint
+from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, ZK_ROWS, SeedPoint
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
@@ -27,12 +28,30 @@ class Column:
     commitment: G1Point | None = None
     size: int = DEFAULT_SIZE
 
-    def interpolate(self, domain_omega: int = OMEGAS[DEFAULT_SIZE], prime: int = S_PRIME) -> None:
-        """Fill `self.coeffs` from `self.evals` using FFT interpolation."""
+    def interpolate(
+        self,
+        domain_omega: int = OMEGAS[DEFAULT_SIZE],
+        prime: int = S_PRIME,
+        hidden: bool = False,
+        test_vectors: bool = False,
+    ) -> None:
+        """Fill `self.coeffs` from `self.evals` using FFT interpolation.
+
+        When ``hidden=True`` and ``test_vectors=False``, the last
+        ``ZK_ROWS`` positions are filled with cryptographically random
+        field elements (random blinding) to preserve zero-knowledge.
+        """
         if self.coeffs is None:
-            if len(self.evals) > self.size:
-                raise ValueError(f"{self.name} evals length {len(self.evals)} exceeds column size {self.size}")
-            self.evals += [0] * (self.size - len(self.evals))
+            if hidden and not test_vectors:
+                capacity = self.size - ZK_ROWS
+                if len(self.evals) > capacity:
+                    raise ValueError(f"{self.name} evals length {len(self.evals)} exceeds capacity {capacity} (size={self.size}, ZK_ROWS={ZK_ROWS})")
+                self.evals += [0] * (capacity - len(self.evals))
+                self.evals += [secrets.randbelow(prime) for _ in range(ZK_ROWS)]
+            else:
+                if len(self.evals) > self.size:
+                    raise ValueError(f"{self.name} evals length {len(self.evals)} exceeds column size {self.size}")
+                self.evals += [0] * (self.size - len(self.evals))
             self.coeffs = poly_interpolate_fft(self.evals, domain_omega, prime)
 
     def commit(self) -> None:
@@ -53,6 +72,7 @@ class WitnessColumnBuilder:
     prime: int = S_PRIME
     max_ring_size: int = MAX_RING_SIZE
     padding_rows: int = 4
+    test_vectors: bool = False
 
     @classmethod
     def from_params(
@@ -73,6 +93,7 @@ class WitnessColumnBuilder:
             prime=params.prime,
             max_ring_size=params.max_ring_size,
             padding_rows=params.padding_rows,
+            test_vectors=params.test_vectors,
         )
 
     def _bits_vector(self) -> list[int]:
@@ -120,7 +141,7 @@ class WitnessColumnBuilder:
             Column("accip", acc_ip, size=self.size),
         ]
         for col in columns:
-            col.interpolate(self.omega, self.prime)
+            col.interpolate(self.omega, self.prime, hidden=True, test_vectors=self.test_vectors)
             col.commit()
         return (columns[0], columns[1], columns[2], columns[3])
 

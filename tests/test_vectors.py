@@ -271,8 +271,8 @@ class TestRingVRF:
         for i in range(0, len(ring_pks_bytes), point_len):
             ring_pks.append(ring_pks_bytes[i : i + point_len])
 
-        # Construct ring and ring root
-        params = RingProofParams()
+        # Construct ring and ring root (test_vectors=True for deterministic proofs)
+        params = RingProofParams(test_vectors=True)
         ring = Ring(ring_pks, params)
         ring_root = RingRoot.from_ring(ring, params)
 
@@ -417,8 +417,8 @@ class TestNegativeCases:
         alpha = b"test_input"
         ad = b"test_ad"
 
-        # Construct rings and ring roots
-        params = RingProofParams()
+        # Construct rings and ring roots (test_vectors=True for deterministic proofs)
+        params = RingProofParams(test_vectors=True)
         ring_obj1 = Ring(ring1, params)
         ring_root1 = RingRoot.from_ring(ring_obj1, params)
         ring_obj2 = Ring(ring2, params)
@@ -470,3 +470,35 @@ class TestDeterminism:
         assert proof1.ok.point_to_string() == proof2.ok.point_to_string()
         assert proof1.s == proof2.s
         assert proof1.sb == proof2.sb
+
+    def test_ring_nondeterministic(self):
+        """Ring VRF proofs with default params (test_vectors=False) should be non-deterministic.
+
+        Two proofs from the same inputs should differ due to random ZK-row blinding,
+        but both must still verify correctly.
+        """
+        sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
+        pk = RingVRF[Bandersnatch].get_public_key(sk)
+
+        ring_keys = [pk]
+        for i in range(7):
+            other_sk = (i + 2).to_bytes(32, "little")
+            ring_keys.append(RingVRF[Bandersnatch].get_public_key(other_sk))
+
+        alpha = b"deterministic_test"
+        ad = b"test_ad"
+
+        # Default params: test_vectors=False → random ZK-row blinding
+        params = RingProofParams(test_vectors=False)
+        ring = Ring(ring_keys, params)
+        ring_root = RingRoot.from_ring(ring, params)
+
+        proof1 = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
+        proof2 = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
+
+        # Proof bytes should differ due to random blinding
+        assert proof1.to_bytes() != proof2.to_bytes(), "Ring proofs should be non-deterministic with random ZK-row blinding"
+
+        # Both proofs must still verify
+        assert proof1.verify(alpha, ad, ring, ring_root), "First proof verification failed"
+        assert proof2.verify(alpha, ad, ring, ring_root), "Second proof verification failed"
