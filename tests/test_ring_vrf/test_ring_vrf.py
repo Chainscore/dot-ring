@@ -24,7 +24,7 @@ def test_ring_proof():
         keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item["ring_pks"]))
 
         start_time = time.time()
-        params = RingProofParams()
+        params = RingProofParams(test_vectors=True)
         ring = Ring(keys, params)
         ring_root = RingRoot.from_ring(ring, params)
         ring_time = time.time()

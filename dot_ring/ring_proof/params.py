@@ -102,6 +102,7 @@ class RingProofParams:
     prime: int = S_PRIME
     base_root: int = OMEGA_2048
     base_root_size: int = 2048
+    test_vectors: bool = False
     cv: ClassVar[CurveVariant] = Bandersnatch
 
     def __post_init__(self) -> None:
@@ -166,6 +167,7 @@ class RingProofParams:
         prime: int = S_PRIME,
         base_root: int = OMEGA_2048,
         base_root_size: int = 2048,
+        test_vectors: bool = False,
     ) -> RingProofParams:
         """
         Automatically construct RingProofParams based on ring size.
@@ -210,4 +212,5 @@ class RingProofParams:
             prime=prime,
             base_root=base_root,
             base_root_size=base_root_size,
+            test_vectors=test_vectors,
         )

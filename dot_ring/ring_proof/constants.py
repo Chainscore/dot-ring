@@ -62,6 +62,8 @@ EVAL_DOMAINS = {
 
 MAX_RING_SIZE: int = 255  # Upper bound enforced by the constraint system
 
+ZK_ROWS: int = 3  # Number of random blinding rows for zero-knowledge (matches Rust ZK_ROWS)
+
 
 __all__ = [
     "S_PRIME",
@@ -78,4 +80,5 @@ __all__ = [
     "D_512",
     "D_2048",
     "MAX_RING_SIZE",
+    "ZK_ROWS",
 ]
