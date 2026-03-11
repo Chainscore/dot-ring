@@ -497,9 +497,7 @@ class TestDeterminism:
         proof2 = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
 
         # Proof bytes should differ due to random blinding
-        assert proof1.to_bytes() != proof2.to_bytes(), (
-            "Ring proofs should be non-deterministic with random ZK-row blinding"
-        )
+        assert proof1.to_bytes() != proof2.to_bytes(), "Ring proofs should be non-deterministic with random ZK-row blinding"
 
         # Both proofs must still verify
         assert proof1.verify(alpha, ad, ring, ring_root), "First proof verification failed"

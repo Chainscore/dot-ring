@@ -45,10 +45,7 @@ class Column:
             if hidden and not test_vectors:
                 capacity = self.size - ZK_ROWS
                 if len(self.evals) > capacity:
-                    raise ValueError(
-                        f"{self.name} evals length {len(self.evals)} exceeds "
-                        f"capacity {capacity} (size={self.size}, ZK_ROWS={ZK_ROWS})"
-                    )
+                    raise ValueError(f"{self.name} evals length {len(self.evals)} exceeds capacity {capacity} (size={self.size}, ZK_ROWS={ZK_ROWS})")
                 self.evals += [0] * (capacity - len(self.evals))
                 self.evals += [secrets.randbelow(prime) for _ in range(ZK_ROWS)]
             else:
