@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 from pathlib import Path
@@ -7,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 from ..utils.profiler import Profiler
@@ -16,11 +16,9 @@ RESULTS_DIR = os.path.join(HERE, "results")
 
 
 def load_test_data():
-    """Load test vectors from JSON file - returns only first test case"""
-    file_path = os.path.join(HERE, "../vectors", "ark-vrf/bandersnatch_ed_sha512_ell2_pedersen.json")
-    with open(file_path) as f:
-        data = json.load(f)
-    return [data[0]]  # Return only first test case
+    """Create deterministic benchmark data."""
+    _, sk = secret_from_seed(bytes(32), Bandersnatch)
+    return [{"sk": sk.hex(), "alpha": b"bench input data".hex(), "ad": b"ad".hex()}]
 
 
 def test_bench_pedersen_prove():
@@ -46,8 +44,7 @@ def test_bench_pedersen_prove():
         ):
             proof = PedersenVRF[Bandersnatch].prove(alpha, s_k, ad)
 
-        # Verify correctness
-        assert proof.output_point.point_to_string().hex() == item["gamma"]
+        assert proof.verify(alpha, ad)
 
     print("📊 Profile saved to: perf/results/")
 

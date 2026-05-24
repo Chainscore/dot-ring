@@ -10,7 +10,6 @@ Run with:
 - Reports min, mean, and std deviation
 """
 
-import json
 import statistics
 import sys
 import time
@@ -20,16 +19,26 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "blst" / "bindings" / "python"))
 
 from dot_ring import Bandersnatch
+from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
 
 
 def load_test_data():
-    """Load test vector data."""
-    vector_path = Path(__file__).parent.parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_ring.json"
-    with open(vector_path) as f:
-        return json.load(f)[0]
+    """Create deterministic benchmark data."""
+    pk, sk = secret_from_seed(bytes(32), Bandersnatch)
+    keys = []
+    for i in range(8):
+        member_pk, _ = secret_from_seed((i + 1).to_bytes(32, "little"), Bandersnatch)
+        keys.append(member_pk)
+    keys[3] = pk
+    return {
+        "sk": sk.hex(),
+        "alpha": b"bench input data".hex(),
+        "ad": b"ad".hex(),
+        "ring_pks": b"".join(keys).hex(),
+    }
 
 
 def benchmark_ring_proof(warmup_iters: int = 3, bench_iters: int = 10):

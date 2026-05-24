@@ -54,7 +54,7 @@ alpha = b"input data"
 ad = b"additional data"
 ```
 
-Deterministic key generation from a seed (matching ark-vrf):
+Deterministic key generation from a seed:
 
 ```python
 from dot_ring import Bandersnatch, secret_from_seed
@@ -63,21 +63,21 @@ seed = (0).to_bytes(32, "little")
 public_key, secret_scalar = secret_from_seed(seed, Bandersnatch)
 ```
 
-### IETF VRF
+### Tiny VRF / IETF
 
 ```python
-from dot_ring import Bandersnatch, IETF_VRF
+from dot_ring import Bandersnatch, TinyVRF
 
 # Generate proof
-proof = IETF_VRF[Bandersnatch].prove(alpha, secret_key, ad)
+proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, ad)
 
 # Verify
-public_key = IETF_VRF[Bandersnatch].get_public_key(secret_key)
+public_key = TinyVRF[Bandersnatch].get_public_key(secret_key)
 is_valid = proof.verify(public_key, alpha, ad)
 
 # Serialize
 proof_bytes = proof.to_bytes()
-proof = IETF_VRF[Bandersnatch].from_bytes(proof_bytes)
+proof = TinyVRF[Bandersnatch].from_bytes(proof_bytes)
 ```
 
 ### Pedersen VRF
@@ -140,14 +140,18 @@ docker run -it dot-ring pytest tests/
 
 ---
 
-## Contact
-
-**Prasad // Chainscore Labs**
-
-![alt text](https://raw.githubusercontent.com/Chainscore/dot-ring/refs/heads/main/docs/chainscore.png)
-
-[Email](mailto:prasad@chainscore.finance) • [Website](https://chainscore.finance)
-
 ## Benchmarks
 
-See the `docs/BENCHMARK.md` for performance results.
+See the benchmarks [here](docs/BENCHMARK.md) for performance results.
+
+---
+
+## Contact
+
+Chainscore Labs is a full-stack engineering and research studio with a proven track record of delivering secure, high-performance systems for leading blockchain ecosystems like Polkadot and Telos. Founded in 2021, our team of engineers with expertise in blockchain infrastructure and modern apps has successfully shipped 20+ projects, demonstrating our ability to execute complex projects from protocol-level engineering to production-grade dApps.
+
+![Chainscore Labs Cover](https://raw.githubusercontent.com/Chainscore/dot-ring/refs/heads/main/docs/chainscore.svg)
+
+
+[Website](https://chainscorelabs.com) <br/>
+[Email](mailto:prasad@chainscorelabs.com)

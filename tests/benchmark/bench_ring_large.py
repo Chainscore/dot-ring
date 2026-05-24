@@ -21,7 +21,7 @@ def generate_ring_keys(ring_size: int) -> tuple[list[bytes], bytes, bytes]:
 
     # Generate keys deterministically from seeds
     for i in range(ring_size):
-        seed = f"ring_member_{i}".encode()
+        seed = i.to_bytes(32, "little")
         pk, sk = secret_from_seed(seed, Bandersnatch)
         keys.append(pk)
 

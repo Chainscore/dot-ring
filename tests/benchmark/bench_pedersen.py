@@ -10,20 +10,18 @@ Run with:
 - Reports min, mean, and std deviation
 """
 
-import json
 import statistics
 import time
-from pathlib import Path
 
 from dot_ring import Bandersnatch
+from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 
 def load_test_data():
-    """Load test vector data."""
-    vector_path = Path(__file__).parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_pedersen.json"
-    with open(vector_path) as f:
-        return json.load(f)[0]
+    """Create deterministic benchmark data."""
+    _, sk = secret_from_seed(bytes(32), Bandersnatch)
+    return {"sk": sk.hex(), "alpha": b"bench input data".hex(), "ad": b"ad".hex()}
 
 
 def benchmark_pedersen_vrf(warmup_iters: int = 5, bench_iters: int = 100):

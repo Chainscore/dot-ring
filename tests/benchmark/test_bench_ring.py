@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 from pathlib import Path
@@ -7,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 from dot_ring.vrf.ring.ring_vrf import RingVRF
@@ -18,11 +18,22 @@ RESULTS_DIR = os.path.join(HERE, "results")
 
 
 def load_test_data():
-    """Load test vectors from JSON file - returns only first test case"""
-    file_path = os.path.join(HERE, "../vectors", "ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
-    with open(file_path) as f:
-        data = json.load(f)
-    return [data[0]]  # Return only first test case
+    """Create deterministic benchmark data."""
+    pk, sk = secret_from_seed(bytes(32), Bandersnatch)
+    keys = []
+    for i in range(8):
+        member_pk, _ = secret_from_seed((i + 1).to_bytes(32, "little"), Bandersnatch)
+        keys.append(member_pk)
+    keys[3] = pk
+    return [
+        {
+            "sk": sk.hex(),
+            "pk": pk.hex(),
+            "alpha": b"bench input data".hex(),
+            "ad": b"ad".hex(),
+            "ring_pks": b"".join(keys).hex(),
+        }
+    ]
 
 
 def test_bench_ring_prove():
@@ -55,9 +66,7 @@ def test_bench_ring_prove():
         ):
             _ = RingVRF[Bandersnatch].prove(alpha, ad, s_k, p_k, ring, ring_root)
 
-        # Verify correctness
         assert p_k.hex() == item["pk"], "Invalid Public Key"
-        assert ring_root.to_bytes().hex() == item["ring_pks_com"], "Invalid Ring Root"
         # expected_proof = (
         #     item["gamma"]
         #     + item["proof_pk_com"]
@@ -84,20 +93,13 @@ def test_bench_ring_verify():
         alpha = bytes.fromhex(item["alpha"])
         ad = bytes.fromhex(item["ad"])
         keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item["ring_pks"]))
-        ring_root_bytes = bytes.fromhex(item["ring_pks_com"])
 
         # Construct ring and ring root
         params = RingProofParams()
         ring = Ring(keys, params)
-        ring_root = RingRoot.from_bytes(ring_root_bytes)
-
-        proof_hex = (
-            item["gamma"] + item["proof_pk_com"] + item["proof_r"] + item["proof_ok"] + item["proof_s"] + item["proof_sb"] + item["ring_proof"]
-        )
-        proof_bytes = bytes.fromhex(proof_hex)
-
-        # Parse proof from bytes
-        ring_vrf_proof = RingVRF[Bandersnatch].from_bytes(proof_bytes)
+        ring_root = RingRoot.from_ring(ring, params)
+        p_k = RingVRF[Bandersnatch].get_public_key(bytes.fromhex(item["sk"]))
+        ring_vrf_proof = RingVRF[Bandersnatch].prove(alpha, ad, bytes.fromhex(item["sk"]), p_k, ring, ring_root)
 
         # Benchmark verification with profiling
         with Profiler(

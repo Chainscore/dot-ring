@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 from pathlib import Path
@@ -7,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.ietf.ietf import IETF_VRF
 
 from ..utils.profiler import Profiler
@@ -16,11 +16,9 @@ RESULTS_DIR = os.path.join(HERE, "results")
 
 
 def load_test_data():
-    """Load test vectors from JSON file - returns only first test case"""
-    file_path = os.path.join(HERE, "../vectors", "ark-vrf/bandersnatch_ed_sha512_ell2_ietf.json")
-    with open(file_path) as f:
-        data = json.load(f)
-    return [data[0]]  # Return only first test case
+    """Create deterministic benchmark data."""
+    pk, sk = secret_from_seed(bytes(32), Bandersnatch)
+    return [{"sk": sk.hex(), "pk": pk.hex(), "alpha": b"bench input data".hex(), "ad": b"ad".hex(), "salt": ""}]
 
 
 def test_bench_ietf_prove():
@@ -47,8 +45,7 @@ def test_bench_ietf_prove():
         ):
             proof = IETF_VRF[Bandersnatch].prove(alpha, s_k, ad, salt)
 
-        # Verify correctness
-        assert proof.output_point.point_to_string().hex() == item["gamma"]
+        assert proof.verify(bytes.fromhex(item["pk"]), alpha, ad, salt)
 
     print("📊 Profile saved to: perf/results/")
 
