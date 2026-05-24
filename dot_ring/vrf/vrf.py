@@ -7,7 +7,6 @@ from typing import Any, ClassVar, Generic, Literal, Self, TypeVar, cast
 from ..curve.curve import CurveVariant
 from ..curve.point import CurvePoint
 from ..ring_proof.helpers import Helpers
-from .vrf_protocol import VRFProtocol
 
 C = TypeVar("C", bound=CurveVariant)
 

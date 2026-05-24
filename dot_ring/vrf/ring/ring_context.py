@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.params import RingProofParams
@@ -8,6 +9,9 @@ from dot_ring.ring_proof.params import RingProofParams
 from .ring import Ring
 from .ring_keys import parse_concatenated_keys
 from .ring_root import RingRoot
+
+if TYPE_CHECKING:
+    from .ring_verifier_key_builder import RingVerifierKeyBuilder
 
 RingSetup = RingProofParams
 

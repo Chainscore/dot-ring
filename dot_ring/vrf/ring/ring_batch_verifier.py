@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from dot_ring.vrf.pedersen.pedersen_batch_verifier import PedersenBatchVerifier
 from dot_ring.vrf.transcript import VrfIo
 
-from .ring_batch_item import RingBatchItem
 from .ring import Ring
+from .ring_batch_item import RingBatchItem
 from .ring_root import RingRoot
+
+if TYPE_CHECKING:
+    from .ring_vrf import RingVRF
 
 
 class RingBatchVerifier:

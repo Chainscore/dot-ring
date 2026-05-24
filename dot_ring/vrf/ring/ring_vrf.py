@@ -18,15 +18,27 @@ from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 from ..vrf import VRF
 from .ring import Ring
+from .ring_batch_item import RingBatchItem
+from .ring_batch_verifier import RingBatchVerifier
+from .ring_context import RingContext, RingSetup
 from .ring_keys import parse_concatenated_keys as _parse_concatenated_keys
 from .ring_root import RingRoot
 from .ring_serialization import (
     compress_g1 as _compress_g1,
+)
+from .ring_serialization import (
     decompress_g1 as _decompress_g1,
+)
+from .ring_serialization import (
     ring_proof_len as _ring_proof_len,
+)
+from .ring_serialization import (
     transcript_g1 as _transcript_g1,
+)
+from .ring_serialization import (
     transcript_vk as _transcript_vk,
 )
+from .ring_verifier_key_builder import RingVerifierKeyBuilder
 
 
 @dataclass
@@ -462,12 +474,6 @@ class RingVRF(VRF[Any]):
     @classmethod
     def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
         return PedersenVRF[cls.cv].proof_to_hash(gamma, mul_cofactor)  # type: ignore[misc]
-
-
-from .ring_batch_item import RingBatchItem
-from .ring_batch_verifier import RingBatchVerifier
-from .ring_context import RingContext, RingSetup
-from .ring_verifier_key_builder import RingVerifierKeyBuilder
 
 __all__ = [
     "RingBatchItem",

@@ -237,7 +237,5 @@ class KZG:
         rhs = blst_miller_loop(rhs_point, g2_tau)
 
         return bool(blst_final_verify(lhs, rhs))
-from .bn254_kzg import BN254KZG
-from .bn254_srs import BN254SRS
 
-__all__ = ["BN254KZG", "BN254SRS", "KZG", "Opening"]
+__all__ = ["KZG", "Opening"]
