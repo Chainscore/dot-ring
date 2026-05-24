@@ -3,8 +3,9 @@ from dot_ring.ring_proof.polynomial.ops import poly_division_general
 
 
 class QuotientPoly:
-    def __init__(self, domain_size: int) -> None:
+    def __init__(self, domain_size: int, pcs: object = KZG) -> None:
         self.domain_size = domain_size
+        self.pcs = pcs
 
     @staticmethod
     def poly_vector_xn_minus_1(n: int) -> list[int]:
@@ -19,7 +20,7 @@ class QuotientPoly:
         input: quotient polynomial
         output: commitment to quotient polynomial
         """
-        c_q = KZG.commit(q_x)
+        c_q = self.pcs.commit(q_x)
         return c_q
 
     def quotient_poly(self, C_agg: list[int]) -> tuple[list[int], tuple]:

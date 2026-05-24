@@ -1,8 +1,8 @@
 """
-Export Python-generated ring proofs to arkworks-compatible JSON.
+Export Python-generated ring proofs to canonical JSON.
 
 This script generates multiple ring proof variants using the Python implementation and
-exports them in the same format as Rust's arkworks-serialized proof vectors.
+exports them in a Rust-verifier-compatible proof-vector format.
 """
 
 from __future__ import annotations
@@ -283,7 +283,7 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
 
 def export_proof_to_json(output_dir: str | None = None, variants: list[VariantSpec] | None = None) -> list[dict[str, Any]]:
     """
-    Generate Python ring proofs and export them to JSON in arkworks format.
+    Generate Python ring proofs and export them to JSON.
 
     Args:
         output_dir: Directory to save JSON files (default: tests/vectors/others)

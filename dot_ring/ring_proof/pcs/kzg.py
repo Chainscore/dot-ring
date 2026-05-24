@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import secrets
-from dataclasses import dataclass
 from typing import Any, cast
 
 import py_ecc.optimized_bls12_381 as bls  # type: ignore[import-untyped]
@@ -9,6 +8,7 @@ import py_ecc.optimized_bls12_381 as bls  # type: ignore[import-untyped]
 import dot_ring.blst as _blst  # type: ignore[import-untyped]
 
 from ..polynomial.poly_ops import poly_evaluate_single
+from .opening import Opening
 from .pairing import blst_final_verify, blst_miller_loop
 from .srs import G1Point, srs
 from .utils import CoeffVector, Scalar, blst_p1_to_fq_tuple, g1_to_blst, synthetic_div
@@ -48,13 +48,23 @@ def p2_neg(p: Any) -> Any:
     return p.dup().neg()
 
 
-@dataclass(slots=True, frozen=True)
-class Opening:
-    proof: G1Point  # commitment to the quotient polynomial
-    y: Scalar  # claimed evaluation f(x)
-
-
 class KZG:
+    commitment_size = 48
+    scalar_modulus = bls.curve_order
+    srs = srs
+
+    @staticmethod
+    def normalize_g1(point: Point_G1) -> tuple[int, int]:
+        if isinstance(point, blst.P1):
+            point = blst_p1_to_fq_tuple(point)
+        x, y = bls.normalize(point)
+        return int(x), int(y)
+
+    @classmethod
+    def msm_g1(cls, points: list[Any], scalars: list[int]) -> Any:
+        blst_points = [point if isinstance(point, blst.P1) else g1_to_blst(point) for point in points]
+        return blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), scalars)
+
     @classmethod
     def commit(cls, coeffs: CoeffVector) -> G1Point:
         """
@@ -227,3 +237,7 @@ class KZG:
         rhs = blst_miller_loop(rhs_point, g2_tau)
 
         return bool(blst_final_verify(lhs, rhs))
+from .bn254_kzg import BN254KZG
+from .bn254_srs import BN254SRS
+
+__all__ = ["BN254KZG", "BN254SRS", "KZG", "Opening"]

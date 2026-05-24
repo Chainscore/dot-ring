@@ -4,10 +4,11 @@ import json
 import os
 import secrets
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
+from dot_ring.curve.point import CurvePoint
+from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, ZK_ROWS, SeedPoint
-from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
@@ -54,11 +55,11 @@ class Column:
                 self.evals += [0] * (self.size - len(self.evals))
             self.coeffs = poly_interpolate_fft(self.evals, domain_omega, prime)
 
-    def commit(self) -> None:
+    def commit(self, pcs: Any = KZG) -> None:
         if self.coeffs is None:
             raise ValueError("call interpolate() first")
         if self.commitment is None:
-            self.commitment = KZG.commit(self.coeffs)
+            self.commitment = pcs.commit(self.coeffs)
 
 
 @dataclass(slots=True)
@@ -73,6 +74,9 @@ class WitnessColumnBuilder:
     max_ring_size: int = MAX_RING_SIZE
     padding_rows: int = 4
     test_vectors: bool = False
+    seed_point: tuple[int, int] = SeedPoint
+    point_cls: type[CurvePoint] = Bandersnatch.point
+    pcs: Any = KZG
 
     @classmethod
     def from_params(
@@ -94,7 +98,18 @@ class WitnessColumnBuilder:
             max_ring_size=params.max_ring_size,
             padding_rows=params.padding_rows,
             test_vectors=params.test_vectors,
+            seed_point=params.seed_point,
+            point_cls=params.ring_point_cls,
+            pcs=params.pcs,
         )
+
+    def _add(self, point1: tuple[int, int], point2: tuple[int, int]) -> tuple[int, int]:
+        result = self.point_cls(point1[0], point1[1]) + self.point_cls(point2[0], point2[1])
+        return int(result.x), int(result.y)
+
+    def _mul(self, scalar: int, point: tuple[int, int]) -> tuple[int, int]:
+        result = self.point_cls(point[0], point[1]) * scalar
+        return int(result.x), int(result.y)
 
     def _bits_vector(self) -> list[int]:
         bv = [1 if i == self.producer_index else 0 for i in range(self.max_ring_size)]
@@ -113,12 +128,12 @@ class WitnessColumnBuilder:
         return bv
 
     def _conditional_sum_accumulator(self, b_vector: list[int]) -> tuple[list[int], list[int]]:
-        seed_sw = SeedPoint
+        seed_sw = self.seed_point
 
         acc = [seed_sw]
         acc_len = self.size - self.padding_rows + 1
         for i in range(1, acc_len):
-            next_pt = acc[i - 1] if b_vector[i - 1] == 0 else cast(tuple[int, int], TE.add(acc[i - 1], self.ring_pk[i - 1]))
+            next_pt = acc[i - 1] if b_vector[i - 1] == 0 else self._add(acc[i - 1], self.ring_pk[i - 1])
             acc.append(next_pt)
         return H.unzip(acc)
 
@@ -142,7 +157,7 @@ class WitnessColumnBuilder:
         ]
         for col in columns:
             col.interpolate(self.omega, self.prime, hidden=True, test_vectors=self.test_vectors)
-            col.commit()
+            col.commit(self.pcs)
         return (columns[0], columns[1], columns[2], columns[3])
 
     def result(self, Blinding_point: tuple[int, int]) -> tuple[int, int]:
@@ -155,12 +170,12 @@ class WitnessColumnBuilder:
         PK_k = self.ring_pk[self.producer_index]
         Result_point = cast(
             tuple[int, int],
-            TE.add(PK_k, cast(tuple[int, int], TE.mul(self.secret_t, sw_H))),
+            self._add(PK_k, self._mul(self.secret_t, sw_H)),
         )
         return Result_point
 
     def result_p_seed(self, result: tuple[int, int]) -> tuple[int, int]:
         """result plus seed"""
         # res=sw.add(result, sw.from_twisted_edwards(SeedPoint))
-        res = cast(tuple[int, int], TE.add(result, SeedPoint))
+        res = cast(tuple[int, int], self._add(result, self.seed_point))
         return res

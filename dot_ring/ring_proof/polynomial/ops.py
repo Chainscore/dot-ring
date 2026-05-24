@@ -31,10 +31,18 @@ def get_root_of_unity(n: int, prime: int) -> int:
     if key in _root_of_unity_cache:
         return _root_of_unity_cache[key]
 
-    # We need n to be a power of 2 and divide prime-1
-    # prime-1 is divisible by 2^32, so any power of 2 <= 2^32 works
+    # We need n to be a power of 2 and divide prime-1.
+    if n <= 0 or n & (n - 1):
+        raise ValueError(f"n must be a power of two, got {n}")
+    if (prime - 1) % n != 0:
+        raise ValueError(f"n={n} does not divide prime-1")
     exponent = (prime - 1) // n
-    root = pow(GENERATOR, exponent, prime)
+    candidate = GENERATOR
+    while True:
+        root = pow(candidate, exponent, prime)
+        if root != 1 and pow(root, n, prime) == 1 and (n == 1 or pow(root, n // 2, prime) != 1):
+            break
+        candidate += 1
     _root_of_unity_cache[key] = root
     return root
 

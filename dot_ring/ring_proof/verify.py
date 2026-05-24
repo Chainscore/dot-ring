@@ -1,19 +1,10 @@
 from functools import cache
 from typing import Any, cast
 
-from py_ecc.optimized_bls12_381 import (  # type: ignore[import-untyped]
-    curve_order,
-)
-from py_ecc.optimized_bls12_381 import (
-    normalize as nm,
-)
-
 from dot_ring import blst as _blst
 from dot_ring.curve.native_field.scalar import Scalar
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams
 from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
 from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
-from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g1_to_blst
 from dot_ring.ring_proof.transcript.phases import (
@@ -28,7 +19,6 @@ blst = cast(Any, _blst)
 # Pre-compute Scalar constants
 ONE_S = Scalar(1)
 ZERO_S = Scalar(0)
-EDWARDS_A_S = Scalar(BandersnatchParams.EDWARDS_A)
 
 
 def blst_msm(points: list, scalars: list) -> Any:
@@ -92,8 +82,12 @@ class Verify:
         seed_point: tuple,
         Domain: list,
         raw_proof_bytes: dict | None = None,
-        transcript_challenge: bytes = b"Bandersnatch_SHA-512_ELL2",
+        transcript_challenge: bytes = b"Bandersnatch-SHA512-ELL2-v1",
         padding_rows: int = 4,
+        edwards_a: int = -5,
+        prime: int = S_PRIME,
+        omega: int | None = None,
+        pcs: Any = KZG,
     ) -> None:
         (
             self.Cb,
@@ -119,34 +113,40 @@ class Verify:
         self.relation_to_proove = rl_to_proove
         self.Result_plus_Seed, self.sp, self.D = rps, seed_point, Domain
         self.padding_rows = padding_rows
+        self.prime = prime
+        self.omega = omega
+        self.pcs = pcs
+        self.uses_native_scalar = self.prime == S_PRIME
+        self.edwards_a = Scalar(edwards_a) if self.uses_native_scalar else edwards_a % self.prime
         if self.padding_rows < 1 or self.padding_rows >= len(self.D):
             raise ValueError("padding_rows must be >= 1 and less than domain size")
         self.last_index = len(self.D) - self.padding_rows
 
-        self.Cb_blst = g1_to_blst(self.Cb)
-        self.Caccip_blst = g1_to_blst(self.Caccip)
-        self.Caccx_blst = g1_to_blst(self.Caccx)
-        self.Caccy_blst = g1_to_blst(self.Caccy)
-        self.Cq_blst = g1_to_blst(self.Cq)
-        self.Phi_zeta_blst = g1_to_blst(self.Phi_zeta)
-        self.Phi_zeta_omega_blst = g1_to_blst(self.Phi_zeta_omega)
+        if self.uses_native_scalar:
+            self.Cb_blst = g1_to_blst(self.Cb)
+            self.Caccip_blst = g1_to_blst(self.Caccip)
+            self.Caccx_blst = g1_to_blst(self.Caccx)
+            self.Caccy_blst = g1_to_blst(self.Caccy)
+            self.Cq_blst = g1_to_blst(self.Cq)
+            self.Phi_zeta_blst = g1_to_blst(self.Phi_zeta)
+            self.Phi_zeta_omega_blst = g1_to_blst(self.Phi_zeta_omega)
 
-        self.Cpx_blst = g1_to_blst(self.Cpx)
-        self.Cpy_blst = g1_to_blst(self.Cpy)
-        self.Cs_blst = g1_to_blst(self.Cs)
+            self.Cpx_blst = g1_to_blst(self.Cpx)
+            self.Cpy_blst = g1_to_blst(self.Cpy)
+            self.Cs_blst = g1_to_blst(self.Cs)
 
-        self.t = Transcript(S_PRIME, transcript_challenge)
+        self.t = Transcript(self.prime, transcript_challenge)
 
         # Absorb into transcript
         self.t, self.alpha_list = phase1_alphas(
             self.t,
             self.verifier_key,
             self.relation_to_proove,
-            list(H.to_int(nm(cmt)) for cmt in self.proof_ptr[:4]),
+            [self._transcript_g1(cmt) for cmt in self.proof_ptr[:4]],
         )
 
         # Add quotient and get zeta
-        self.t, self.zeta_p = phase2_eval_point(self.t, H.to_int(nm(self.proof_ptr[-4])))
+        self.t, self.zeta_p = phase2_eval_point(self.t, self._transcript_g1(self.proof_ptr[-4]))
 
         # Phase 3: Add evaluations and get ν challenges
         evals_bytes = b"".join(v.to_bytes(32, "little") for v in self.proof_ptr[4:11])
@@ -157,9 +157,15 @@ class Verify:
         # Save transcript
         self.cur_t = self.t
 
-    def contributions_to_constraints_eval_at_zeta(
-        self,
-    ) -> tuple[Scalar, Scalar, Scalar, Scalar, Scalar, Scalar, Scalar]:
+    def _transcript_g1(self, point: Any) -> Any:
+        if getattr(self.pcs, "commitment_size", 48) == 32:
+            return self.pcs.serialize_g1_uncompressed(point)
+        return self.pcs.normalize_g1(point)
+
+    def contributions_to_constraints_eval_at_zeta(self) -> tuple[Any, Any, Any, Any, Any, Any, Any]:
+        if not getattr(self, "uses_native_scalar", True):
+            return self._contributions_to_constraints_eval_at_zeta_int()
+
         # Convert to Scalar for optimized arithmetic
         zeta = Scalar(self.zeta_p)
         sx, sy = Scalar(self.sp[0]), Scalar(self.sp[1])
@@ -237,18 +243,70 @@ class Verify:
             c7_zeta,
         )
 
+    def _contributions_to_constraints_eval_at_zeta_int(self) -> tuple[int, int, int, int, int, int, int]:
+        p = self.prime
+        zeta = self.zeta_p % p
+        sx, sy = self.sp[0] % p, self.sp[1] % p
+        domain_size = len(self.D)
+        zeta_n_minus_1 = (pow(zeta, domain_size, p) - 1) % p
+        inv_size = pow(domain_size, -1, p)
+
+        zeta_minus_1 = (zeta - 1) % p
+        if zeta_minus_1 == 0:
+            L_0_zeta = 1
+        else:
+            L_0_zeta = inv_size * zeta_n_minus_1 * pow(zeta_minus_1, -1, p) % p
+
+        omega_i_n_4 = self.D[self.last_index] % p
+        zeta_minus_omega_i = (zeta - omega_i_n_4) % p
+        if zeta_minus_omega_i == 0:
+            L_N_4_zeta = 1
+        else:
+            L_N_4_zeta = omega_i_n_4 * inv_size * zeta_n_minus_1 * pow(zeta_minus_omega_i, -1, p) % p
+
+        b = self.b_zeta % p
+        accx = self.accx_zeta % p
+        accy = self.accy_zeta % p
+        accip = self.accip_zeta % p
+        px = self.px_zeta % p
+        py = self.py_zeta % p
+        s = self.s_zeta % p
+        rps0 = self.Result_plus_Seed[0] % p
+        rps1 = self.Result_plus_Seed[1] % p
+        zeta_minus_d4 = (zeta - self.D[self.last_index]) % p
+        one_minus_b = (1 - b) % p
+
+        x1_y1 = accx * accy % p
+        x2_y2 = px * py % p
+
+        c1_zeta = (-(accip + b * s) * zeta_minus_d4) % p
+        c2 = (b * (-(x1_y1 + x2_y2)) + one_minus_b * (-accx)) % p
+        c2_zeta = c2 * zeta_minus_d4 % p
+        c3 = (b * (-(x1_y1 - x2_y2)) + one_minus_b * (-accy)) % p
+        c3_zeta = c3 * zeta_minus_d4 % p
+        c4_zeta = b * one_minus_b % p
+        c5_zeta = ((accx - sx) * L_0_zeta + (accx - rps0) * L_N_4_zeta) % p
+        c6_zeta = ((accy - sy) * L_0_zeta + (accy - rps1) * L_N_4_zeta) % p
+        c7_zeta = (accip * L_0_zeta + (accip - 1) * L_N_4_zeta) % p
+
+        return (c1_zeta, c2_zeta, c3_zeta, c4_zeta, c5_zeta, c6_zeta, c7_zeta)
+
     def divide(self, numr: int, denom: int) -> int:
         # Inlined modular division - use built-in pow (faster than external call)
-        return (numr * pow(denom, -1, curve_order)) % curve_order
+        prime = getattr(self, "prime", S_PRIME)
+        return (numr * pow(denom, -1, prime)) % prime
 
     def is_valid(self) -> bool:
         """If both the verifications are true then sign is valid"""
         verification1 = self._prepare_quotient_poly_verification()
         verification2 = self._prepare_linearization_poly_verification()
-        return KZG.batch_verify([verification1, verification2])
+        return self.pcs.batch_verify([verification1, verification2])
 
     def _prepare_quotient_poly_verification(self) -> tuple[Any, Any, int, int]:
         """Prepare KZG verification data for quotient polynomial"""
+        if not getattr(self, "uses_native_scalar", True):
+            return self._prepare_quotient_poly_verification_int()
+
         alphas_list = [Scalar(a) for a in self.alpha_list]
         zeta = Scalar(self.zeta_p)
         v_list = [Scalar(v) for v in self.V_list]
@@ -316,8 +374,36 @@ class Verify:
 
         return (C_agg, self.Phi_zeta_blst, int(zeta), int(Agg_zeta))
 
+    def _prepare_quotient_poly_verification_int(self) -> tuple[Any, Any, int, int]:
+        p = self.prime
+        alphas_list = [a % p for a in self.alpha_list]
+        zeta = self.zeta_p % p
+        v_list = [v % p for v in self.V_list]
+        cs = self.contributions_to_constraints_eval_at_zeta()
+
+        prod_sum = 1
+        for k in range(1, 4):
+            prod_sum = prod_sum * ((zeta - self.D[-k]) % p) % p
+
+        linear_combination = 0
+        for alpha, c in zip(alphas_list, cs, strict=False):
+            linear_combination = (linear_combination + alpha * c) % p
+
+        s_sum = (linear_combination + self.l_zeta_omega) % p
+        zeta_pow_size_minus_1 = (pow(zeta, len(self.D), p) - 1) % p
+        q_zeta = s_sum * prod_sum * pow(zeta_pow_size_minus_1, -1, p) % p
+
+        C_a = [self.Cpx, self.Cpy, self.Cs, self.Cb, self.Caccip, self.Caccx, self.Caccy, self.Cq]
+        C_agg = self.pcs.msm_g1(C_a, self.V_list)
+        evals = [self.px_zeta, self.py_zeta, self.s_zeta, self.b_zeta, self.accip_zeta, self.accx_zeta, self.accy_zeta, q_zeta]
+        Agg_zeta = sum(v * (e % p) for v, e in zip(v_list, evals, strict=True)) % p
+        return (C_agg, self.Phi_zeta, zeta, Agg_zeta)
+
     def _prepare_linearization_poly_verification(self) -> tuple[Any, Any, int, int]:
         """Prepare KZG verification data for linearization polynomial"""
+        if not getattr(self, "uses_native_scalar", True):
+            return self._prepare_linearization_poly_verification_int()
+
         alphas_list = [Scalar(a) for a in self.alpha_list]
         zeta = Scalar(self.zeta_p)
 
@@ -330,7 +416,7 @@ class Verify:
         x1, y1 = Scalar(self.accx_zeta), Scalar(self.accy_zeta)
         x2, y2 = Scalar(self.px_zeta), Scalar(self.py_zeta)
         b = Scalar(self.b_zeta)
-        coeff_a = EDWARDS_A_S
+        coeff_a = getattr(self, "edwards_a", Scalar(-5))
 
         # S_PRIME is scalar field modulus, which Scalar handles implicitly
 
@@ -366,6 +452,32 @@ class Verify:
         zeta_omega = zeta * Scalar(omega)
 
         return (Cl, self.Phi_zeta_omega_blst, int(zeta_omega), int(Scalar(self.l_zeta_omega)))
+
+    def _prepare_linearization_poly_verification_int(self) -> tuple[Any, Any, int, int]:
+        p = self.prime
+        alphas_list = [a % p for a in self.alpha_list]
+        zeta = self.zeta_p % p
+        zeta_minus_d4 = (zeta - self.D[self.last_index]) % p
+
+        x1, y1 = self.accx_zeta % p, self.accy_zeta % p
+        x2, y2 = self.px_zeta % p, self.py_zeta % p
+        b = self.b_zeta % p
+        coeff_a = int(self.edwards_a) % p
+
+        C_acc_x_cl2 = (b * (y1 * y2 + coeff_a * x1 * x2) + (1 - b)) % p
+        C_acc_x_f_cl2 = C_acc_x_cl2 * zeta_minus_d4 % p
+        C_acc_y_cl3 = (b * (x1 * y2 - x2 * y1) + (1 - b)) % p
+        C_acc_y_f_cl3 = C_acc_y_cl3 * zeta_minus_d4 % p
+
+        scalars = [
+            alphas_list[0] * zeta_minus_d4 % p,
+            alphas_list[1] * C_acc_x_f_cl2 % p,
+            alphas_list[2] * C_acc_y_f_cl3 % p,
+        ]
+        Cl = self.pcs.msm_g1([self.Caccip, self.Caccx, self.Caccy], scalars)
+        omega = self.omega if self.omega is not None else pow(OMEGA_2048, 2048 // len(self.D), p)
+        zeta_omega = zeta * omega % p
+        return (Cl, self.Phi_zeta_omega, zeta_omega, self.l_zeta_omega % p)
 
     # Legacy methods for backwards compatibility
     def evaluation_of_quotient_poly_at_zeta(self) -> bool:

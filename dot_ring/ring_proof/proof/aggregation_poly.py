@@ -6,7 +6,7 @@ from dot_ring.ring_proof.polynomial.poly_ops import poly_add, poly_scalar_mul
 class AggPoly:
     # get the aggregated poly
     @classmethod
-    def aggregated_poly(cls, fixed_cols: list, witness_cols: list, Q_p: list[int], cf_vectors: list[int]) -> list[int]:
+    def aggregated_poly(cls, fixed_cols: list, witness_cols: list, Q_p: list[int], cf_vectors: list[int], prime: int = S_PRIME) -> list[int]:
         poly_I = [
             fixed_cols[0].coeffs,
             fixed_cols[1].coeffs,
@@ -20,7 +20,7 @@ class AggPoly:
         V_list = cf_vectors
         agg_poly = [0]
         for i in range(len(poly_I)):
-            agg_poly = poly_add(agg_poly, poly_scalar_mul(poly_I[i], V_list[i], S_PRIME), S_PRIME)
+            agg_poly = poly_add(agg_poly, poly_scalar_mul(poly_I[i], V_list[i], prime), prime)
         return agg_poly
 
     # two proof openings
@@ -34,12 +34,14 @@ class AggPoly:
         witness_cols: list,
         Q_p: list[int],
         cf_vectors: list[int],
+        prime: int = S_PRIME,
+        pcs: object = KZG,
     ) -> tuple:
         """
         input:agg_poly, liner_poly, zeta, zeta_omega
         output: Phi_zeta, phi_zeta_omega
         """
-        agg_p = cls.aggregated_poly(fixed_cols, witness_cols, Q_p, cf_vectors)
-        phi_z_opening = KZG.open(agg_p, zeta)  # take only proof
-        phi_zw_opening = KZG.open(l_agg, zeta_omega)  # take only proof
+        agg_p = cls.aggregated_poly(fixed_cols, witness_cols, Q_p, cf_vectors, prime)
+        phi_z_opening = pcs.open(agg_p, zeta)  # take only proof
+        phi_zw_opening = pcs.open(l_agg, zeta_omega)  # take only proof
         return phi_z_opening, phi_zw_opening, phi_z_opening, phi_zw_opening

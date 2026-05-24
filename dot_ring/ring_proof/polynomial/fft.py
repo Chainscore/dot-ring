@@ -8,6 +8,7 @@ the naive O(n * m) Horner evaluation.
 from functools import lru_cache
 
 # Cython-based FTT
+from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.ntt import ntt_in_place
 
 
@@ -78,6 +79,27 @@ def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     """
     n = len(coeffs)
     if n == 1:
+        return
+
+    if prime != S_PRIME:
+        rev = _get_bit_reverse(n)
+        for i, j in enumerate(rev):
+            if i < j:
+                coeffs[i], coeffs[j] = coeffs[j], coeffs[i]
+
+        m = 2
+        while m <= n:
+            half_m = m >> 1
+            w_step = pow(omega, n // m, prime)
+            for start in range(0, n, m):
+                w = 1
+                for j in range(half_m):
+                    u = coeffs[start + j]
+                    v = coeffs[start + j + half_m] * w % prime
+                    coeffs[start + j] = (u + v) % prime
+                    coeffs[start + j + half_m] = (u - v) % prime
+                    w = w * w_step % prime
+            m <<= 1
         return
 
     rev = _get_bit_reverse(n)

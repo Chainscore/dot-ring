@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any, cast
 
-from dot_ring.curve.native_field.vector_ops import vect_add
+from dot_ring.curve.native_field.vector_ops import vect_add as _native_vect_add
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
@@ -22,6 +23,14 @@ def vanishing_poly(domain: list[int], k: int = 3, prime: int = S_PRIME) -> list[
     for i in range(1, k + 1):
         vanishing_term = poly_multiply(vanishing_term, [-domain[-i], 1], prime)
     return vanishing_term
+
+
+def vect_add(a: Any, b: Any, prime: int) -> list[int]:
+    if prime == S_PRIME:
+        return cast(list[int], _native_vect_add(a, b, prime))
+    if len(a) != len(b):
+        raise ValueError("Vector lengths must match")
+    return [(int(x) + int(y)) % prime for x, y in zip(a, b, strict=True)]
 
 
 def aggregate_constraints(
