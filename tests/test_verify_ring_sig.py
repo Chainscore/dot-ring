@@ -13,7 +13,7 @@ from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.pcs import srs
 from dot_ring.ring_proof.pcs.utils import g2_to_blst
 from dot_ring.ring_proof.verify import Verify
-from tests.utils.arkworks_serde import (
+from tests.utils.rust_serde import (
     compressed_g1_to_uncompressed_bytes,
     compressed_g2_to_uncompressed_bytes,
     deserialize_bandersnatch_point,

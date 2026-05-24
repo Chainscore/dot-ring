@@ -1,8 +1,8 @@
 """
-Arkworks-compatible serialization utilities.
+Rust-compatible serialization utilities.
 
-These helpers mirror the formats expected by tests.utils.arkworks_serde
-and are intended for exporting Python-generated proofs to arkworks.
+These helpers mirror the canonical formats used by tests.utils.rust_serde and
+are intended for exporting Python-generated proofs.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _is_zero_fq2(value: Any) -> bool:
 
 
 def serialize_bls12_381_g1(point: tuple) -> bytes:
-    """Serialize a BLS12-381 G1 point in arkworks compressed format."""
+    """Serialize a BLS12-381 G1 point in canonical compressed format."""
     if len(point) == 3:
         # Jacobian
         x, y, z = point
@@ -68,7 +68,7 @@ def serialize_bls12_381_g1(point: tuple) -> bytes:
 
 
 def serialize_bls12_381_g2(point: tuple) -> bytes:
-    """Serialize a BLS12-381 G2 point in arkworks compressed format."""
+    """Serialize a BLS12-381 G2 point in canonical compressed format."""
     if len(point) == 3:
         x, y, z = point
         if _is_zero_fq2(z):
@@ -119,7 +119,7 @@ def serialize_ring_proof(
     agg_at_zeta_proof: tuple,
     lin_at_zeta_omega_proof: tuple,
 ) -> bytes:
-    """Serialize the ring proof in arkworks-compatible order."""
+    """Serialize the ring proof in canonical order."""
     out = bytearray()
     for c in column_commitments:
         out.extend(serialize_bls12_381_g1(c))

@@ -1,8 +1,8 @@
 """
-Arkworks serialization/deserialization utilities.
+Rust-compatible serialization/deserialization utilities.
 
-Functions to convert between arkworks compressed format and Python types
-for BLS12-381 (G1, G2) and Bandersnatch points.
+Functions to convert between canonical compressed formats and Python types for
+BLS12-381 (G1, G2) and Bandersnatch points.
 """
 
 from py_ecc.optimized_bls12_381 import FQ, FQ2
@@ -10,16 +10,16 @@ from py_ecc.optimized_bls12_381 import FQ, FQ2
 
 def deserialize_fq_field_element(data: bytes) -> int:
     """
-    Deserialize arkworks Fq field element (32 bytes, little-endian).
+    Deserialize an Fq field element (32 bytes, little-endian).
 
-    Arkworks uses Montgomery form internally but serializes as regular integers.
+    The canonical byte format serializes regular integers.
     """
     return int.from_bytes(data, byteorder="little")
 
 
 def deserialize_bandersnatch_point(x_bytes: bytes, y_bytes: bytes) -> tuple[int, int]:
     """
-    Deserialize Bandersnatch point from arkworks compressed format.
+    Deserialize a Bandersnatch point from canonical compressed format.
 
     Args:
         x_bytes: x-coordinate (32 bytes, little-endian Fq)
@@ -37,11 +37,11 @@ def compressed_bandersnatch_to_uncompressed_bytes(compressed: bytes) -> bytes:
     """
     Convert compressed Bandersnatch point (32 bytes) to uncompressed (64 bytes) for transcript.
 
-    Arkworks compressed format for Bandersnatch:
+    Canonical compressed format for Bandersnatch:
     - 32 bytes: x-coordinate (little-endian) with flags in high bits
     - y-coordinate is recovered from curve equation
 
-    Arkworks uncompressed format:
+    Canonical uncompressed format:
     - 32 bytes: x-coordinate (little-endian, no flags)
     - 32 bytes: y-coordinate (little-endian)
 
@@ -105,9 +105,9 @@ def compressed_bandersnatch_to_uncompressed_bytes(compressed: bytes) -> bytes:
 
 def deserialize_bls12_381_g1(data: bytes) -> tuple:
     """
-    Deserialize BLS12-381 G1 point from arkworks compressed format.
+    Deserialize a BLS12-381 G1 point from canonical compressed format.
 
-    Arkworks compressed G1: 48 bytes, big-endian
+    Canonical compressed G1: 48 bytes, big-endian
     - Bit 7 (MSB): compression flag (1 = compressed)
     - Bit 6: infinity flag (1 = point at infinity)
     - Bit 5: y-coordinate sign/parity
@@ -129,7 +129,7 @@ def deserialize_bls12_381_g1(data: bytes) -> tuple:
         return (FQ(0), FQ(1), FQ(0))
 
     if not is_compressed:
-        # Uncompressed format (not typically used by arkworks for G1)
+        # Uncompressed format is not supported here.
         raise ValueError("Uncompressed G1 points not supported")
 
     # Extract x-coordinate (remove flag bits from first byte)
@@ -149,7 +149,7 @@ def deserialize_bls12_381_g1(data: bytes) -> tuple:
 
     # Choose correct square root based on sign/parity bit
     # The sign bit indicates if y > (p-1)/2 (lexicographically largest), not if y is odd!
-    # This follows the ZCash BLS12-381 spec and matches arkworks serialization.
+    # This follows the ZCash BLS12-381 spec serialization rule.
     y_is_lexicographically_largest = int(y) > (field_modulus - 1) // 2
 
     # If the computed y doesn't match the sign bit, use the other square root
@@ -193,10 +193,10 @@ def compressed_g2_to_uncompressed_bytes(compressed: bytes) -> bytes:
     Convert compressed BLS12-381 G2 point to uncompressed bytes for transcript.
 
     Args:
-        compressed: 96-byte compressed G2 point (arkworks format: c1 || c0)
+        compressed: 96-byte compressed G2 point (c1 || c0)
 
     Returns:
-        192-byte uncompressed G2 point (arkworks format: x_c1 || x_c0 || y_c1 || y_c0, no flags)
+        192-byte uncompressed G2 point (x_c1 || x_c0 || y_c1 || y_c0, no flags)
     """
     if len(compressed) != 96:
         raise ValueError(f"Expected 96 bytes for compressed G2 point, got {len(compressed)}")
@@ -215,7 +215,7 @@ def compressed_g2_to_uncompressed_bytes(compressed: bytes) -> bytes:
     x_c0, x_c1 = x_fq2.coeffs
     y_c0, y_c1 = y_fq2.coeffs
 
-    # Serialize as uncompressed: arkworks uses c1 || c0 || c1 || c0 format
+    # Serialize as uncompressed: c1 || c0 || c1 || c0 format.
     # Each coefficient is 48 bytes, big-endian, no flags
     x_c0_bytes = int(x_c0).to_bytes(48, "big")
     x_c1_bytes = int(x_c1).to_bytes(48, "big")
@@ -241,10 +241,9 @@ def legendre_fq(a: int, p: int) -> int:
 
 def sqrt_fq2(a) -> tuple[int, int] | None:
     """
-    Compute square root of FQ2 element using arkworks algorithm.
+    Compute square root of an FQ2 element.
 
     Implements Algorithm 8 from https://eprint.iacr.org/2012/685.pdf (page 15)
-    This matches arkworks' implementation exactly.
 
     Args:
         a: FQ2 element (can be either regular or optimized FQ2)
@@ -327,7 +326,7 @@ def sqrt_fq2(a) -> tuple[int, int] | None:
 
 def deserialize_bls12_381_g2(data: bytes) -> tuple:
     """
-    Deserialize BLS12-381 G2 point from arkworks compressed format.
+    Deserialize a BLS12-381 G2 point from canonical compressed format.
 
     G2 points are 96 bytes (2 × 48-byte Fp2 elements).
     Similar compression scheme as G1 but for Fp2 field.
@@ -350,7 +349,7 @@ def deserialize_bls12_381_g2(data: bytes) -> tuple:
     if not is_compressed:
         raise ValueError("Uncompressed G2 points not supported")
 
-    # Extract x-coordinate: arkworks serializes Fp2 as c1 || c0 (c1 first, c0 second)
+    # Extract x-coordinate serialized as c1 || c0 (c1 first, c0 second).
     # Each coefficient is 48 bytes, big-endian
     x_c1_bytes = bytes([data[0] & 0x1F]) + data[1:48]  # c1 in bytes 0-47
     x_c0_bytes = data[48:96]  # c0 in bytes 48-95

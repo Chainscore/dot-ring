@@ -93,7 +93,8 @@ class TestCoverageGaps:
 
     def test_ietf_from_bytes_invalid_point(self):
         """Test IETF_VRF.from_bytes raises ValueError for invalid output point."""
-        invalid_point = b"\xff" * 33
+        point_len = Bandersnatch.curve.POINT_LEN * (2 if Bandersnatch.curve.UNCOMPRESSED else 1)
+        invalid_point = b"\xff" * point_len
         c_len = Bandersnatch.curve.CHALLENGE_LENGTH
         s_len = (Bandersnatch.curve.ORDER.bit_length() + 7) // 8
         dummy_c = b"\x00" * c_len
@@ -116,8 +117,8 @@ class TestCoverageGaps:
         invalid_s = order + 1
         s_len = (order.bit_length() + 7) // 8
 
-        gamma_len = 33
-        c_len = 32
+        gamma_len = Bandersnatch.curve.POINT_LEN * (2 if Bandersnatch.curve.UNCOMPRESSED else 1)
+        c_len = Bandersnatch.curve.CHALLENGE_LENGTH
 
         gamma_bytes = proof_bytes[:gamma_len]
         c_bytes = proof_bytes[gamma_len : gamma_len + c_len]
