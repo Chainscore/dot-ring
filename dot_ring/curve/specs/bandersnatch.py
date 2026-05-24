@@ -22,8 +22,9 @@ class BandersnatchParams:
     implementation of zero-knowledge proofs and VRFs.
     """
 
-    SUITE_STRING = b"Bandersnatch_SHA-512_ELL2"
-    DST = b"ECVRF_Bandersnatch_XMD:SHA-512_ELL2_RO_Bandersnatch_SHA-512_ELL2"
+    SUITE_STRING = b"Bandersnatch-SHA512-ELL2-v1"
+    SUITE_ID = b"Bandersnatch-SHA512-ELL2-v1"
+    DST = SUITE_ID + b"\x60"
 
     # Curve parameters
     PRIME_FIELD: Final[int] = 0x73EDA753299D7D483339D80809A1D80553BDA402FFFE5BFEFFFFFFFF00000001
@@ -44,7 +45,7 @@ class BandersnatchParams:
     GLV_C: Final[int] = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
 
     # Challenge length in bytes for VRF (aligned with 256-bit security level)
-    CHALLENGE_LENGTH: Final[int] = 32  # 256 bits
+    CHALLENGE_LENGTH: Final[int] = 16
 
     # Z
     Z: Final[int] = 5
@@ -57,10 +58,16 @@ class BandersnatchParams:
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
 
-    BBx: Final[int] = 6150229251051246713677296363717454238956877613358614224171740096471278798312
-    BBy: Final[int] = 28442734166467795856797249030329035618871580593056783094884474814923353898473
+    BBx: Final[int] = 23335687741101763108036518445642207119627658113885888016488710494487028845889
+    BBy: Final[int] = 5552214580375038693022409684979828600325210968745774080859660443337357929963
+    ACCUMULATOR_BASE_X: Final[int] = 14056632001415368875257708737821299882600475929746323097150942355715730684350
+    ACCUMULATOR_BASE_Y: Final[int] = 10322661992765989500407719465917595459409463902187386706652408883505670839210
+    PADDING_X: Final[int] = 26913883415342152801331916189968962157924271221160514298872262294143390094043
+    PADDING_Y: Final[int] = 30874728313203001508631936119690348239461579770372782660098261717479009115354
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 32
+    TRANSCRIPT_HASH = "sha512"
+    HASH_TO_CURVE = "ell2-xmd"
 
 
 """GLV endomorphism parameters for Bandersnatch curve."""
@@ -95,6 +102,13 @@ Bandersnatch_TE_Curve: Final[TECurve] = TECurve(
     ENDIAN=BandersnatchParams.ENDIAN,
     POINT_LEN=BandersnatchParams.POINT_LEN,
     CHALLENGE_LENGTH=BandersnatchParams.CHALLENGE_LENGTH,
+    SUITE_ID=BandersnatchParams.SUITE_ID,
+    TRANSCRIPT_HASH=BandersnatchParams.TRANSCRIPT_HASH,
+    HASH_TO_CURVE=BandersnatchParams.HASH_TO_CURVE,
+    ACCUMULATOR_BASE_X=BandersnatchParams.ACCUMULATOR_BASE_X,
+    ACCUMULATOR_BASE_Y=BandersnatchParams.ACCUMULATOR_BASE_Y,
+    PADDING_X=BandersnatchParams.PADDING_X,
+    PADDING_Y=BandersnatchParams.PADDING_Y,
 )
 
 
@@ -187,4 +201,50 @@ Bandersnatch = CurveVariant(
     name="Bandersnatch",
     curve=Bandersnatch_TE_Curve,
     point=BandersnatchPoint,
+)
+
+
+Bandersnatch_SHAKE128_TE_Curve: Final[TECurve] = TECurve(
+    PRIME_FIELD=BandersnatchParams.PRIME_FIELD,
+    ORDER=BandersnatchParams.ORDER,
+    GENERATOR_X=BandersnatchParams.GENERATOR_X,
+    GENERATOR_Y=BandersnatchParams.GENERATOR_Y,
+    COFACTOR=BandersnatchParams.COFACTOR,
+    Z=BandersnatchParams.Z,
+    EdwardsA=BandersnatchParams.EDWARDS_A,
+    EdwardsD=BandersnatchParams.EDWARDS_D,
+    SUITE_STRING=b"Bandersnatch-SHAKE128-ELL2-v1",
+    DST=b"Bandersnatch-SHAKE128-ELL2-v1\x60",
+    E2C=E2C_Variant.ELL2,
+    BBx=6153734995852631824944342602386415873379775188383988340041079006556670120775,
+    BBy=27204351599954061630605768787803524395123895650061061132592995395630473050754,
+    M=BandersnatchParams.M,
+    K=BandersnatchParams.K,
+    L=BandersnatchParams.L,
+    S_in_bytes=None,
+    H_A=hashlib.shake_128,
+    Requires_Isogeny=BandersnatchParams.Requires_Isogeny,
+    Isogeny_Coeffs=BandersnatchParams.Isogeny_Coeffs,
+    UNCOMPRESSED=BandersnatchParams.UNCOMPRESSED,
+    ENDIAN=BandersnatchParams.ENDIAN,
+    POINT_LEN=BandersnatchParams.POINT_LEN,
+    CHALLENGE_LENGTH=BandersnatchParams.CHALLENGE_LENGTH,
+    SUITE_ID=b"Bandersnatch-SHAKE128-ELL2-v1",
+    TRANSCRIPT_HASH="shake128",
+    HASH_TO_CURVE="ell2-xof",
+    ACCUMULATOR_BASE_X=27631238720955528589004064829276283990465032040945349648037876197995278250917,
+    ACCUMULATOR_BASE_Y=37605358688136619817560700742505556266961225274493904038881144193539047100140,
+    PADDING_X=1834402953989431481748983728202937234471322740714585873803966488035889514523,
+    PADDING_Y=52100941849053769665273763352270294131006971127418863694682093199651869272752,
+)
+
+
+class BandersnatchSHAKE128Point(BandersnatchPoint):
+    curve: TECurve = Bandersnatch_SHAKE128_TE_Curve
+
+
+Bandersnatch_SHAKE128 = CurveVariant(
+    name="Bandersnatch_SHAKE128",
+    curve=Bandersnatch_SHAKE128_TE_Curve,
+    point=BandersnatchSHAKE128Point,
 )

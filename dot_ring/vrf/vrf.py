@@ -2,39 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from abc import abstractmethod
-from typing import Any, ClassVar, Generic, Literal, Protocol, Self, TypeVar, cast
+from typing import Any, ClassVar, Generic, Literal, Self, TypeVar, cast
 
 from ..curve.curve import CurveVariant
-from ..curve.point import CurvePoint, Point
+from ..curve.point import CurvePoint
 from ..ring_proof.helpers import Helpers
+from .vrf_protocol import VRFProtocol
 
 C = TypeVar("C", bound=CurveVariant)
-P = TypeVar("P", bound=Point)
-
-
-class VRFProtocol(Protocol[C, P]):
-    """Protocol defining the interface for VRF implementations."""
-
-    curve: C
-    point_type: type[P]
-
-    @abstractmethod
-    def proof(self, alpha: bytes, secret_key: int, additional_data: bytes) -> tuple[P, tuple[int, int]]:
-        """Generate VRF proof."""
-        ...
-
-    @abstractmethod
-    def verify(
-        self,
-        public_key: P,
-        input_point: P,
-        additional_data: bytes,
-        output_point: P,
-        proof: tuple[int, int],
-    ) -> bool:
-        """Verify VRF proof."""
-        ...
 
 
 class VRF(Generic[C]):
@@ -42,12 +17,12 @@ class VRF(Generic[C]):
     Base VRF (Verifiable Random Function) implementation.
 
     This class provides the core functionality for VRF operations,
-    following the IETF specification.
+    following the shared dot-ring VRF interface.
 
     Usage with subscript syntax:
         >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
-        >>> from dot_ring.vrf.ietf.ietf import IETF_VRF
-        >>> proof = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
+        >>> from dot_ring.vrf.ietf import TinyVRF
+        >>> proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     """
 
     cv: ClassVar[CurveVariant]
@@ -258,7 +233,9 @@ class VRF(Generic[C]):
     @classmethod
     def get_public_key(cls, secret_key: bytes) -> bytes:
         """Take the Secret_Key and return Public Key"""
-        secret_key_int = Helpers.str_to_int(secret_key, cast(Literal["little", "big"], cls.cv.curve.ENDIAN)) % cls.cv.curve.ORDER
+        from dot_ring.vrf.transcript import scalar_decode
+
+        secret_key_int = scalar_decode(cls.cv, secret_key)
         # Create generator point
         generator = cls.cv.point.generator_point()
         public_key: CurvePoint = cast(Any, generator) * secret_key_int

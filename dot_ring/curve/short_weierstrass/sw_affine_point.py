@@ -556,6 +556,11 @@ class SWAffinePoint(CurvePoint):
         if not isinstance(salt, bytes):
             salt = bytes.fromhex(salt)
 
+        if cls.curve.HASH_TO_CURVE == "tai":
+            from dot_ring.vrf.transcript import hash_to_curve_tai
+
+            return cast(Self, hash_to_curve_tai(cls, salt + alpha_string))
+
         if cls.curve.E2C in [E2C_Variant.SSWU, E2C_Variant.SSWU_NU]:
             if cls.curve.E2C.value.endswith("_NU_"):
                 return cls.sswu_hash2_curve_nu(alpha_string, salt, General_Check)

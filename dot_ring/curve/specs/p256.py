@@ -20,8 +20,8 @@ class P256Params:
     in TLS, digital signatures, and other cryptographic applications.
     """
 
-    # From RFC 9380 Section 8.1: P-256_XMD:SHA-256_SSWU_RO_
-    SUITE_STRING = b"P256_XMD:SHA-256_SSWU_RO_"
+    SUITE_STRING = b"Secp256r1-SHA256-TAI-v1"
+    SUITE_ID = b"Secp256r1-SHA256-TAI-v1"
     DST = b"QUUX-V01-CS02-with-P256_XMD:SHA-256_SSWU_RO_"  # Default DST is the same as SUITE_STRING
 
     # Curve parameters for y² = x³ - 3x + b
@@ -48,14 +48,16 @@ class P256Params:
     ENDIAN = "big"
     # Blinding Base For Pedersen VRF
     # These are arbitrary points on the curve for blinding
-    BBx: Final[int] = 55516455597544811540149985232155473070193196202193483189274003004283034832642
-    BBy: Final[int] = 48580550536742846740990228707183741745344724157532839324866819111997786854582
+    BBx: Final[int] = 100063053743935619201936855760019111820847755970243670581468062459849338000
+    BBy: Final[int] = 113675507039234898358330549589155441528265243038226986303017485279501143145422
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 33
+    TRANSCRIPT_HASH = "sha256"
+    HASH_TO_CURVE = "tai"
 
 
 class P256Curve(SWCurve):
@@ -76,8 +78,9 @@ class P256Curve(SWCurve):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
         elif e2c_variant.value == "TryAndIncrement":
-            SUITE_STRING = b"\x01"  # as per davxy
+            SUITE_STRING = P256Params.SUITE_ID
             DST = b""
+        ENDIAN = "little" if e2c_variant == E2C_Variant.TAI else P256Params.ENDIAN
 
         super().__init__(
             PRIME_FIELD=P256Params.PRIME_FIELD,
@@ -101,9 +104,12 @@ class P256Curve(SWCurve):
             Requires_Isogeny=P256Params.Requires_Isogeny,
             Isogeny_Coeffs=P256Params.Isogeny_Coeffs,
             UNCOMPRESSED=P256Params.UNCOMPRESSED,
-            ENDIAN=P256Params.ENDIAN,
+            ENDIAN=ENDIAN,
             POINT_LEN=P256Params.POINT_LEN,
             CHALLENGE_LENGTH=P256Params.CHALLENGE_LENGTH,
+            SUITE_ID=P256Params.SUITE_ID if e2c_variant == E2C_Variant.TAI else None,
+            TRANSCRIPT_HASH=P256Params.TRANSCRIPT_HASH,
+            HASH_TO_CURVE=P256Params.HASH_TO_CURVE if e2c_variant == E2C_Variant.TAI else None,
         )
 
 
@@ -132,6 +138,69 @@ class P256Point(SWAffinePoint):
         """
         # The identity point
         return None
+
+    def point_to_string(self, compressed: bool = True) -> bytes:
+        if getattr(self.curve, "HASH_TO_CURVE", None) != "tai":
+            return super().point_to_string(compressed)
+
+        if self.x is None and self.y is None:
+            return bytes([0] * 32 + [0x40])
+
+        p = self.curve.PRIME_FIELD
+        x_bytes = int(self.x).to_bytes(32, "little")
+        flag = 0x80 if int(self.y) > (-int(self.y) % p) else 0x00
+        return x_bytes + bytes([flag])
+
+    @classmethod
+    def string_to_point(cls, data: str | bytes):
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
+
+        if getattr(cls.curve, "HASH_TO_CURVE", None) != "tai":
+            return super().string_to_point(data)
+        elif len(data) == 33 and data[0] in (0x02, 0x03):
+            # Canonical SW encodings put flags in the final byte, so external
+            # vectors can coincidentally start with SEC1 marker bytes.
+            try:
+                return cls._string_to_canonical_point(data)
+            except ValueError:
+                return super().string_to_point(data)
+
+        if len(data) != 33:
+            raise ValueError(f"Invalid compressed point length: expected 33, got {len(data)}")
+        return cls._string_to_canonical_point(data)
+
+    @classmethod
+    def _string_to_canonical_point(cls, data: bytes):
+        flag = data[-1]
+        is_negative = (flag >> 7) & 1
+        is_infinity = (flag >> 6) & 1
+        if flag & 0x3F:
+            raise ValueError("Invalid canonical point flags")
+        if is_infinity:
+            if is_negative or any(data[:-1]):
+                raise ValueError("Invalid infinity encoding")
+            return cls.identity()
+
+        x = int.from_bytes(data[:-1], "little")
+        if x >= cls.curve.PRIME_FIELD:
+            raise ValueError("x-coordinate is not in field")
+        y_candidates = cls._y_recover(x)
+        if y_candidates is None:
+            raise ValueError("INVALID point")
+        y, y_neg = y_candidates
+        return cls(x, y_neg if is_negative else y)
+
+    @classmethod
+    def _y_recover(cls, x: int) -> tuple[int, int] | None:
+        p = cls.curve.PRIME_FIELD
+        y_square = (pow(x, 3, p) + cls.curve.WeierstrassA * x + cls.curve.WeierstrassB) % p
+        try:
+            y = cls.curve.mod_sqrt(y_square)
+        except ValueError:
+            return None
+        neg_y = -y % p
+        return (y, neg_y) if y <= neg_y else (neg_y, y)
 
 
 P256_RO = CurveVariant(

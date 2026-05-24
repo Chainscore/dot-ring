@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
 from dot_ring.curve.e2c import E2C_Variant
@@ -62,6 +62,13 @@ class Curve:
     BBy: int | tuple[int, int] | None
     UNCOMPRESSED: bool
     POINT_LEN: int
+    SUITE_ID: bytes | None = field(default=None, kw_only=True)
+    TRANSCRIPT_HASH: str = field(default="sha512", kw_only=True)
+    HASH_TO_CURVE: str | None = field(default=None, kw_only=True)
+    ACCUMULATOR_BASE_X: int | tuple[int, int] | None = field(default=None, kw_only=True)
+    ACCUMULATOR_BASE_Y: int | tuple[int, int] | None = field(default=None, kw_only=True)
+    PADDING_X: int | tuple[int, int] | None = field(default=None, kw_only=True)
+    PADDING_Y: int | tuple[int, int] | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""

@@ -19,7 +19,8 @@ class Ed25519Params:
     Specification of the JubJub curve in Twisted Edwards form.
     """
 
-    SUITE_STRING = b"edwards25519_XMD:SHA-512_ELL2_RO_"
+    SUITE_STRING = b"Ed25519-SHA512-TAI-v1"
+    SUITE_ID = b"Ed25519-SHA512-TAI-v1"
     DST = b"QUUX-V01-CS02-with-edwards25519_XMD:SHA-512_ELL2_RO_"
 
     # Curve parameters
@@ -46,11 +47,13 @@ class Ed25519Params:
     # Challenge length in bytes for VRF (from RFC 9381)
     CHALLENGE_LENGTH: Final[int] = 16  # 128 bits
 
-    BBx: Final[int] = 52417091031015867055192825304177001039906336859819158874861527659737645967040
-    BBy: Final[int] = 24364467899048426341436922427697710961180476432856951893648702734568269272170
+    BBx: Final[int] = 45003173884697328536089278691112838614164406922820087464913813433380838325453
+    BBy: Final[int] = 31256014272390301975555524011230972931324093235775711248505761870355310252869
 
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 32
+    TRANSCRIPT_HASH = "sha512"
+    HASH_TO_CURVE = "tai"
 
 
 class Ed25519Curve(TECurve):
@@ -71,7 +74,7 @@ class Ed25519Curve(TECurve):
             SUITE_STRING = SUITE_STRING.replace(b"_RO_", b"_NU_")
             DST = DST.replace(b"_RO_", b"_NU_")
         if e2c_variant.value == "TryAndIncrement":
-            SUITE_STRING = b"Ed25519_SHA-512_TAI"  # as per davxy
+            SUITE_STRING = Ed25519Params.SUITE_ID
             DST = b""
         super().__init__(
             PRIME_FIELD=Ed25519Params.PRIME_FIELD,
@@ -98,6 +101,9 @@ class Ed25519Curve(TECurve):
             ENDIAN=Ed25519Params.ENDIAN,
             POINT_LEN=Ed25519Params.POINT_LEN,
             CHALLENGE_LENGTH=Ed25519Params.CHALLENGE_LENGTH,
+            SUITE_ID=Ed25519Params.SUITE_ID if e2c_variant == E2C_Variant.TAI else None,
+            TRANSCRIPT_HASH=Ed25519Params.TRANSCRIPT_HASH,
+            HASH_TO_CURVE=Ed25519Params.HASH_TO_CURVE if e2c_variant == E2C_Variant.TAI else None,
         )
 
     def calculate_j_k(self) -> tuple[int, int]:

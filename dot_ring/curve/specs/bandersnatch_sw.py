@@ -13,8 +13,9 @@ from ..short_weierstrass.sw_curve import SWCurve
 
 @dataclass(frozen=True)
 class BandersnatchSWParams:
-    SUITE_STRING = b"Bandersnatch_SW_SHA-512_TAI"
-    DST = b"ECVRF_Bandersnatch_XMD:SHA-512_TAI_RO_Bandersnatch_SW_SHA-512_TAI"
+    SUITE_STRING = b"Bandersnatch-SW-SHA512-TAI-v1"
+    SUITE_ID = b"Bandersnatch-SW-SHA512-TAI-v1"
+    DST = b""
 
     PRIME_FIELD: Final[int] = 52435875175126190479447740508185965837690552500527637822603658699938581184513
     ORDER: Final[int] = 0x1CFB69D4CA675F520CCE760202687600FF8F87007419047174FD06B52876E7E1
@@ -33,14 +34,20 @@ class BandersnatchSWParams:
     S_in_bytes: Final[int] = 64
     H_A = hashlib.sha512
     ENDIAN = "little"
-    BBx: Final[int] = 43295201540795761503961631609120105078472641399392666499799525033203881929458
-    BBy: Final[int] = 47295792057744344182638225978402781315571475472700428341116949953237551542374
+    BBx: Final[int] = 28115362618644671219696075022370511395136332234538034358311199318506963235315
+    BBy: Final[int] = 3900851469868158154936962463930962496000252801946757953905982128670530185313
+    ACCUMULATOR_BASE_X: Final[int] = 13189182432637108534251278524663360416811744717379968387043749958796254980045
+    ACCUMULATOR_BASE_Y: Final[int] = 14483286006782706188671626508232161325054303360192563232232823772738911894793
+    PADDING_X: Final[int] = 20496180070424734470560955314776462366297546779079302509428101119888111900885
+    PADDING_Y: Final[int] = 8839106592405352067483360946162273985142890146060814748321063063028225641813
 
-    CHALLENGE_LENGTH: Final[int] = 32
+    CHALLENGE_LENGTH: Final[int] = 16
     Requires_Isogeny: Final[bool] = False
     Isogeny_Coeffs = None
     UNCOMPRESSED = False
     POINT_LEN: Final[int] = 33
+    TRANSCRIPT_HASH = "sha512"
+    HASH_TO_CURVE = "tai"
 
 
 Bandersnatch_SW_SW_Curve: Final[SWCurve] = SWCurve(
@@ -68,6 +75,13 @@ Bandersnatch_SW_SW_Curve: Final[SWCurve] = SWCurve(
     ENDIAN=BandersnatchSWParams.ENDIAN,
     POINT_LEN=BandersnatchSWParams.POINT_LEN,
     CHALLENGE_LENGTH=BandersnatchSWParams.CHALLENGE_LENGTH,
+    SUITE_ID=BandersnatchSWParams.SUITE_ID,
+    TRANSCRIPT_HASH=BandersnatchSWParams.TRANSCRIPT_HASH,
+    HASH_TO_CURVE=BandersnatchSWParams.HASH_TO_CURVE,
+    ACCUMULATOR_BASE_X=BandersnatchSWParams.ACCUMULATOR_BASE_X,
+    ACCUMULATOR_BASE_Y=BandersnatchSWParams.ACCUMULATOR_BASE_Y,
+    PADDING_X=BandersnatchSWParams.PADDING_X,
+    PADDING_Y=BandersnatchSWParams.PADDING_Y,
 )
 
 
@@ -159,8 +173,11 @@ class Bandersnatch_SW_Point(SWAffinePoint):
             raise ValueError("INVALID point: no y-coordinate found for x")
         y, y_neg = y_candidates
 
-        is_negative = (data[-1] >> 7) & 1
-        is_infinity = (data[-1] >> 6) & 1
+        flag = data[-1]
+        if flag & 0x3F:
+            raise ValueError("INVALID: invalid canonical point flags")
+        is_negative = (flag >> 7) & 1
+        is_infinity = (flag >> 6) & 1
 
         if is_infinity:
             if is_negative:

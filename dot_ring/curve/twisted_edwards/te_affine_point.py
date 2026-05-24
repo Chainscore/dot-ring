@@ -213,6 +213,11 @@ class TEAffinePoint(CurvePoint[C]):
         if not isinstance(salt, bytes):
             salt = bytes.fromhex(salt)
 
+        if cls.curve.HASH_TO_CURVE == "tai":
+            from dot_ring.vrf.transcript import hash_to_curve_tai
+
+            return cast(Self, hash_to_curve_tai(cls, salt + alpha_string))
+
         if cls.curve.E2C in [E2C_Variant.ELL2, E2C_Variant.ELL2_NU]:
             if cls.curve.E2C.value.endswith("_NU_"):
                 return cls.encode_to_curve_hash2_suite_nu(alpha_string, salt, General_Check)
