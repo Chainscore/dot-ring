@@ -238,4 +238,5 @@ class KZG:
 
         return bool(blst_final_verify(lhs, rhs))
 
+
 __all__ = ["KZG", "Opening"]

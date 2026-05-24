@@ -61,12 +61,7 @@ def test_dot_ring_pedersen_vectors(suite: Suite) -> None:
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
         proof_bytes = bytes.fromhex(
-            vector["gamma"]
-            + vector["proof_pk_com"]
-            + vector["proof_r"]
-            + vector["proof_ok"]
-            + vector["proof_s"]
-            + vector["proof_sb"]
+            vector["gamma"] + vector["proof_pk_com"] + vector["proof_r"] + vector["proof_ok"] + vector["proof_s"] + vector["proof_sb"]
         )
         proof = PedersenVRF[suite.curve].from_bytes(proof_bytes)
 

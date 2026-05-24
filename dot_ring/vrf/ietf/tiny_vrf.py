@@ -57,11 +57,7 @@ class TinyVRF(VRF[Any]):
         return cls(output_point, c, s)
 
     def to_bytes(self) -> bytes:
-        return (
-            self.output_point.point_to_string()
-            + self.c.to_bytes(CHALLENGE_LEN, "little")
-            + scalar_encode(self.cv, self.s)
-        )
+        return self.output_point.point_to_string() + self.c.to_bytes(CHALLENGE_LEN, "little") + scalar_encode(self.cv, self.s)
 
     @classmethod
     def _io_from_alpha(cls, alpha: bytes, secret_scalar: int, salt: bytes = b"") -> VrfIo:

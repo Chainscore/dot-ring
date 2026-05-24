@@ -96,12 +96,7 @@ def test_pedersen_vectors(curve, prefix: str, _point_len: int) -> None:
         proof_bytes = proof.to_bytes()
 
         assert proof_bytes.hex() == (
-            vector["gamma"]
-            + vector["proof_pk_com"]
-            + vector["proof_r"]
-            + vector["proof_ok"]
-            + vector["proof_s"]
-            + vector["proof_sb"]
+            vector["gamma"] + vector["proof_pk_com"] + vector["proof_r"] + vector["proof_ok"] + vector["proof_s"] + vector["proof_sb"]
         )
         assert proof.verify(alpha, ad)
         assert PedersenVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes

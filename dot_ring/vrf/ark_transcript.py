@@ -55,10 +55,7 @@ class ArkTranscript:
         block_size = len(self._seed)
         first_block = start // block_size
         last_block = (end + block_size - 1) // block_size
-        stream = b"".join(
-            self._digest(self._seed + counter.to_bytes(8, "little"))
-            for counter in range(first_block, last_block)
-        )
+        stream = b"".join(self._digest(self._seed + counter.to_bytes(8, "little")) for counter in range(first_block, last_block))
         self._squeeze_offset = end
         return stream[start % block_size : start % block_size + size]
 

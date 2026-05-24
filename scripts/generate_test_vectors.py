@@ -193,10 +193,7 @@ def scheme_vectors(suite: Suite, scheme: str) -> list[dict[str, Any]]:
         "pedersen": pedersen_vector,
         "ring": ring_vector,
     }
-    return [
-        builders[scheme](suite, index, seed, alpha, ad)
-        for index, (seed, alpha, ad) in enumerate(VECTOR_CASES, start=1)
-    ]
+    return [builders[scheme](suite, index, seed, alpha, ad) for index, (seed, alpha, ad) in enumerate(VECTOR_CASES, start=1)]
 
 
 def write_vectors(out_dir: Path, suite: Suite, scheme: str) -> None:

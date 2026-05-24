@@ -475,6 +475,7 @@ class RingVRF(VRF[Any]):
     def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
         return PedersenVRF[cls.cv].proof_to_hash(gamma, mul_cofactor)  # type: ignore[misc]
 
+
 __all__ = [
     "RingBatchItem",
     "RingBatchVerifier",

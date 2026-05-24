@@ -69,7 +69,10 @@ class PedersenBatchVerifier:
             input_scalars.extend([coefficient * item.s, -coefficient * item.c, -coefficient])
             commitment_points.extend([generator, blinding_base, item.pk_com, item.r])
             commitment_scalars.extend([coefficient * item.s, coefficient * item.sb, -coefficient * item.c, -coefficient])
-        return self.cv.point.msm(input_points, input_scalars).is_identity() and self.cv.point.msm(
-            commitment_points,
-            commitment_scalars,
-        ).is_identity()
+        return (
+            self.cv.point.msm(input_points, input_scalars).is_identity()
+            and self.cv.point.msm(
+                commitment_points,
+                commitment_scalars,
+            ).is_identity()
+        )
