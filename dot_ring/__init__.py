@@ -1,13 +1,13 @@
 """
 dot-ring: A Python library for Verifiable Random Functions with Additional Data (VRF-AD).
 
-Supports 10+ elliptic curves including IETF, Pedersen VRF and Ring Proof.
+Supports 10+ elliptic curves including Tiny, Thin, Pedersen, and Ring VRF schemes.
 
 Example usage:
-    >>> from dot_ring import Bandersnatch, IETF_VRF, PedersenVRF, RingVRF
+    >>> from dot_ring import Bandersnatch, TinyVRF, PedersenVRF, RingVRF
     >>>
-    >>> # IETF VRF
-    >>> proof = IETF_VRF[Bandersnatch].prove(alpha, secret_key, additional_data)
+    >>> # Tiny VRF
+    >>> proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
     >>> is_valid = proof.verify(public_key, alpha, additional_data)
     >>>
     >>> # Pedersen VRF
@@ -31,7 +31,7 @@ from dot_ring.curve.specs.baby_jubjub import BabyJubJub
 # =============================================================================
 # Curve Variants - Primary curves
 # =============================================================================
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
+from dot_ring.curve.specs.bandersnatch import Bandersnatch, Bandersnatch_SHAKE128
 from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
 
 # BLS12-381 curves
@@ -49,19 +49,18 @@ from dot_ring.curve.specs.p384 import P384_NU, P384_RO
 from dot_ring.curve.specs.p521 import P521_NU, P521_RO
 from dot_ring.curve.specs.secp256k1 import Secp256k1_NU, Secp256k1_RO
 from dot_ring.keygen import secret_from_seed
-from dot_ring.vrf.ietf.ietf import IETF_VRF
-from dot_ring.vrf.pedersen.pedersen import PedersenVRF
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
-from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring.vrf.ietf import IETF_VRF, ThinBatchVerifier, ThinVRF, TinyVRF
+from dot_ring.vrf.pedersen import PedersenBatchVerifier, PedersenVRF
+from dot_ring.vrf.ring import Ring, RingBatchVerifier, RingContext, RingRoot, RingSetup, RingVerifierKeyBuilder, RingVRF
 
 # =============================================================================
 # Convenience aliases
 # =============================================================================
-Ed25519 = Ed25519_RO
+Ed25519 = Ed25519_NU
 Ed448 = Ed448_RO
 Curve25519 = Curve25519_RO
 Curve448 = Curve448_RO
-P256 = P256_RO
+P256 = P256_NU
 P384 = P384_RO
 P521 = P521_RO
 Secp256k1 = Secp256k1_RO
@@ -75,11 +74,20 @@ __all__ = [
     # Version
     "__version__",
     # VRF implementations
+    "TinyVRF",
+    "ThinVRF",
+    "ThinBatchVerifier",
     "IETF_VRF",
     "PedersenVRF",
+    "PedersenBatchVerifier",
     "RingVRF",
+    "RingSetup",
+    "RingContext",
+    "RingVerifierKeyBuilder",
+    "RingBatchVerifier",
     # Primary curves
     "Bandersnatch",
+    "Bandersnatch_SHAKE128",
     "Bandersnatch_SW",
     "Ed25519",
     "Ed25519_RO",

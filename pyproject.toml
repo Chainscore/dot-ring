@@ -1,7 +1,7 @@
 [project]
 name = "dot-ring"
 dynamic = ["version"]
-description = "Serves as a library to generate and verify a signature using IETF, Pedersen and Ring VRF-AD Schemes"
+description = "Serves as a library to generate and verify signatures using Tiny, Thin, Pedersen and Ring VRF-AD schemes"
 authors = [
     {name = "prasad-kumkar", email = "prasad@chainscore.finance"}
 ]
@@ -9,7 +9,7 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
 keywords = [
-    "VRF", "VRF-AD", "IETF VRF", "Pedersen VRF",
+    "VRF", "VRF-AD", "Tiny VRF", "Thin VRF", "Pedersen VRF",
     "Ring Proof", "Ring VRF", "Signature", "Proof",
     "Verify", "Cryptography", "Zero Knowledge",
     "PCS", "KZG", "FFT", "Polynomial",
