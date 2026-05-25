@@ -45,6 +45,7 @@ jobs:
           --cov=dot_ring \
           --cov-report=term-missing \
           --cov-report=xml \
+          --cov-fail-under=80 \
           -v \
           --tb=short
 
