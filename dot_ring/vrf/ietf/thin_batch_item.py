@@ -9,6 +9,7 @@ from dot_ring.vrf.transcript import VrfIo
 @dataclass
 class ThinBatchItem:
     c: int
-    merged: VrfIo
+    ios: list[VrfIo]
+    zs: list[int]
     r: CurvePoint
     s: int

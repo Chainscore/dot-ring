@@ -5,7 +5,7 @@ from typing import Any
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
-from dot_ring.vrf.transcript import DomSep, VrfIo, challenge, schnorr_ios, vrf_transcript
+from dot_ring.vrf.transcript import DomSep, VrfIo, challenge, schnorr_ios, vrf_transcript_scalars
 
 from .thin_batch_item import ThinBatchItem
 from .thin_vrf import ThinVRF
@@ -41,14 +41,24 @@ class ThinBatchVerifier:
         return _SpecializedThinBatchVerifier
 
     def push(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes, proof: ThinVRF) -> None:
-        transcript, merged = vrf_transcript(self.cv, DomSep.THIN_VRF, schnorr_ios(self.cv, public_key, ios), additional_data)
+        chained_ios = schnorr_ios(self.cv, public_key, ios)
+        transcript, scalar_stream = vrf_transcript_scalars(self.cv, DomSep.THIN_VRF, chained_ios, additional_data)
         c = challenge(self.cv, [proof.r], transcript)
-        self.items.append(ThinBatchItem(c, merged, proof.r, proof.s))
+        self.items.append(ThinBatchItem(c, chained_ios, scalar_stream.take(len(chained_ios)), proof.r, proof.s))
 
     def verify(self) -> bool:
-        points = []
-        scalars = []
+        if not self.items:
+            return True
+
+        points: list[CurvePoint] = []
+        scalars: list[int] = []
         for coefficient, item in zip(_batch_coefficients(len(self.items), self.cv.curve.ORDER), self.items, strict=False):
-            points.extend([item.merged.input, item.merged.output, item.r])
-            scalars.extend([coefficient * item.s, -coefficient * item.c, -coefficient])
+            weighted_c = coefficient * item.c
+            weighted_s = coefficient * item.s
+
+            for io, z in zip(item.ios, item.zs, strict=True):
+                points.extend([io.input, io.output])
+                scalars.extend([weighted_s * z, -(weighted_c * z)])
+            points.append(item.r)
+            scalars.append(-coefficient)
         return self.cv.point.msm(points, scalars).is_identity()
