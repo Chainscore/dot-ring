@@ -60,17 +60,17 @@ Ring VRF with SNARK-based ring membership proof.
 
 | Operation | Min | Mean | Stddev |
 |-----------|-----|------|--------|
-| Ring Root Construction | 48.87 ms | 50.56 ms | 1.50 ms |
-| Proof Generation | 158.37 ms | 171.04 ms | 11.74 ms |
-| Verification | 3.92 ms | 4.12 ms | 0.19 ms |
+| Ring Root Construction | 27.03 ms | 27.80 ms | 0.75 ms |
+| Proof Generation | 152.31 ms | 154.03 ms | 1.29 ms |
+| Verification | 3.70 ms | 3.95 ms | 0.19 ms |
 
 ### 1023-member ring (domain size: 2048)
 
 | Operation | Min | Mean | Stddev | ark-vrf | x |
 |-----------|-----|------|--------|---------|---|
-| Ring Root Construction | 409.70 ms | 411.42 ms | 1.83 ms | 138.5 ms | 3.0x |
-| Proof Generation | 513.06 ms | 514.72 ms | 1.76 ms | 482.2 ms | 1.1x |
-| Verification | 3.62 ms | 3.84 ms | 0.32 ms | 3.37 ms | 1.1x |
+| Ring Root Construction | 327.11 ms | 334.16 ms | 9.18 ms | 138.5 ms | 2.4x |
+| Proof Generation | 527.04 ms | 534.57 ms | 12.48 ms | 482.2 ms | 1.1x |
+| Verification | 3.81 ms | 3.99 ms | 0.24 ms | 3.37 ms | 1.2x |
 
 ---
 

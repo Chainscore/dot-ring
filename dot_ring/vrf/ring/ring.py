@@ -1,19 +1,32 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import lru_cache
+from typing import Any
 
 from dot_ring.ring_proof.constants import DEFAULT_SIZE
 from dot_ring.ring_proof.params import RingProofParams
 
 
-def _h_vector(params: RingProofParams, size: int = DEFAULT_SIZE) -> list[tuple[int, int]]:
-    """Return `[2⁰·H, 2¹·H, ...]` in short-Weierstrass coords."""
-    point = params.blinding_base
+@lru_cache(maxsize=32)
+def _h_vector_cached(
+    blinding_base: tuple[int, int],
+    size: int,
+    point_cls: type[Any],
+) -> tuple[tuple[int, int], ...]:
+    point = blinding_base
     points = []
     for _ in range(size):
         points.append(point)
-        point = params.add_points(point, point)
-    return points
+        point_obj = point_cls(point[0], point[1])
+        result = point_obj + point_obj
+        point = int(result.x), int(result.y)
+    return tuple(points)
+
+
+def _h_vector(params: RingProofParams, size: int = DEFAULT_SIZE) -> list[tuple[int, int]]:
+    """Return `[2⁰·H, 2¹·H, ...]` in short-Weierstrass coords."""
+    return list(_h_vector_cached(params.blinding_base, size, params.ring_point_cls))
 
 
 class Ring:
