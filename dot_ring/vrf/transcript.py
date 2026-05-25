@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
-from dot_ring.vrf.ark_transcript import ArkTranscript
 from dot_ring.vrf.delinearize import DelinearizeScalars
 from dot_ring.vrf.domain import DomSep
+from dot_ring.vrf.spec_transcript import SpecTranscript
 from dot_ring.vrf.transcript_constants import CHALLENGE_LEN, SECURITY_PARAMETER
 from dot_ring.vrf.vrf_io import VrfIo
 
 
 def suite_id(curve: CurveVariant) -> bytes:
-    return curve.curve.SUITE_ID or curve.curve.SUITE_STRING
+    return cast(bytes, curve.curve.SUITE_ID or curve.curve.SUITE_STRING)
 
 
 def scalar_len(curve: CurveVariant) -> int:
-    return (curve.curve.ORDER.bit_length() + 7) // 8
+    return (cast(int, curve.curve.ORDER).bit_length() + 7) // 8
 
 
 def scalar_encode(curve: CurveVariant, value: int) -> bytes:
@@ -28,22 +28,22 @@ def scalar_decode(curve: CurveVariant, value: bytes) -> int:
 
 
 def expanded_scalar_len(curve: CurveVariant, sec_bits: int = SECURITY_PARAMETER) -> int:
-    return (curve.curve.ORDER.bit_length() + sec_bits + 7) // 8
+    return (cast(int, curve.curve.ORDER).bit_length() + sec_bits + 7) // 8
 
 
-def transcript_for(curve: CurveVariant) -> ArkTranscript:
-    return ArkTranscript(suite_id(curve), curve.curve.TRANSCRIPT_HASH)
+def transcript_for(curve: CurveVariant) -> SpecTranscript:
+    return SpecTranscript(suite_id(curve), curve.curve.TRANSCRIPT_HASH)
 
 
-def nonce_scalar(curve: CurveVariant, transcript: ArkTranscript) -> int:
-    return int.from_bytes(transcript.squeeze_raw(expanded_scalar_len(curve)), "little") % curve.curve.ORDER
+def nonce_scalar(curve: CurveVariant, transcript: SpecTranscript) -> int:
+    return int.from_bytes(transcript.squeeze_raw(expanded_scalar_len(curve)), "little") % cast(int, curve.curve.ORDER)
 
 
-def challenge_scalar(curve: CurveVariant, transcript: ArkTranscript) -> int:
-    return int.from_bytes(transcript.squeeze_raw(CHALLENGE_LEN), "little") % curve.curve.ORDER
+def challenge_scalar(curve: CurveVariant, transcript: SpecTranscript) -> int:
+    return int.from_bytes(transcript.squeeze_raw(CHALLENGE_LEN), "little") % cast(int, curve.curve.ORDER)
 
 
-def nonce(curve: CurveVariant, secret_scalar: int, transcript: ArkTranscript | None = None) -> int:
+def nonce(curve: CurveVariant, secret_scalar: int, transcript: SpecTranscript | None = None) -> int:
     t = transcript.clone() if transcript is not None else transcript_for(curve)
 
     t_exp = t.clone()
@@ -56,7 +56,7 @@ def nonce(curve: CurveVariant, secret_scalar: int, transcript: ArkTranscript | N
     return nonce_scalar(curve, t)
 
 
-def challenge(curve: CurveVariant, points: list[CurvePoint], transcript: ArkTranscript | None = None) -> int:
+def challenge(curve: CurveVariant, points: list[CurvePoint], transcript: SpecTranscript | None = None) -> int:
     t = transcript.clone() if transcript is not None else transcript_for(curve)
     t.absorb_raw(bytes([DomSep.CHALLENGE]))
     for point in points:
@@ -76,7 +76,7 @@ def vrf_transcript(
     scheme: DomSep,
     ios: list[VrfIo],
     ad: bytes,
-) -> tuple[ArkTranscript, VrfIo]:
+) -> tuple[SpecTranscript, VrfIo]:
     t, scalars = vrf_transcript_scalars(curve, scheme, ios, ad)
     if not ios:
         zero = curve.point.identity()
@@ -98,7 +98,7 @@ def vrf_transcript_scalars(
     scheme: DomSep,
     ios: list[VrfIo],
     ad: bytes,
-) -> tuple[ArkTranscript, DelinearizeScalars]:
+) -> tuple[SpecTranscript, DelinearizeScalars]:
     t = transcript_for(curve)
     t.absorb_raw(bytes([scheme]))
     t.absorb_raw(len(ios).to_bytes(8, "little"))
@@ -136,7 +136,7 @@ def hash_to_curve_tai(point_cls: Any, data: bytes) -> CurvePoint:
     curve = point_cls.curve
     field_len = (curve.PRIME_FIELD.bit_length() + 7) // 8
 
-    prefix = ArkTranscript(curve.SUITE_ID or curve.SUITE_STRING, curve.TRANSCRIPT_HASH)
+    prefix = SpecTranscript(curve.SUITE_ID or curve.SUITE_STRING, curve.TRANSCRIPT_HASH)
     prefix.absorb_raw(bytes([DomSep.HASH_TO_CURVE]))
     prefix.absorb_raw(len(data).to_bytes(8, "little"))
     prefix.absorb_raw(data)
@@ -159,8 +159,6 @@ def hash_to_curve_tai(point_cls: Any, data: bytes) -> CurvePoint:
         try:
             point = point_cls.string_to_point(bytes(candidate))
         except ValueError:
-            continue
-        if isinstance(point, str):
             continue
         if point.curve.COFACTOR > 1:
             point = point * point.curve.COFACTOR

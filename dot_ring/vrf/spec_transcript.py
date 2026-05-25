@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 import hashlib
+from typing import cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
 
 
 def _scalar_len(curve: CurveVariant) -> int:
-    return (curve.curve.ORDER.bit_length() + 7) // 8
+    return (cast(int, curve.curve.ORDER).bit_length() + 7) // 8
 
 
-class ArkTranscript:
+class SpecTranscript:
     def __init__(self, label: bytes, hash_name: str = "sha512") -> None:
         self.hash_name = hash_name
         self._absorbed = bytearray(label)
         self._seed: bytes | None = None
         self._squeeze_offset = 0
 
-    def clone(self) -> ArkTranscript:
-        other = ArkTranscript(b"", self.hash_name)
+    def clone(self) -> SpecTranscript:
+        other = SpecTranscript(b"", self.hash_name)
         other._absorbed = bytearray(self._absorbed)
         other._seed = self._seed
         other._squeeze_offset = self._squeeze_offset
