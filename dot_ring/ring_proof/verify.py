@@ -6,6 +6,7 @@ from dot_ring.curve.native_field.scalar import Scalar
 from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
 from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.pcs.protocol import PCS
 from dot_ring.ring_proof.pcs.utils import g1_to_blst
 from dot_ring.ring_proof.transcript.phases import (
     phase1_alphas,
@@ -87,7 +88,7 @@ class Verify:
         edwards_a: int = -5,
         prime: int = S_PRIME,
         omega: int | None = None,
-        pcs: Any = KZG,
+        pcs: type[PCS] = KZG,
     ) -> None:
         (
             self.Cb,

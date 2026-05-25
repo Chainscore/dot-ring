@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from typing import Any, cast
 
-from dot_ring.ring_proof.columns.columns import Column
+from dot_ring.ring_proof.columns.columns import Column, require_commitment
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.bn254_kzg import BN254KZG
+from dot_ring.ring_proof.pcs.kzg import KZG
 
 from .ring import Ring
 
@@ -17,7 +18,7 @@ class RingRoot:
     params: RingProofParams | None = None
 
     @classmethod
-    def from_ring(cls, ring: Ring, params: RingProofParams):
+    def from_ring(cls, ring: Ring, params: RingProofParams) -> "RingRoot":
         # Px, Py, s points
         px, py = H.unzip(ring.nm_points)
         selector_vec = [1 if i < params.max_ring_size else 0 for i in range(params.domain_size)]
@@ -32,18 +33,18 @@ class RingRoot:
 
     def to_bytes(self) -> bytes:
         pcs = self.params.pcs if self.params is not None else None
-        if pcs is not None and getattr(pcs, "commitment_size", 48) == 32:
+        if pcs is not None and hasattr(pcs, "compress_g1"):
             return b"".join(
                 (
-                    pcs.compress_g1(cast(Any, self.px.commitment)),
-                    pcs.compress_g1(cast(Any, self.py.commitment)),
-                    pcs.compress_g1(cast(Any, self.s.commitment)),
+                    pcs.compress_g1(require_commitment(self.px)),
+                    pcs.compress_g1(require_commitment(self.py)),
+                    pcs.compress_g1(require_commitment(self.s)),
                 )
             )
         comm_keys = (
-            H.bls_g1_compress(cast(Any, self.px.commitment)),
-            H.bls_g1_compress(cast(Any, self.py.commitment)),
-            H.bls_g1_compress(cast(Any, self.s.commitment)),
+            H.bls_g1_compress(cast(Any, require_commitment(self.px))),
+            H.bls_g1_compress(cast(Any, require_commitment(self.py))),
+            H.bls_g1_compress(cast(Any, require_commitment(self.s))),
         )
         return bytes.fromhex(comm_keys[0]) + bytes.fromhex(comm_keys[1]) + bytes.fromhex(comm_keys[2])
 
@@ -62,9 +63,15 @@ class RingRoot:
             py_commitment = pcs.decompress_g1(data[32:64])
             s_commitment = pcs.decompress_g1(data[64:96])
         else:
-            px_commitment = H.bls_g1_decompress(data[0:48].hex())
-            py_commitment = H.bls_g1_decompress(data[48:96].hex())
-            s_commitment = H.bls_g1_decompress(data[96:144].hex())
+            pcs = params.pcs if params is not None else KZG
+            if hasattr(pcs, "decompress_g1"):
+                px_commitment = pcs.decompress_g1(data[0:48])
+                py_commitment = pcs.decompress_g1(data[48:96])
+                s_commitment = pcs.decompress_g1(data[96:144])
+            else:
+                px_commitment = H.bls_g1_decompress(data[0:48].hex())
+                py_commitment = H.bls_g1_decompress(data[48:96].hex())
+                s_commitment = H.bls_g1_decompress(data[96:144].hex())
 
         px = Column(name="px", evals=[], commitment=px_commitment)
         py = Column(name="py", evals=[], commitment=py_commitment)

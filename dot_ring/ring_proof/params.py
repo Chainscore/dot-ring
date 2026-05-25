@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+from typing import cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
@@ -9,6 +10,7 @@ from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.constants import D_2048, DEFAULT_SIZE, MAX_RING_SIZE, OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.pcs.bn254_kzg import BN254KZG
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.pcs.protocol import PCS
 
 
 def _is_power_of_two(n: int) -> bool:
@@ -133,7 +135,7 @@ class RingProofParams:
     prime: int = S_PRIME
     base_root: int = OMEGA_2048
     base_root_size: int = 2048
-    pcs: object = field(default=KZG, compare=False, hash=False, repr=False)
+    pcs: type[PCS] = field(default=KZG, compare=False, hash=False, repr=False)
     test_vectors: bool = False
     cv: CurveVariant = field(default_factory=lambda: Bandersnatch, compare=False, hash=False)
 
@@ -187,17 +189,24 @@ class RingProofParams:
 
     @property
     def radix_omega(self) -> int:
-        return _omega_for_domain(self.radix_domain_size, self.prime, self.base_root, self.base_root_size)
+        return _omega_for_domain(self._radix_domain_size, self.prime, self.base_root, self.base_root_size)
 
     @property
     def radix_domain(self) -> list[int]:
-        if self.radix_domain_size == 2048 and self.base_root_size == 2048 and self.base_root == OMEGA_2048:
+        radix_domain_size = self._radix_domain_size
+        if radix_domain_size == 2048 and self.base_root_size == 2048 and self.base_root == OMEGA_2048:
             return list(D_2048)
-        return list(_domain_for_size(self.radix_domain_size, self.prime, self.base_root, self.base_root_size))
+        return list(_domain_for_size(radix_domain_size, self.prime, self.base_root, self.base_root_size))
 
     @property
     def radix_shift(self) -> int:
-        return self.radix_domain_size // self.domain_size
+        return self._radix_domain_size // self.domain_size
+
+    @property
+    def _radix_domain_size(self) -> int:
+        if self.radix_domain_size is None:
+            raise ValueError("radix_domain_size is not initialized")
+        return self.radix_domain_size
 
     @property
     def last_index(self) -> int:
@@ -236,8 +245,8 @@ class RingProofParams:
     @property
     def ring_point_cls(self) -> type[CurvePoint]:
         if self.cv.name == "Bandersnatch_SW":
-            return Bandersnatch.point
-        return self.cv.point
+            return cast(type[CurvePoint], Bandersnatch.point)
+        return cast(type[CurvePoint], self.cv.point)
 
     @property
     def ring_edwards_a(self) -> int:

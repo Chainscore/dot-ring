@@ -1,6 +1,5 @@
 import py_ecc.optimized_bls12_381 as bls
 from py_ecc.bls import point_compression
-from py_ecc.optimized_bls12_381 import FQ
 
 from dot_ring import blst
 
@@ -21,26 +20,24 @@ def synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
     return q
 
 
-def g1_to_blst(p: tuple) -> blst.P1:
-    """Convert py_ecc G1 point (Jacobian tuple) to blst.P1"""
+def g1_to_blst(p: tuple | blst.P1 | blst.P1_Affine) -> blst.P1:
+    """Convert a G1 point to blst.P1."""
+    if isinstance(p, blst.P1):
+        return p
+    if isinstance(p, blst.P1_Affine):
+        return blst.P1(p)
     compressed_int = point_compression.compress_G1(p)
     compressed_bytes = compressed_int.to_bytes(48, "big")
     return blst.P1(blst.P1_Affine(compressed_bytes))
 
 
-def g2_to_blst(p: tuple) -> blst.P2:
-    """Convert py_ecc G2 point to blst.P2"""
+def g2_to_blst(p: tuple | blst.P2 | blst.P2_Affine) -> blst.P2:
+    """Convert a G2 point to blst.P2."""
+    if isinstance(p, blst.P2):
+        return p
+    if isinstance(p, blst.P2_Affine):
+        return blst.P2(p)
     z1, z2 = point_compression.compress_G2(p)
     b1 = z1.to_bytes(48, "big")
     b2 = z2.to_bytes(48, "big")
     return blst.P2(blst.P2_Affine(b1 + b2))
-
-
-def blst_p1_to_fq_tuple(blst_point: blst.P1) -> tuple[FQ, FQ, FQ]:
-    """Convert blst.P1 point back to (FQ, FQ, FQ) tuple in Jacobian coordinates"""
-    point_bytes = blst_point.serialize()
-    x_bytes = point_bytes[:48]
-    y_bytes = point_bytes[48:96]
-    x_int = int.from_bytes(x_bytes, "big")
-    y_int = int.from_bytes(y_bytes, "big")
-    return (FQ(x_int), FQ(y_int), FQ(1))

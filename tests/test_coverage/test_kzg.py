@@ -2,6 +2,7 @@
 
 import pytest
 
+from dot_ring import blst
 from dot_ring.ring_proof.pcs.kzg import (
     KZG,
     Opening,
@@ -87,9 +88,7 @@ class TestKZGCommit:
         commitment = KZG.commit(coeffs)
 
         assert commitment is not None
-        assert isinstance(commitment, tuple)
-        # Commitment is (x, y, z) in projective coordinates
-        assert len(commitment) in [2, 3]  # (x, y) or (x, y, z) coordinates
+        assert isinstance(commitment, blst.P1)
 
     def test_commit_zero_poly(self):
         """Test commitment to zero polynomial."""

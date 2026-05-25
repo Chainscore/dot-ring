@@ -4,7 +4,7 @@ import json
 import os
 import secrets
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 
 from dot_ring.curve.point import CurvePoint
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
@@ -12,13 +12,13 @@ from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.pcs.protocol import PCS, G1Commitment
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
 
 _H_VEC_DEFAULT = json.load(open(os.path.join(os.path.dirname(__file__), "h_vec.json")))
 _H_VEC_DEFAULT = [tuple(pt) for pt in _H_VEC_DEFAULT]
 
 Scalar = int
-G1Point = tuple
 
 
 @dataclass(slots=True)
@@ -26,7 +26,7 @@ class Column:
     name: str
     evals: list[int]
     coeffs: list[int] | None = None
-    commitment: G1Point | None = None
+    commitment: G1Commitment | None = None
     size: int = DEFAULT_SIZE
 
     def interpolate(
@@ -55,11 +55,17 @@ class Column:
                 self.evals += [0] * (self.size - len(self.evals))
             self.coeffs = poly_interpolate_fft(self.evals, domain_omega, prime)
 
-    def commit(self, pcs: Any = KZG) -> None:
+    def commit(self, pcs: type[PCS] = KZG) -> None:
         if self.coeffs is None:
             raise ValueError("call interpolate() first")
         if self.commitment is None:
             self.commitment = pcs.commit(self.coeffs)
+
+
+def require_commitment(column: Column) -> G1Commitment:
+    if column.commitment is None:
+        raise ValueError(f"{column.name} commitment is missing")
+    return column.commitment
 
 
 @dataclass(slots=True)
@@ -76,7 +82,7 @@ class WitnessColumnBuilder:
     test_vectors: bool = False
     seed_point: tuple[int, int] = SeedPoint
     point_cls: type[CurvePoint] = Bandersnatch.point
-    pcs: Any = KZG
+    pcs: type[PCS] = KZG
 
     @classmethod
     def from_params(
@@ -135,7 +141,7 @@ class WitnessColumnBuilder:
         for i in range(1, acc_len):
             next_pt = acc[i - 1] if b_vector[i - 1] == 0 else self._add(acc[i - 1], self.ring_pk[i - 1])
             acc.append(next_pt)
-        return H.unzip(acc)
+        return cast(tuple[list[int], list[int]], H.unzip(acc))
 
     def _inner_product_accumulator(self, b_vector: list[int]) -> list[int]:
         acc = [0]

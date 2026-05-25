@@ -27,7 +27,17 @@ class Helpers:
 
     @staticmethod
     # bls point to string
-    def bls_g1_compress(bls_point: tuple) -> str:
+    def bls_g1_compress(bls_point: Any) -> str:
+        try:
+            from dot_ring import blst
+
+            if isinstance(bls_point, blst.P1):
+                return bls_point.compress().hex()
+            if isinstance(bls_point, blst.P1_Affine):
+                return blst.P1(bls_point).compress().hex()
+        except (ImportError, AttributeError):
+            pass
+
         if len(bls_point) == 2:
             point = (FQ(bls_point[0]), FQ(bls_point[1]), FQ(1))
         else:
@@ -69,7 +79,8 @@ class Helpers:
             else:
                 dcp_scalar = int(byte_array, 16)
             decompressed = point_compression.decompress_G1(dcp_scalar)
-            assert is_on_curve(decompressed, 4), "INVALID POINT"
+            if not is_on_curve(decompressed, 4):
+                raise ValueError("Invalid BLS12-381 G1 point") from None
             return cast(tuple[FQ, FQ, FQ], decompressed)
 
     @staticmethod

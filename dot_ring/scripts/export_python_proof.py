@@ -22,8 +22,8 @@ from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchParams, 
 from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.srs import srs
+from dot_ring.vrf.ring.ring_proof_builder import RingProofBuilder
 from dot_ring.vrf.ring.ring_root import Ring, RingRoot
-from dot_ring.vrf.ring.ring_vrf import RingVRF
 from tests.utils.python_to_rust_serde import (
     serialize_bls12_381_g1,
     serialize_bls12_381_g2,
@@ -149,12 +149,17 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
     producer_key_point = keys_points[prover_index]
 
     # Generate ring proof using a Rust-test-compatible transcript label
-    proof_components = RingVRF[Bandersnatch].generate_bls_signature(
-        blinding_factor=blinding_factor,
-        producer_key=producer_key_bytes,
-        ring=ring,
-        transcript_challenge=b"w3f-ring-proof-test",
-        ring_root=ring_root,
+    proof_components = (
+        RingProofBuilder(
+            curve=Bandersnatch,
+            blinding_factor=blinding_factor,
+            producer_key=producer_key_bytes,
+            ring=ring,
+            transcript_challenge=b"w3f-ring-proof-test",
+            ring_root=ring_root,
+        )
+        .build()
+        .as_tuple()
     )
 
     # Compute result point (blinded public key)

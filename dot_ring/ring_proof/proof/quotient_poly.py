@@ -1,9 +1,10 @@
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.pcs.protocol import PCS, G1Commitment
 from dot_ring.ring_proof.polynomial.ops import poly_division_general
 
 
 class QuotientPoly:
-    def __init__(self, domain_size: int, pcs: object = KZG) -> None:
+    def __init__(self, domain_size: int, pcs: type[PCS] = KZG) -> None:
         self.domain_size = domain_size
         self.pcs = pcs
 
@@ -15,7 +16,7 @@ class QuotientPoly:
         # print("vect:", vec)
         return vec
 
-    def quotient_poly_commitment(self, q_x: list[int]) -> tuple:
+    def quotient_poly_commitment(self, q_x: list[int]) -> G1Commitment:
         """
         input: quotient polynomial
         output: commitment to quotient polynomial
@@ -23,7 +24,7 @@ class QuotientPoly:
         c_q = self.pcs.commit(q_x)
         return c_q
 
-    def quotient_poly(self, C_agg: list[int]) -> tuple[list[int], tuple]:
+    def quotient_poly(self, C_agg: list[int]) -> tuple[list[int], G1Commitment]:
         qnt_poly = poly_division_general(C_agg, self.domain_size)
         # print("q_p:", qnt_poly)
         C_qp = self.quotient_poly_commitment(qnt_poly)

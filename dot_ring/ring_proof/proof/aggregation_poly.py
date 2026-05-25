@@ -1,5 +1,6 @@
 from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.pcs.protocol import PCS
 from dot_ring.ring_proof.polynomial.poly_ops import poly_add, poly_scalar_mul
 
 
@@ -35,7 +36,7 @@ class AggPoly:
         Q_p: list[int],
         cf_vectors: list[int],
         prime: int = S_PRIME,
-        pcs: object = KZG,
+        pcs: type[PCS] = KZG,
     ) -> tuple:
         """
         input:agg_poly, liner_poly, zeta, zeta_omega

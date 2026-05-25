@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -28,17 +29,17 @@ class RingContext:
     def max_ring_size(self) -> int:
         return self.setup.max_ring_size
 
-    def ring(self, keys: list[bytes] | bytes) -> Ring:
+    def ring(self, keys: Sequence[bytes | str] | bytes) -> Ring:
         if isinstance(keys, bytes):
-            keys = parse_concatenated_keys(keys, self.setup.cv)
+            return Ring(parse_concatenated_keys(keys, self.setup.cv), self.setup)
         return Ring(keys, self.setup)
 
-    def ring_root(self, ring: Ring | list[bytes] | bytes) -> RingRoot:
+    def ring_root(self, ring: Ring | Sequence[bytes | str] | bytes) -> RingRoot:
         if not isinstance(ring, Ring):
             ring = self.ring(ring)
         return RingRoot.from_ring(ring, self.setup)
 
-    def verifier_key(self, ring: Ring | list[bytes] | bytes) -> RingRoot:
+    def verifier_key(self, ring: Ring | Sequence[bytes | str] | bytes) -> RingRoot:
         return self.ring_root(ring)
 
     def verifier_key_from_commitment(self, commitment: RingRoot | bytes) -> RingRoot:

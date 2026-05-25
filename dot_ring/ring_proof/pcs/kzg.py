@@ -10,8 +10,8 @@ import dot_ring.blst as _blst  # type: ignore[import-untyped]
 from ..polynomial.poly_ops import poly_evaluate_single
 from .opening import Opening
 from .pairing import blst_final_verify, blst_miller_loop
-from .srs import G1Point, srs
-from .utils import CoeffVector, Scalar, blst_p1_to_fq_tuple, g1_to_blst, synthetic_div
+from .srs import srs
+from .utils import CoeffVector, Scalar, g1_to_blst, synthetic_div
 
 blst = cast(Any, _blst)
 Point_G1 = Any
@@ -55,18 +55,36 @@ class KZG:
 
     @staticmethod
     def normalize_g1(point: Point_G1) -> tuple[int, int]:
-        if isinstance(point, blst.P1):
-            point = blst_p1_to_fq_tuple(point)
+        if isinstance(point, (blst.P1, blst.P1_Affine)):
+            raw = g1_to_blst(point).serialize()
+            return int.from_bytes(raw[:48], "big"), int.from_bytes(raw[48:], "big")
         x, y = bls.normalize(point)
         return int(x), int(y)
 
     @classmethod
+    def compress_g1(cls, point: Point_G1) -> bytes:
+        return g1_to_blst(point).compress()
+
+    @classmethod
+    def serialize_g1_uncompressed(cls, point: Point_G1) -> bytes:
+        return g1_to_blst(point).serialize()
+
+    @classmethod
+    def decompress_g1(cls, data: bytes) -> Any:
+        if len(data) != cls.commitment_size:
+            raise ValueError(f"invalid BLS12-381 G1 length: expected {cls.commitment_size}, got {len(data)}")
+        try:
+            return blst.P1(blst.P1_Affine(data))
+        except RuntimeError as exc:
+            raise ValueError("invalid BLS12-381 G1 encoding") from exc
+
+    @classmethod
     def msm_g1(cls, points: list[Any], scalars: list[int]) -> Any:
-        blst_points = [point if isinstance(point, blst.P1) else g1_to_blst(point) for point in points]
+        blst_points = [g1_to_blst(point) for point in points]
         return blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), scalars)
 
     @classmethod
-    def commit(cls, coeffs: CoeffVector) -> G1Point:
+    def commit(cls, coeffs: CoeffVector) -> Any:
         """
         Commit to a polynomial using Pippenger multi-scalar multiplication.
 
@@ -92,7 +110,7 @@ class KZG:
         else:
             # Use Pippenger multi-scalar multiplication
             result = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), active_scalars)
-        return blst_p1_to_fq_tuple(result)
+        return result
 
     @classmethod
     def open(cls, coeffs: CoeffVector, x: Scalar) -> Opening:
@@ -131,15 +149,8 @@ class KZG:
         Returns:
             True if proof is valid, False otherwise
         """
-        if isinstance(commitment, blst.P1):
-            comm_blst = commitment
-        else:
-            comm_blst = g1_to_blst(commitment)
-
-        if isinstance(proof, blst.P1):
-            proof_blst = proof
-        else:
-            proof_blst = g1_to_blst(proof)
+        comm_blst = g1_to_blst(commitment)
+        proof_blst = g1_to_blst(proof)
 
         g1_gen = srs.blst_g1[0]  # [1]G1
         g2_gen = srs.blst_g2[0]  # [1]G2
@@ -208,8 +219,8 @@ class KZG:
         sum_v = 0
 
         for coeff, (commitment, proof, point, value) in zip(coeffs, verifications, strict=False):
-            comm_blst = commitment
-            proof_blst = proof
+            comm_blst = g1_to_blst(commitment)
+            proof_blst = g1_to_blst(proof)
 
             # LHS terms
             lhs_points.append(comm_blst)
