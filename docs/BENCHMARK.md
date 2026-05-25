@@ -7,6 +7,7 @@ Benchmark results for `dot-ring` VRF implementations on Bandersnatch curve.
 - **Suite**: `Bandersnatch-SHA512-ELL2-v1`
 - **Vectors**: `tests/vectors/ark-vrf/bandersnatch_*_*.json`
 - **Baseline**: ark-vrf `benches/SUMMARY.md`, quick mode, AMD Ryzen Threadripper 3970X
+- **Local run**: 2026-05-25
 
 ---
 
@@ -15,9 +16,22 @@ Benchmark results for `dot-ring` VRF implementations on Bandersnatch curve.
 IETF VRF-AD proof.
 
 | Operation | Min | Mean | Stddev | ark-vrf | x |
-|-----------|--------------|---------------|-----------------|---------|--------------------|
-| Proof Generation | 1.67 ms | 1.78 ms | 0.09 ms | 185.4 us | 9.6x |
-| Verification | 1.58 ms | 1.66 ms | 0.06 ms | 194.5 us | 8.5x |
+|-----------|-----|------|--------|---------|---|
+| Proof Generation | 2.21 ms | 2.65 ms | 0.85 ms | 185.4 us | 14.3x |
+| Verification | 1.97 ms | 2.28 ms | 0.59 ms | 194.5 us | 11.7x |
+
+**Proof size**: 80 bytes
+
+---
+
+## Thin VRF
+
+Thin VRF with `(R, s)` proofs.
+
+| Operation | Min | Mean | Stddev | ark-vrf | x |
+|-----------|-----|------|--------|---------|---|
+| Proof Generation | 2.21 ms | 2.55 ms | 0.56 ms | 184.8 us | 13.8x |
+| Verification | 1.99 ms | 2.15 ms | 0.20 ms | 192.4 us | 11.2x |
 
 **Proof size**: 96 bytes
 
@@ -28,9 +42,9 @@ IETF VRF-AD proof.
 VRF with Pedersen commitment for public key blinding.
 
 | Operation | Min | Mean | Stddev | ark-vrf | x |
-|-----------|--------------|---------------|-----------------|---------|--------------------|
-| Proof Generation | 2.30 ms | 2.38 ms | 0.07 ms | 374.6 us | 6.4x |
-| Verification | 1.88 ms | 1.97 ms | 0.06 ms | 215.4 us | 9.1x |
+|-----------|-----|------|--------|---------|---|
+| Proof Generation | 2.40 ms | 2.64 ms | 0.68 ms | 374.6 us | 7.1x |
+| Verification | 1.74 ms | 1.83 ms | 0.07 ms | 215.4 us | 8.5x |
 
 **Proof size**: 192 bytes
 
@@ -45,20 +59,18 @@ Ring VRF with SNARK-based ring membership proof.
 ### 8-member ring (domain size: 512)
 
 | Operation | Min | Mean | Stddev |
-|-----------|--------------|---------------|-----------------|
-| Ring Root Construction | 28.07 ms | 28.28 ms | 0.14 ms |
-| Proof Generation | 153.35 ms | 155.18 ms | 1.42 ms |
-| Verification | 4.05 ms | 4.35 ms | 0.19 ms |
-
-ark-vrf's published summary does not include an 8-member ring row.
+|-----------|-----|------|--------|
+| Ring Root Construction | 48.87 ms | 50.56 ms | 1.50 ms |
+| Proof Generation | 158.37 ms | 171.04 ms | 11.74 ms |
+| Verification | 3.92 ms | 4.12 ms | 0.19 ms |
 
 ### 1023-member ring (domain size: 2048)
 
 | Operation | Min | Mean | Stddev | ark-vrf | x |
-|-----------|--------------|---------------|-----------------|---------|--------------------|
-| Ring Root Construction | 330.76 ms | 334.71 ms | 5.07 ms | 138.5 ms | 2.4x |
-| Proof Generation | 525.28 ms | 543.04 ms | 29.13 ms | 482.2 ms | 1.1x |
-| Verification | 4.09 ms | 4.22 ms | 0.14 ms | 3.37 ms | 1.3x |
+|-----------|-----|------|--------|---------|---|
+| Ring Root Construction | 409.70 ms | 411.42 ms | 1.83 ms | 138.5 ms | 3.0x |
+| Proof Generation | 513.06 ms | 514.72 ms | 1.76 ms | 482.2 ms | 1.1x |
+| Verification | 3.62 ms | 3.84 ms | 0.32 ms | 3.37 ms | 1.1x |
 
 ---
 
@@ -67,6 +79,9 @@ ark-vrf's published summary does not include an 8-member ring row.
 ```bash
 # IETF / Tiny VRF
 uv run python tests/benchmark/bench_ietf.py
+
+# Thin VRF
+uv run python scripts/benchmark_rust_baseline.py --output /tmp/dot-ring-benchmark.md --ring-batch-max 0
 
 # Pedersen VRF
 uv run python tests/benchmark/bench_pedersen.py
