@@ -282,21 +282,25 @@ class TEAffinePoint(CurvePoint[C]):
             TEAffinePoint: Resulting curve point
         """
         ctr = 0
-        H: Self | str = "INVALID"
         front = b"\x01"
         back = b"\x00"
         alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
-        while H == "INVALID" or H == cls.identity_point():
+        while True:
             ctr_string = ctr.to_bytes(1, "big")
             hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             hash_output = hashlib.sha512(hash_input).digest()
-            H = cls.string_to_point(hash_output[:32])
-            if isinstance(H, TEAffinePoint) and cls.curve.COFACTOR > 1:
-                H = H.clear_cofactor()
+            try:
+                point = cls.string_to_point(hash_output[:32])
+            except ValueError:
+                ctr += 1
+                continue
+            if cls.curve.COFACTOR > 1:
+                point = point.clear_cofactor()
+            if point != cls.identity_point():
+                return point
             ctr += 1
-        return cast(Self, H)
 
     def clear_cofactor(self) -> Self:
         """

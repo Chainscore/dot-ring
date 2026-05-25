@@ -181,7 +181,7 @@ class SWAffinePoint(CurvePoint):
             return b"\x04" + x_bytes + y_bytes
 
     @classmethod
-    def string_to_point(cls, octet_string: str | bytes) -> SWAffinePoint | str:
+    def string_to_point(cls, octet_string: str | bytes) -> SWAffinePoint:
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
@@ -221,10 +221,7 @@ class SWAffinePoint(CurvePoint):
             # Compute square root using Tonelli-Shanks
             y = cls.tonelli_shanks(y_squared, p)
             if y is None:
-                # raise ValueError(
-                #     f"Point decompression failed: no square root exists for y² ≡ {y_squared} (mod {p})"
-                # )
-                return "INVALID"
+                raise ValueError("Invalid point encoding")
 
             # Choose correct square root based on parity indicated by prefix
             # prefix 0x02: y should be even

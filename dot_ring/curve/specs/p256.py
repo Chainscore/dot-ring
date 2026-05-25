@@ -187,7 +187,7 @@ class P256Point(SWAffinePoint):
             raise ValueError("x-coordinate is not in field")
         y_candidates = cls._y_recover(x)
         if y_candidates is None:
-            raise ValueError("INVALID point")
+            raise ValueError("Invalid point")
         y, y_neg = y_candidates
         return cls(x, y_neg if is_negative else y)
 

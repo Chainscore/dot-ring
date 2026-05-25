@@ -59,15 +59,15 @@ class PedersenVRF(VRF[C]):
         if len(proof) != expected:
             raise ValueError(f"invalid Pedersen VRF proof length: expected {expected}, got {len(proof)}")
 
-        output_point = cls.cv.point.string_to_point(proof[0:point_length])
-        public_key_cp = cls.cv.point.string_to_point(proof[point_length : 2 * point_length])
-        r = cls.cv.point.string_to_point(proof[2 * point_length : 3 * point_length])
-        ok = cls.cv.point.string_to_point(proof[3 * point_length : 4 * point_length])
+        try:
+            output_point = cls.cv.point.string_to_point(proof[0:point_length])
+            public_key_cp = cls.cv.point.string_to_point(proof[point_length : 2 * point_length])
+            r = cls.cv.point.string_to_point(proof[2 * point_length : 3 * point_length])
+            ok = cls.cv.point.string_to_point(proof[3 * point_length : 4 * point_length])
+        except ValueError as exc:
+            raise ValueError("Invalid point in proof") from exc
         s = scalar_decode(cls.cv, proof[4 * point_length : 4 * point_length + scalar_size])
         sb = scalar_decode(cls.cv, proof[4 * point_length + scalar_size :])
-
-        if isinstance(output_point, str) or isinstance(public_key_cp, str) or isinstance(r, str) or isinstance(ok, str):
-            raise ValueError("Invalid point in proof")
 
         return cls(
             output_point=output_point,
@@ -181,7 +181,8 @@ class PedersenVRF(VRF[C]):
     def ecvrf_proof_to_hash(cls, output_point_bytes: bytes | str) -> bytes:
         if not isinstance(output_point_bytes, bytes):
             output_point_bytes = bytes.fromhex(output_point_bytes)
-        output_point = cls.cv.point.string_to_point(output_point_bytes)
-        if isinstance(output_point, str):
-            raise ValueError("Invalid output point")
+        try:
+            output_point = cls.cv.point.string_to_point(output_point_bytes)
+        except ValueError as exc:
+            raise ValueError("Invalid output point") from exc
         return cls.proof_to_hash(output_point)

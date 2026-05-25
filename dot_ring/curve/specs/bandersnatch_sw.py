@@ -170,30 +170,30 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         x = int.from_bytes(x_bytes, cast(Literal["little", "big"], cls.curve.ENDIAN))
         y_candidates = cls._y_recover(x)
         if not y_candidates:
-            raise ValueError("INVALID point: no y-coordinate found for x")
+            raise ValueError("Invalid point: no y-coordinate found for x")
         y, y_neg = y_candidates
 
         flag = data[-1]
         if flag & 0x3F:
-            raise ValueError("INVALID: invalid canonical point flags")
+            raise ValueError("Invalid canonical point flags")
         is_negative = (flag >> 7) & 1
         is_infinity = (flag >> 6) & 1
 
         if is_infinity:
             if is_negative:
-                raise ValueError("INVALID: Infinity point cannot be negative")
-            raise ValueError("INVALID: Infinity point not supported")
+                raise ValueError("Invalid infinity point: negative flag is set")
+            raise ValueError("Invalid infinity point: not supported")
 
         if is_negative:
             try:
                 return cls(x, y_neg)
             except ValueError:
-                raise ValueError("INVALID point") from None
+                raise ValueError("Invalid point") from None
         else:
             try:
                 return cls(x, y)
             except ValueError:
-                raise ValueError("INVALID point") from None
+                raise ValueError("Invalid point") from None
 
     @classmethod  # modified
     def encode_to_curve_tai(cls, alpha_string: bytes | str, salt: bytes = b"") -> Self:
@@ -210,7 +210,6 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         ctr = 0
         import hashlib
 
-        H: Self | None = None
         front = b"\x01"
         back = b"\x00"
         alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
@@ -222,20 +221,16 @@ class Bandersnatch_SW_Point(SWAffinePoint):
             hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             hash_output = hashlib.sha512(hash_input).digest()
             try:
-                H = cls.string_to_point(hash_output[:33])
+                point = cls.string_to_point(hash_output[:33])
             except ValueError:
                 ctr += 1
                 continue
 
-            # Check if H is valid (not raising ValueError)
             if cls.curve.COFACTOR > 1:
-                # H is Self | None, but here it must be Self (point)
-                if H is None:  # Should not happen if string_to_point works
-                    continue
-                H = cast(Self, H * cls.curve.COFACTOR)  # type: ignore[operator]
+                point = cast(Self, point * cls.curve.COFACTOR)  # type: ignore[operator]
 
-            if H != cls.identity_point():
-                return H
+            if point != cls.identity_point():
+                return point
             ctr += 1
 
 

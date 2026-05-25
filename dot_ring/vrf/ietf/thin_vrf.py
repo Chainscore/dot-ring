@@ -35,10 +35,11 @@ class ThinVRF(VRF[Any]):
         expected = 2 * point_len + scalar_size
         if len(proof_bytes) != expected:
             raise ValueError(f"invalid Thin VRF proof length: expected {expected}, got {len(proof_bytes)}")
-        output_point = cls.cv.point.string_to_point(proof_bytes[:point_len])
-        r = cls.cv.point.string_to_point(proof_bytes[point_len : 2 * point_len])
-        if isinstance(output_point, str) or isinstance(r, str):
-            raise ValueError("Invalid point in proof")
+        try:
+            output_point = cls.cv.point.string_to_point(proof_bytes[:point_len])
+            r = cls.cv.point.string_to_point(proof_bytes[point_len : 2 * point_len])
+        except ValueError as exc:
+            raise ValueError("Invalid point in proof") from exc
         s = scalar_decode(cls.cv, proof_bytes[2 * point_len :])
         if s >= cls.cv.curve.ORDER:
             raise ValueError("Response scalar s is not less than the curve order")
@@ -79,9 +80,10 @@ class ThinVRF(VRF[Any]):
 
     def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
         input_point = cast(Any, self.cv.point).encode_to_curve(input, salt)
-        public_key_pt = self.cv.point.string_to_point(public_key)
-        if isinstance(public_key_pt, str):
-            raise ValueError("Invalid public key")
+        try:
+            public_key_pt = self.cv.point.string_to_point(public_key)
+        except ValueError as exc:
+            raise ValueError("Invalid public key") from exc
         return self.verify_ios(public_key_pt, [VrfIo(input_point, self.output_point)], additional_data)
 
     def verify_ios(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes) -> bool:

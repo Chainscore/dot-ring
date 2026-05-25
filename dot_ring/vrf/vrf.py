@@ -177,9 +177,10 @@ class VRF(Generic[C]):
         s_string = pi_string[c_end:s_end]
 
         # Convert to appropriate types]
-        gamma = cls.cv.point.string_to_point(gamma_string)
-        if isinstance(gamma, str):
-            raise ValueError("Invalid gamma point")
+        try:
+            gamma = cls.cv.point.string_to_point(gamma_string)
+        except ValueError as exc:
+            raise ValueError("Invalid gamma point") from exc
         C = Helpers.str_to_int(c_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
         S = Helpers.str_to_int(s_string, cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
 

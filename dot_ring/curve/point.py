@@ -203,14 +203,17 @@ class CurvePoint(Generic[C]):
         return bytes(y_bytes)
 
     @classmethod
-    def string_to_point(cls, octet_string: str | bytes) -> Self | str:
+    def string_to_point(cls, octet_string: str | bytes) -> Self:
         """
         Convert compressed octet string back to point.
         Args:
             octet_string: Compressed point bytes
 
         Returns:
-            Point: Decoded point or returns "INVALID" If encoding is invalid
+            Point: Decoded point
+
+        Raises:
+            ValueError: If encoding is invalid.
         """
 
         if cls.curve.UNCOMPRESSED:
@@ -218,6 +221,8 @@ class CurvePoint(Generic[C]):
 
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
+        if not octet_string:
+            raise ValueError("Empty octet string")
 
         # Extract x sign bit from MSB of last byte
         x_sign_bit = (octet_string[-1] >> 7) & 1
@@ -229,7 +234,7 @@ class CurvePoint(Generic[C]):
         x_candidates = cls._x_recover(y)
 
         if x_candidates is None:
-            return "INVALID"
+            raise ValueError("Invalid point encoding")
 
         if isinstance(x_candidates, int):
             x, neg_x = x_candidates, (-x_candidates) % cls.curve.PRIME_FIELD
@@ -240,8 +245,8 @@ class CurvePoint(Generic[C]):
         chosen_x = neg_x if x_sign_bit else x
         try:
             return cls(chosen_x, y)
-        except ValueError:
-            return "INVALID"  # Needed for TAI_Case
+        except ValueError as exc:
+            raise ValueError("Invalid point encoding") from exc
 
     def uncompressed_p2s(self) -> bytes:
         p = self.curve.PRIME_FIELD
@@ -320,25 +325,30 @@ class CurvePoint(Generic[C]):
             TEAffinePoint: Resulting curve point
         """
         ctr = 0
-        H: Self | str = "INVALID"
         front = b"\x01"
         back = b"\x00"
         alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
         salt = salt.encode() if isinstance(salt, str) else salt
         suite_string = cls.curve.SUITE_STRING
-        while H == "INVALID" or H == cast(Any, cls).identity_point():
+        while True:
             ctr_string = ctr.to_bytes(1, "big")
             hash_input = suite_string + front + salt + alpha_string + ctr_string + back
             if cls.__name__ == "P256PointVariant":
                 hash_output = hashlib.sha256(hash_input).digest()
-                H = cls.string_to_point(b"\x02" + hash_output[:32])
+                candidate = b"\x02" + hash_output[:32]
             else:
                 hash_output = hashlib.sha512(hash_input).digest()
-                H = cls.string_to_point(hash_output[:32])
-            if H != "INVALID" and cls.curve.COFACTOR > 1:
-                H = cast(Any, H).clear_cofactor()
+                candidate = hash_output[:32]
+            try:
+                point = cls.string_to_point(candidate)
+            except ValueError:
+                ctr += 1
+                continue
+            if cls.curve.COFACTOR > 1:
+                point = cast(Any, point).clear_cofactor()
+            if point != cast(Any, cls).identity_point():
+                return point
             ctr += 1
-        return cast(Self, H)
 
     def __hash__(self) -> int:
         if self.x is None or self.y is None:

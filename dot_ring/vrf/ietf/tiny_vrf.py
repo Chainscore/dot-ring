@@ -47,9 +47,10 @@ class TinyVRF(VRF[Any]):
         expected = point_len + CHALLENGE_LEN + scalar_size
         if len(proof_bytes) != expected:
             raise ValueError(f"invalid Tiny VRF proof length: expected {expected}, got {len(proof_bytes)}")
-        output_point = cls.cv.point.string_to_point(proof_bytes[:point_len])
-        if isinstance(output_point, str):
-            raise ValueError("Invalid output point")
+        try:
+            output_point = cls.cv.point.string_to_point(proof_bytes[:point_len])
+        except ValueError as exc:
+            raise ValueError("Invalid output point") from exc
         c = int.from_bytes(proof_bytes[point_len : point_len + CHALLENGE_LEN], "little") % cls.cv.curve.ORDER
         s = scalar_decode(cls.cv, proof_bytes[point_len + CHALLENGE_LEN :])
         if s >= cls.cv.curve.ORDER:
@@ -102,9 +103,10 @@ class TinyVRF(VRF[Any]):
 
     def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
         input_point = cast(Any, self.cv.point).encode_to_curve(input, salt)
-        public_key_pt = self.cv.point.string_to_point(public_key)
-        if isinstance(public_key_pt, str):
-            raise ValueError("Invalid public key")
+        try:
+            public_key_pt = self.cv.point.string_to_point(public_key)
+        except ValueError as exc:
+            raise ValueError("Invalid public key") from exc
         io = VrfIo(input_point, self.output_point)
         return self.verify_ios(public_key_pt, [io], additional_data)
 
