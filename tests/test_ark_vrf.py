@@ -18,6 +18,7 @@ from dot_ring.vrf.ring.ring_vrf import RingBatchVerifier, RingContext, RingVRF
 from dot_ring.vrf.transcript import VrfIo
 from scripts.generate_test_vectors import SUITES as GENERATED_SUITES
 from scripts.generate_test_vectors import scheme_vectors
+from tests.vector_helpers import bytes_from_fields, load_json_vectors, pedersen_proof_bytes, ring_proof_bytes, thin_proof_bytes, tiny_proof_bytes
 
 VECTORS = Path(__file__).parent / "vectors" / "ark-vrf"
 
@@ -33,19 +34,7 @@ SUITES = [
 
 
 def load(name: str) -> list[dict[str, str]]:
-    return json.loads((VECTORS / name).read_text())
-
-
-def ring_proof_bytes(vector: dict[str, str]) -> bytes:
-    return bytes.fromhex(
-        vector["gamma"]
-        + vector["proof_pk_com"]
-        + vector["proof_r"]
-        + vector["proof_ok"]
-        + vector["proof_s"]
-        + vector["proof_sb"]
-        + vector["ring_proof"]
-    )
+    return load_json_vectors(VECTORS, name)
 
 
 def test_generated_vectors_match_ark_vrf_tiny_thin_pedersen() -> None:
@@ -65,7 +54,7 @@ def test_tiny_vectors(curve, prefix: str, point_len: int) -> None:
 
         assert TinyVRF[curve].get_public_key(sk).hex() == vector["pk"]
         assert curve.point.encode_to_curve(alpha).point_to_string().hex() == vector["h"]
-        assert proof_bytes.hex() == vector["gamma"] + vector["proof_c"] + vector["proof_s"]
+        assert proof_bytes == tiny_proof_bytes(vector)
         assert TinyVRF[curve].proof_to_hash(proof.output_point).hex() == vector["beta"]
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
         assert TinyVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes
@@ -81,7 +70,7 @@ def test_thin_vectors(curve, prefix: str, _point_len: int) -> None:
         proof = ThinVRF[curve].prove(alpha, sk, ad)
         proof_bytes = proof.to_bytes()
 
-        assert proof_bytes.hex() == vector["gamma"] + vector["proof_r"] + vector["proof_s"]
+        assert proof_bytes == thin_proof_bytes(vector)
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
         assert ThinVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes
 
@@ -95,9 +84,7 @@ def test_pedersen_vectors(curve, prefix: str, _point_len: int) -> None:
         proof = PedersenVRF[curve].prove(alpha, sk, ad)
         proof_bytes = proof.to_bytes()
 
-        assert proof_bytes.hex() == (
-            vector["gamma"] + vector["proof_pk_com"] + vector["proof_r"] + vector["proof_ok"] + vector["proof_s"] + vector["proof_sb"]
-        )
+        assert proof_bytes == pedersen_proof_bytes(vector)
         assert proof.verify(alpha, ad)
         assert PedersenVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes
 
@@ -107,23 +94,17 @@ def test_rejects_invalid_point_encodings(curve, prefix: str, point_len: int) -> 
     invalid_point = b"\xff" * point_len
 
     tiny_vector = load(f"{prefix}_tiny.json")[0]
-    tiny_bytes = invalid_point + bytes.fromhex(tiny_vector["proof_c"] + tiny_vector["proof_s"])
+    tiny_bytes = invalid_point + bytes_from_fields(tiny_vector, "proof_c", "proof_s")
     with pytest.raises(ValueError, match="INVALID|Invalid"):
         TinyVRF[curve].from_bytes(tiny_bytes)
 
     thin_vector = load(f"{prefix}_thin.json")[0]
-    thin_bytes = invalid_point + bytes.fromhex(thin_vector["proof_r"] + thin_vector["proof_s"])
+    thin_bytes = invalid_point + bytes_from_fields(thin_vector, "proof_r", "proof_s")
     with pytest.raises(ValueError, match="INVALID|Invalid"):
         ThinVRF[curve].from_bytes(thin_bytes)
 
     pedersen_vector = load(f"{prefix}_pedersen.json")[0]
-    pedersen_bytes = invalid_point + bytes.fromhex(
-        pedersen_vector["proof_pk_com"]
-        + pedersen_vector["proof_r"]
-        + pedersen_vector["proof_ok"]
-        + pedersen_vector["proof_s"]
-        + pedersen_vector["proof_sb"]
-    )
+    pedersen_bytes = invalid_point + bytes_from_fields(pedersen_vector, "proof_pk_com", "proof_r", "proof_ok", "proof_s", "proof_sb")
     with pytest.raises(ValueError, match="INVALID|Invalid"):
         PedersenVRF[curve].from_bytes(pedersen_bytes)
 
@@ -142,15 +123,7 @@ def test_ring_vectors(curve, filename: str) -> None:
     for vector in load(filename):
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
-        proof_bytes = bytes.fromhex(
-            vector["gamma"]
-            + vector["proof_pk_com"]
-            + vector["proof_r"]
-            + vector["proof_ok"]
-            + vector["proof_s"]
-            + vector["proof_sb"]
-            + vector["ring_proof"]
-        )
+        proof_bytes = ring_proof_bytes(vector)
         keys = RingVRF[curve].parse_keys(bytes.fromhex(vector["ring_pks"]))
         params = RingProofParams(test_vectors=True, cv=curve)
         ring = Ring(keys, params)
@@ -168,7 +141,6 @@ def test_multi_input_apis() -> None:
     public_key = TinyVRF[Bandersnatch].get_public_key(secret)
     secret_scalar = int.from_bytes(secret, "little")
     public_key_point = Bandersnatch.point.string_to_point(public_key)
-    assert not isinstance(public_key_point, str)
 
     ios = []
     for alpha in (b"first", b"second"):
@@ -193,7 +165,6 @@ def test_batch_apis() -> None:
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
         pk_point = Bandersnatch.point.string_to_point(bytes.fromhex(vector["pk"]))
-        assert not isinstance(pk_point, str)
         thin = ThinVRF[Bandersnatch].prove(alpha, bytes.fromhex(vector["sk"]), ad)
         input_point = Bandersnatch.point.encode_to_curve(alpha)
         thin_batch.push(pk_point, [VrfIo(input_point, thin.output_point)], ad, thin)
@@ -211,7 +182,6 @@ def test_batch_rejects_invalid_items() -> None:
     ad = bytes.fromhex(vector["ad"])
     secret = bytes.fromhex(vector["sk"])
     pk_point = Bandersnatch.point.string_to_point(bytes.fromhex(vector["pk"]))
-    assert not isinstance(pk_point, str)
     input_point = Bandersnatch.point.encode_to_curve(alpha)
 
     thin = ThinVRF[Bandersnatch].prove(alpha, secret, ad)
@@ -311,7 +281,6 @@ def test_negative_and_malformed_proofs() -> None:
     tiny = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
 
     pk_point = Bandersnatch.point.string_to_point(pk)
-    assert not isinstance(pk_point, str)
     wrong_output = Bandersnatch.point.encode_to_curve(b"wrong-output")
 
     assert not tiny.verify(pk, alpha, b"wrong-ad")
@@ -332,15 +301,7 @@ def test_negative_and_malformed_proofs() -> None:
     ring_vector = load("bandersnatch_sha-512_ell2_ring.json")[0]
     ring_alpha = bytes.fromhex(ring_vector["alpha"])
     ring_ad = bytes.fromhex(ring_vector["ad"])
-    proof_bytes = bytes.fromhex(
-        ring_vector["gamma"]
-        + ring_vector["proof_pk_com"]
-        + ring_vector["proof_r"]
-        + ring_vector["proof_ok"]
-        + ring_vector["proof_s"]
-        + ring_vector["proof_sb"]
-        + ring_vector["ring_proof"]
-    )
+    proof_bytes = ring_proof_bytes(ring_vector)
     keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(ring_vector["ring_pks"]))
     params = RingProofParams(test_vectors=True)
     ring = Ring(keys, params)

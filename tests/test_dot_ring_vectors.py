@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import Any
 
@@ -9,24 +8,13 @@ from dot_ring.vrf.ietf import ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenVRF
 from dot_ring.vrf.ring import Ring, RingRoot, RingVRF
 from scripts.generate_test_vectors import RING_SUITES, SUITES, Suite
+from tests.vector_helpers import load_json_vectors, pedersen_proof_bytes, ring_proof_bytes, thin_proof_bytes, tiny_proof_bytes
 
 VECTORS = Path(__file__).parent / "vectors" / "dot-ring"
 
 
 def load(suite: Suite, scheme: str) -> list[dict[str, Any]]:
-    return json.loads((VECTORS / f"{suite.prefix}_{scheme}.json").read_text())
-
-
-def ring_proof_bytes(vector: dict[str, Any]) -> bytes:
-    return bytes.fromhex(
-        vector["gamma"]
-        + vector["proof_pk_com"]
-        + vector["proof_r"]
-        + vector["proof_ok"]
-        + vector["proof_s"]
-        + vector["proof_sb"]
-        + vector["ring_proof"]
-    )
+    return load_json_vectors(VECTORS, f"{suite.prefix}_{scheme}.json")
 
 
 @pytest.mark.parametrize("suite", SUITES)
@@ -34,7 +22,7 @@ def test_dot_ring_tiny_vectors(suite: Suite) -> None:
     for vector in load(suite, "tiny"):
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
-        proof_bytes = bytes.fromhex(vector["gamma"] + vector["proof_c"] + vector["proof_s"])
+        proof_bytes = tiny_proof_bytes(vector)
         proof = TinyVRF[suite.curve].from_bytes(proof_bytes)
 
         assert TinyVRF[suite.curve].get_public_key(bytes.fromhex(vector["sk"])).hex() == vector["pk"]
@@ -48,7 +36,7 @@ def test_dot_ring_thin_vectors(suite: Suite) -> None:
     for vector in load(suite, "thin"):
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
-        proof_bytes = bytes.fromhex(vector["gamma"] + vector["proof_r"] + vector["proof_s"])
+        proof_bytes = thin_proof_bytes(vector)
         proof = ThinVRF[suite.curve].from_bytes(proof_bytes)
 
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
@@ -60,9 +48,7 @@ def test_dot_ring_pedersen_vectors(suite: Suite) -> None:
     for vector in load(suite, "pedersen"):
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
-        proof_bytes = bytes.fromhex(
-            vector["gamma"] + vector["proof_pk_com"] + vector["proof_r"] + vector["proof_ok"] + vector["proof_s"] + vector["proof_sb"]
-        )
+        proof_bytes = pedersen_proof_bytes(vector)
         proof = PedersenVRF[suite.curve].from_bytes(proof_bytes)
 
         assert proof.verify(alpha, ad)
