@@ -72,6 +72,7 @@ class SRS:
     g1_points: Sequence[tuple[int, int]]
     g2_points: Sequence[tuple[tuple[int, int], tuple[int, int]]]
     blst_g1: Sequence[blst.P1]
+    blst_g1_memory: memoryview
     blst_g2: Sequence[blst.P2]
 
     def __init__(self, g1_raw: list, g2_raw: list, g1_points: list, g2_points: list) -> None:
@@ -80,6 +81,7 @@ class SRS:
         self.g1_points = g1_points
         self.g2_points = g2_points
         self.blst_g1 = [g1_to_blst(p) for p in self.g1]
+        self.blst_g1_memory = blst.P1_Affines.as_memory(self.blst_g1)
         self.blst_g2 = [g2_to_blst(p) for p in self.g2]
 
     @classmethod

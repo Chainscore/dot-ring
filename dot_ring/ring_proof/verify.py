@@ -39,7 +39,12 @@ def blst_msm(points: list, scalars: list) -> Any:
     if not points:
         return blst.P1()
 
-    return blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(points), scalars)
+    result = blst.P1()
+    for point, scalar in zip(points, scalars, strict=False):
+        scalar = int(scalar)
+        if scalar:
+            result = result.add(point.dup().mult(scalar))
+    return result
 
 
 @cache
