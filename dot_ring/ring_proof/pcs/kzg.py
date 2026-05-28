@@ -48,6 +48,15 @@ def p2_neg(p: Any) -> Any:
     return p.dup().neg()
 
 
+def p1_msm_no_as_memory(points: list[Any], scalars: list[int]) -> Any:
+    result = blst.P1()
+    for point, scalar in zip(points, scalars, strict=False):
+        scalar = int(scalar)
+        if scalar:
+            result = result.add(point.dup().mult(scalar))
+    return result
+
+
 @dataclass(slots=True, frozen=True)
 class Opening:
     proof: G1Point  # commitment to the quotient polynomial
@@ -68,20 +77,14 @@ class KZG:
         if len(coeffs) > len(srs.g1):
             raise ValueError("polynomial degree exceeds SRS size")
 
-        # Filter non-zero coefficients
-        blst_points = []
-        active_scalars = []
-
-        for coeff, blst_point in zip(coeffs, srs.blst_g1, strict=False):
-            if coeff != 0:
-                blst_points.append(blst_point)
-                active_scalars.append(coeff)
-
-        if not blst_points:
+        if not any(coeffs):
             result = blst.P1()  # point at infinity
         else:
-            # Use Pippenger multi-scalar multiplication
-            result = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), active_scalars)
+            result = blst.P1_Affines.mult_pippenger(
+                srs.blst_g1_memory[: len(coeffs)],
+                coeffs,
+            )
+
         return blst_p1_to_fq_tuple(result)
 
     @classmethod
@@ -219,9 +222,9 @@ class KZG:
         lhs_points.append(g1_gen)
         lhs_scalars.append((-sum_v) % order)
 
-        lhs_point = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(lhs_points), lhs_scalars)
+        lhs_point = p1_msm_no_as_memory(lhs_points, lhs_scalars)
 
-        rhs_point = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(rhs_points), rhs_scalars)
+        rhs_point = p1_msm_no_as_memory(rhs_points, rhs_scalars)
 
         lhs = blst_miller_loop(lhs_point, g2_gen)
         rhs = blst_miller_loop(rhs_point, g2_tau)
