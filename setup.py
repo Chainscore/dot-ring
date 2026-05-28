@@ -21,6 +21,9 @@ from Cython.Build import cythonize
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
 
+BLST_REPO_URL = "https://github.com/Chainscore/blst.git"
+BLST_BRANCH = "fix/python-as-memory-refcount"
+
 
 def get_compile_args() -> list[str]:
     if sys.platform == "win32":
@@ -121,7 +124,6 @@ class CustomBuildExt(build_ext):
 
         print("Building blst bindings...")
 
-        # Clone blst if not present
         if not blst_dir.exists():
             print("Cloning blst repository...")
             subprocess.check_call(
@@ -130,7 +132,9 @@ class CustomBuildExt(build_ext):
                     "clone",
                     "--depth",
                     "1",
-                    "https://github.com/supranational/blst.git",
+                    "--branch",
+                    BLST_BRANCH,
+                    BLST_REPO_URL,
                     str(blst_dir),
                 ]
             )
