@@ -135,6 +135,8 @@ class CustomBuildExt(build_ext):
                 ]
             )
 
+        subprocess.check_call([sys.executable, str(root_dir / "scripts" / "patch_blst.py"), str(blst_dir)])
+
         # Clean previous build artifacts (may be for different platform)
         self._clean_blst_artifacts(blst_dir)
 

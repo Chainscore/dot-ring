@@ -96,20 +96,14 @@ class KZG:
         if len(coeffs) > len(srs.g1):
             raise ValueError("polynomial degree exceeds SRS size")
 
-        # Filter non-zero coefficients
-        blst_points = []
-        active_scalars = []
-
-        for coeff, blst_point in zip(coeffs, srs.blst_g1, strict=False):
-            if coeff != 0:
-                blst_points.append(blst_point)
-                active_scalars.append(coeff)
-
-        if not blst_points:
+        if not any(coeffs):
             result = blst.P1()  # point at infinity
         else:
-            # Use Pippenger multi-scalar multiplication
-            result = blst.P1_Affines.mult_pippenger(blst.P1_Affines.as_memory(blst_points), active_scalars)
+            result = blst.P1_Affines.mult_pippenger(
+                srs.blst_g1_memory[: len(coeffs)],
+                coeffs,
+            )
+
         return result
 
     @classmethod
