@@ -8,28 +8,10 @@ from pathlib import Path
 
 def install_blst() -> None:
     root_dir = Path(__file__).parent.parent
+    subprocess.check_call([sys.executable, str(root_dir / "scripts" / "blst_source.py")])
     blst_dir = root_dir / ".blst"
 
-    # 1. Clone blst if not exists or is invalid
-    should_clone = False
-    if not blst_dir.exists():
-        should_clone = True
-    else:
-        # Check if it looks like a valid clone (has bindings/python/run.me)
-        if not (blst_dir / "bindings" / "python" / "run.me").exists():
-            print("Existing blst directory seems incomplete. Re-cloning...")
-            shutil.rmtree(blst_dir)
-            should_clone = True
-        else:
-            print("blst already cloned.")
-
-    if should_clone:
-        print("Cloning blst...")
-        subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
-
-    subprocess.check_call([sys.executable, str(root_dir / "scripts" / "patch_blst.py"), str(blst_dir)])
-
-    # 2. Build python bindings
+    # 1. Build python bindings
     print("Building blst python bindings...")
     bindings_dir = blst_dir / "bindings" / "python"
 
@@ -42,7 +24,7 @@ def install_blst() -> None:
         print("Error: run.me not found in blst bindings.")
         sys.exit(1)
 
-    # 3. Install into current python environment
+    # 2. Install into current python environment
     # We try to find the site-packages directory of the current environment
     site_packages = None
 
