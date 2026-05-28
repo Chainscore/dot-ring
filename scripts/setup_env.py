@@ -27,6 +27,8 @@ def install_blst() -> None:
         print("Cloning blst...")
         subprocess.check_call(["git", "clone", "https://github.com/supranational/blst.git", str(blst_dir)])
 
+    subprocess.check_call([sys.executable, str(root_dir / "scripts" / "patch_blst.py"), str(blst_dir)])
+
     # 2. Build python bindings
     print("Building blst python bindings...")
     bindings_dir = blst_dir / "bindings" / "python"
