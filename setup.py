@@ -117,25 +117,11 @@ class CustomBuildExt(build_ext):
         """Build blst library bindings from source."""
         root_dir = Path(__file__).parent.absolute()
         dest_dir = root_dir / "dot_ring" / "blst"
-        blst_dir = root_dir / ".blst"
 
         print("Building blst bindings...")
 
-        # Clone blst if not present
-        if not blst_dir.exists():
-            print("Cloning blst repository...")
-            subprocess.check_call(
-                [
-                    "git",
-                    "clone",
-                    "--depth",
-                    "1",
-                    "https://github.com/supranational/blst.git",
-                    str(blst_dir),
-                ]
-            )
-
-        subprocess.check_call([sys.executable, str(root_dir / "scripts" / "patch_blst.py"), str(blst_dir)])
+        subprocess.check_call([sys.executable, str(root_dir / "scripts" / "blst_source.py")])
+        blst_dir = root_dir / ".blst"
 
         # Clean previous build artifacts (may be for different platform)
         self._clean_blst_artifacts(blst_dir)
