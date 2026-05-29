@@ -330,6 +330,7 @@ dev = [
 dev = [
     { name = "cython" },
     { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "setuptools" },
 ]
@@ -356,6 +357,7 @@ provides-extras = ["dev"]
 dev = [
     { name = "cython", specifier = ">=3.2.1" },
     { name = "pytest-benchmark", specifier = ">=5.2.3" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-xdist", specifier = ">=3.6.0" },
     { name = "setuptools", specifier = ">=80.9.0" },
 ]

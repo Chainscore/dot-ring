@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from dot_ring.vrf.ring.ring_root import Ring, RingRoot
 
 
