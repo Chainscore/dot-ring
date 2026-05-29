@@ -42,6 +42,7 @@ jobs:
         PYTHONPATH: .
       run: |
         uv run pytest tests/ \
+          -n auto \
           --cov=dot_ring \
           --cov-report=term-missing \
           --cov-report=xml \

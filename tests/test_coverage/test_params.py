@@ -71,21 +71,19 @@ def test_ring_proof_params_defaults():
     assert params.radix_domain == list(D_2048)
     assert params.radix_shift == 4
     assert params.last_index == params.domain_size - params.padding_rows
-    assert params.max_effective_ring_size == params.domain_size - params.padding_rows
+    assert params.max_effective_ring_size == params.domain_size - params.scalar_bits - params.padding_rows
 
 
 def test_ring_proof_params_extends_root_size():
     params = RingProofParams(
-        domain_size=2,
-        radix_domain_size=8,
-        prime=7,
-        base_root=1,
-        base_root_size=4,
-        padding_rows=1,
+        domain_size=512,
+        radix_domain_size=4096,
+        base_root_size=2048,
+        padding_rows=4,
         max_ring_size=1,
     )
-    assert params.base_root_size == 8
-    assert params.radix_domain_size == 8
+    assert params.base_root_size == 4096
+    assert params.radix_domain_size == 4096
 
 
 @pytest.mark.parametrize(
@@ -104,11 +102,32 @@ def test_ring_proof_params_extends_root_size():
             },
             "must divide base_root_size",
         ),
-        ({"domain_size": 8, "padding_rows": 0, "max_ring_size": 1}, "padding_rows must be >= 1"),
-        ({"domain_size": 8, "padding_rows": 8, "max_ring_size": 1}, "padding_rows must be less than domain_size"),
-        ({"domain_size": 8, "padding_rows": 2, "max_ring_size": 7}, "exceeds supported size"),
+        ({"domain_size": 512, "padding_rows": 0, "max_ring_size": 1}, "padding_rows must be >= 1"),
+        ({"domain_size": 512, "padding_rows": 512, "max_ring_size": 1}, "padding_rows must be less than domain_size"),
+        ({"domain_size": 512, "padding_rows": 4, "max_ring_size": 256}, "exceeds supported size"),
+        ({"domain_size": 256, "padding_rows": 4, "max_ring_size": 1}, "domain_size is too small"),
     ],
 )
 def test_ring_proof_params_validation_errors(kwargs, match):
     with pytest.raises(ValueError, match=match):
         RingProofParams(**kwargs)
+
+
+@pytest.mark.parametrize(
+    ("ring_size", "domain_size", "max_ring_size"),
+    [
+        (1, 512, 255),
+        (254, 512, 255),
+        (255, 512, 255),
+        (256, 1024, 767),
+        (767, 1024, 767),
+        (768, 2048, 1791),
+        (1791, 2048, 1791),
+    ],
+)
+def test_from_ring_size_matches_spec_capacity(ring_size, domain_size, max_ring_size):
+    params = RingProofParams.from_ring_size(ring_size)
+
+    assert params.domain_size == domain_size
+    assert params.max_ring_size == max_ring_size
+    assert params.max_effective_ring_size == max_ring_size
