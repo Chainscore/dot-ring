@@ -6,7 +6,9 @@ from typing import ClassVar
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
-from dot_ring.ring_proof.constants import D_2048, DEFAULT_SIZE, MAX_RING_SIZE, OMEGA_2048, S_PRIME
+from dot_ring.ring_proof.constants import D_2048, DEFAULT_SIZE, MAX_RING_SIZE, OMEGA_2048, S_PRIME, ZK_ROWS
+
+MAX_PIOP_DOMAIN_SIZE = 2048
 
 
 def _is_power_of_two(n: int) -> bool:
@@ -124,6 +126,8 @@ class RingProofParams:
             raise ValueError(f"radix_domain_size must be a power of two, got {radix_domain_size}")
         if radix_domain_size % self.domain_size != 0:
             raise ValueError(f"domain_size {self.domain_size} must divide radix_domain_size {radix_domain_size}")
+        if self.domain_size > MAX_PIOP_DOMAIN_SIZE:
+            raise ValueError(f"domain_size {self.domain_size} exceeds supported SRS domain size {MAX_PIOP_DOMAIN_SIZE}")
         if radix_domain_size > self.base_root_size:
             root, size = _extend_root_to_size(self.base_root, self.base_root_size, radix_domain_size, self.prime)
             object.__setattr__(self, "base_root", root)
@@ -134,6 +138,8 @@ class RingProofParams:
             raise ValueError("padding_rows must be >= 1 to preserve accumulator structure")
         if self.padding_rows >= self.domain_size:
             raise ValueError("padding_rows must be less than domain_size")
+        if self.padding_rows != ZK_ROWS + 1:
+            raise ValueError(f"padding_rows must be {ZK_ROWS + 1} to match the {ZK_ROWS} hidden rows")
         max_supported = self.domain_size - self.row_overhead
         if max_supported <= 0:
             raise ValueError(

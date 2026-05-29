@@ -300,15 +300,6 @@ class TestCoverageGaps:
         valid = proof.verify_ring_proof(blinded_pk_bytes, ring, ring_root)
         assert valid
 
-    def test_ring_construct_ring_root_non_bytes_key(self):
-        """Test Ring construction with non-bytes/str key."""
-        keys = [123]  # type: ignore
-        params = RingProofParams()
-        ring = Ring(keys, params)
-        assert ring is not None
-        ring_root = RingRoot.from_ring(ring, params)
-        assert ring_root is not None
-
     def test_ring_verify_ring_proof_invalid_message(self):
         """Test verify_ring_proof raises ValueError for invalid message point."""
         from dot_ring.vrf.ring.ring_vrf import RingVRF

@@ -8,12 +8,25 @@ from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve as TE
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 
+BLS_G1_LEN = 48
+RING_ROOT_LEN = BLS_G1_LEN * 3
+
 
 @cache
 def _h_vector(blinding_base: tuple[int, int] = Blinding_Base, size: int = DEFAULT_SIZE) -> list[tuple[int, int]]:
     """Return `[2⁰·H, 2¹·H, …]` in short‑Weierstrass coords."""
     res = [cast(tuple[int, int], TE.mul(pow(2, i, S_PRIME), blinding_base)) for i in range(size)]
     return res
+
+
+def _ring_point_or_padding(key: bytes, params: RingProofParams) -> tuple[int, int]:
+    try:
+        point = params.cv.point.string_to_point(key)
+    except Exception:
+        return PaddingPoint
+    if isinstance(point, str) or point.is_identity():
+        return PaddingPoint
+    return (cast(int, point.x), cast(int, point.y))
 
 
 class Ring:
@@ -36,36 +49,19 @@ class Ring:
             >>> params = RingProofParams(domain_size=2048, max_ring_size=1023)
             >>> ring = Ring(keys, params)
         """
-        # Auto-construct params if not provided
         if params is None:
             params = RingProofParams.from_ring_size(len(keys))
-
         self.params = params
 
         if len(keys) > params.max_ring_size:
             raise ValueError(f"ring size {len(keys)} exceeds max supported size {params.max_ring_size}")
 
-        self.nm_points = []
-        for key in keys:
-            if isinstance(key, (str, bytes)):
-                point = params.cv.point.string_to_point(key)
-                if isinstance(point, str):
-                    # Handle invalid point string
-                    continue
-                self.nm_points.append((cast(int, point.x), cast(int, point.y)))
-            else:
-                # Handle non-string/bytes keys if necessary, or skip/raise
-                continue
+        self.nm_points = [_ring_point_or_padding(key, params) for key in keys]
+        self.nm_points.extend([PaddingPoint] * (params.max_ring_size - len(self.nm_points)))
 
-        # Pad with special point if needed
-        while len(self.nm_points) < params.max_ring_size:
-            self.nm_points.append(PaddingPoint)
-
-        # Ensure ring size
         fill_count = params.domain_size - params.padding_rows - len(self.nm_points)
         if fill_count > 0:
-            h_vec = _h_vector(size=params.domain_size)
-            self.nm_points.extend(h_vec[:fill_count])
+            self.nm_points.extend(_h_vector(size=params.domain_size)[:fill_count])
         if params.padding_rows > 0:
             self.nm_points.extend([(0, 0)] * params.padding_rows)
 
@@ -93,6 +89,9 @@ class RingRoot:
         return cls(px=px_col, py=py_col, s=s_col)
 
     def to_bytes(self) -> bytes:
+        for col in (self.px, self.py, self.s):
+            if col.commitment is None:
+                raise ValueError("Ring root is missing commitments")
         comm_keys = (
             H.bls_g1_compress(cast(Any, self.px.commitment)),
             H.bls_g1_compress(cast(Any, self.py.commitment)),
@@ -102,9 +101,10 @@ class RingRoot:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "RingRoot":
-        px_commitment = H.bls_g1_decompress(data[0:48].hex())
-        py_commitment = H.bls_g1_decompress(data[48:96].hex())
-        s_commitment = H.bls_g1_decompress(data[96:144].hex())
+        H.require_length(data, RING_ROOT_LEN, "ring root")
+        px_commitment = H.bls_g1_decompress(data[0:BLS_G1_LEN].hex())
+        py_commitment = H.bls_g1_decompress(data[BLS_G1_LEN : BLS_G1_LEN * 2].hex())
+        s_commitment = H.bls_g1_decompress(data[BLS_G1_LEN * 2 : RING_ROOT_LEN].hex())
 
         px = Column(name="px", evals=[], commitment=px_commitment)
         py = Column(name="py", evals=[], commitment=py_commitment)

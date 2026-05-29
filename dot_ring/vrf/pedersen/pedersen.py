@@ -38,26 +38,49 @@ class PedersenVRF(VRF[C]):
     _blinding_factor: int
 
     @classmethod
-    def from_bytes(cls, proof: bytes) -> PedersenVRF:
+    def _proof_sizes(cls) -> tuple[int, int]:
         scalar_len = (cls.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
-
         point_length = cls.cv.curve.POINT_LEN
         if cls.cv.curve.UNCOMPRESSED:
             point_length *= 2
+        return point_length, scalar_len
 
-        output_point = cls.cv.point.string_to_point(proof[point_length * 0 : point_length * 1])
+    @classmethod
+    def proof_len(cls) -> int:
+        point_length, scalar_len = cls._proof_sizes()
+        return 4 * point_length + 2 * scalar_len
 
-        public_key_cp = cls.cv.point.string_to_point(proof[point_length * 1 : point_length * 2])
-        R = cls.cv.point.string_to_point(proof[point_length * 2 : point_length * 3])
-        Ok = cls.cv.point.string_to_point(proof[point_length * 3 : point_length * 4])
-        s = Helpers.str_to_int(
-            proof[-scalar_len * 2 : -scalar_len],
+    @classmethod
+    def from_bytes(cls, proof: bytes) -> PedersenVRF:
+        point_length, scalar_len = cls._proof_sizes()
+        Helpers.require_length(proof, cls.proof_len(), "Pedersen proof")
+
+        points: list[CurvePoint] = []
+        for i in range(4):
+            try:
+                point = cls.cv.point.string_to_point(proof[point_length * i : point_length * (i + 1)])
+            except Exception as exc:
+                raise ValueError("Invalid point in proof") from exc
+            if isinstance(point, str):
+                raise ValueError("Invalid point in proof")
+            points.append(point)
+        output_point, public_key_cp, R, Ok = points
+
+        scalar_offset = point_length * 4
+        s = Helpers.canonical_scalar_from_bytes(
+            proof[scalar_offset : scalar_offset + scalar_len],
+            cls.cv.curve.ORDER,
+            "Pedersen proof scalar s",
             cast(Literal["little", "big"], cls.cv.curve.ENDIAN),
+            scalar_len,
         )
-        Sb = Helpers.str_to_int(proof[-scalar_len:], cast(Literal["little", "big"], cls.cv.curve.ENDIAN))
-
-        if isinstance(output_point, str) or isinstance(public_key_cp, str) or isinstance(R, str) or isinstance(Ok, str):
-            raise ValueError("Invalid point in proof")
+        Sb = Helpers.canonical_scalar_from_bytes(
+            proof[scalar_offset + scalar_len : scalar_offset + scalar_len * 2],
+            cls.cv.curve.ORDER,
+            "Pedersen proof scalar sb",
+            cast(Literal["little", "big"], cls.cv.curve.ENDIAN),
+            scalar_len,
+        )
 
         return cls(
             output_point=output_point,
@@ -76,10 +99,7 @@ class PedersenVRF(VRF[C]):
         Returns:
             bytes: Serialized proof
         """
-        scalar_len = (self.cv.curve.PRIME_FIELD.bit_length() + 7) // 8
-        point_length = self.cv.curve.POINT_LEN
-        if self.cv.curve.UNCOMPRESSED:
-            point_length *= 2
+        _, scalar_len = self._proof_sizes()
 
         proof = (
             self.output_point.point_to_string()

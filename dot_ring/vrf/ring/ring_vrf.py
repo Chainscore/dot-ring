@@ -8,7 +8,6 @@ from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
 from dot_ring.ring_proof.constants import (
     S_PRIME,
     Blinding_Base,
-    PaddingPoint,
     SeedPoint,
 )
 from dot_ring.ring_proof.constraints.aggregation import aggregate_constraints
@@ -26,7 +25,10 @@ from dot_ring.ring_proof.verify import Verify
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
 from ..vrf import VRF
-from .ring_root import Ring, RingRoot
+from .ring_root import BLS_G1_LEN, Ring, RingRoot
+
+SCALAR_LEN = 32
+RING_PROOF_LEN = BLS_G1_LEN * 7 + SCALAR_LEN * 8
 
 
 @dataclass
@@ -62,6 +64,12 @@ class RingVRF(VRF[Any]):
     l_zeta_omega: int
     open_agg_zeta: Opening
     open_l_zeta_omega: Opening
+
+    @classmethod
+    def proof_len(cls, skip_pedersen: bool = False) -> int:
+        if skip_pedersen:
+            return RING_PROOF_LEN
+        return PedersenVRF[cls.cv].proof_len() + RING_PROOF_LEN  # type: ignore[name-defined]
 
     def to_bytes(self) -> bytes:
         """
@@ -107,49 +115,36 @@ class RingVRF(VRF[Any]):
         Returns:
             RingVRF: Deserialized Ring VRF proof object
         """
+        H.require_length(proof, cls.proof_len(skip_pedersen), "Ring VRF proof")
+
         if not skip_pedersen:
-            pedersen_proof = PedersenVRF[cls.cv].from_bytes(proof[:192])  # type: ignore[name-defined]
-            offset = 192
+            pedersen_cls = PedersenVRF[cls.cv]  # type: ignore[name-defined]
+            pedersen_len = pedersen_cls.proof_len()
+            pedersen_proof = pedersen_cls.from_bytes(proof[:pedersen_len])
+            offset = pedersen_len
         else:
             pedersen_proof = None
             offset = 0
 
-        commitment_size = 48  # Size of compressed G1 point
+        def read_g1() -> Any:
+            nonlocal offset
+            point = H.bls_g1_decompress(proof[offset : offset + BLS_G1_LEN].hex())
+            offset += BLS_G1_LEN
+            return point
 
-        c_b_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
-        c_accip_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
-        c_accx_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
-        c_accy_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
+        def read_field() -> int:
+            nonlocal offset
+            value = H.canonical_scalar_from_bytes(proof[offset : offset + SCALAR_LEN], S_PRIME)
+            offset += SCALAR_LEN
+            return value
 
-        px_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-        py_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-        s_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-        b_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-        accip_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-        accx_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-        accy_zeta = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
+        c_b_commitment, c_accip_commitment, c_accx_commitment, c_accy_commitment = [read_g1() for _ in range(4)]
+        px_zeta, py_zeta, s_zeta, b_zeta, accip_zeta, accx_zeta, accy_zeta = [read_field() for _ in range(7)]
 
-        c_q_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
-
-        l_zeta_omega = H.to_scalar_int(proof[offset : offset + 32])
-        offset += 32
-
-        open_agg_zeta_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
-        open_l_zeta_omega_commitment = H.bls_g1_decompress(proof[offset : offset + commitment_size].hex())
-        offset += commitment_size
+        c_q_commitment = read_g1()
+        l_zeta_omega = read_field()
+        open_agg_zeta_commitment = read_g1()
+        open_l_zeta_omega_commitment = read_g1()
         return cls(
             pedersen_proof=pedersen_proof,
             c_b=Column(name="c_b", evals=[], commitment=c_b_commitment),
@@ -165,9 +160,8 @@ class RingVRF(VRF[Any]):
             accy_zeta=accy_zeta,
             c_q=Column(name="c_q", evals=[], commitment=c_q_commitment),
             l_zeta_omega=l_zeta_omega,
-            # TODO: Fix Opening initialization; unsafe scalar 0 used temporarily
-            open_agg_zeta=Opening(proof=open_agg_zeta_commitment, y=0),  # We only need opening proof to verify
-            open_l_zeta_omega=Opening(proof=open_l_zeta_omega_commitment, y=0),  # We only need opening proof to verify
+            open_agg_zeta=Opening(proof=open_agg_zeta_commitment, y=0),
+            open_l_zeta_omega=Opening(proof=open_l_zeta_omega_commitment, y=0),
         )
 
     @classmethod
@@ -207,10 +201,12 @@ class RingVRF(VRF[Any]):
         """
         # Use params from the ring object
         params = ring.params
-        producer_key_point = cls.cv.point.string_to_point(producer_key)
-
+        try:
+            producer_key_point = cls.cv.point.string_to_point(producer_key)
+        except Exception as exc:
+            raise ValueError("Invalid producer key") from exc
         if isinstance(producer_key_point, str) or producer_key_point.is_identity():
-            producer_key_point = cls.cv.point(PaddingPoint[0], PaddingPoint[1])
+            raise ValueError("Invalid producer key")
 
         producer_key_pt = (
             cast(int, producer_key_point.x),
@@ -331,6 +327,9 @@ class RingVRF(VRF[Any]):
         """
         Verifies the Ring Proof
         """
+        if RingRoot.from_ring(ring).to_bytes() != ring_root.to_bytes():
+            return False
+
         fixed_cols_cmts = [
             ring_root.px.commitment,
             ring_root.py.commitment,
@@ -414,6 +413,9 @@ class RingVRF(VRF[Any]):
             >>> ring = Ring(keys)  # Automatically determines optimal domain size
             >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring)
         """
+        if producer_key != cls.get_public_key(secret_key):
+            raise ValueError("producer_key does not match secret_key")
+
         pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove(alpha, secret_key, ad)  # type: ignore[misc]
 
         ring_proof = cls.generate_bls_signature(pedersen_proof._blinding_factor, producer_key, ring=ring, ring_root=ring_root)
