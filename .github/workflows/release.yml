@@ -10,8 +10,14 @@ on:
       - "*.*.*"
 
 jobs:
+  test:
+    name: Run tests
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
   build_wheels_macos:
     name: Build wheels on macos-latest
+    needs: test
     runs-on: macos-latest
 
     steps:
@@ -57,6 +63,7 @@ jobs:
 
   build_wheels_linux:
     name: Build wheels on ubuntu-latest
+    needs: test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -103,6 +110,7 @@ jobs:
 
   build_sdist:
     name: Build source distribution
+    needs: test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:

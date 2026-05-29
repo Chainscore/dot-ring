@@ -42,8 +42,8 @@ class Ring:
 
         self.params = params
 
-        if len(keys) > params.domain_size - params.padding_rows:
-            raise ValueError(f"ring size {len(keys)} exceeds max supported size {params.domain_size - params.padding_rows}")
+        if len(keys) > params.max_ring_size:
+            raise ValueError(f"ring size {len(keys)} exceeds max supported size {params.max_ring_size}")
 
         self.nm_points = []
         for key in keys:
@@ -77,7 +77,9 @@ class RingRoot:
     s: Column
 
     @classmethod
-    def from_ring(cls, ring: Ring, params: RingProofParams):
+    def from_ring(cls, ring: Ring, params: RingProofParams | None = None):
+        if params is None:
+            params = ring.params
         # Px, Py, s points
         px, py = H.unzip(ring.nm_points)
         selector_vec = [1 if i < params.max_ring_size else 0 for i in range(params.domain_size)]

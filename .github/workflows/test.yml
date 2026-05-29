@@ -6,6 +6,7 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   test:
@@ -33,6 +34,12 @@ jobs:
       run: |
         uv sync --extra dev
 
+    - name: Run ruff check
+      run: uv run --with ruff ruff check .
+
+    - name: Run ruff format check
+      run: uv run --with ruff ruff format --check .
+
     - name: Setup environment (blst + cython)
       run: |
         uv run python scripts/setup_env.py
@@ -42,6 +49,7 @@ jobs:
         PYTHONPATH: .
       run: |
         uv run pytest tests/ \
+          -n auto \
           --cov=dot_ring \
           --cov-report=term-missing \
           --cov-report=xml \
