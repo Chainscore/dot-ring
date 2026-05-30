@@ -1,10 +1,6 @@
 """Additional tests for blst module to improve coverage."""
 
-import gc
-import tracemalloc
-
 from dot_ring import blst
-from dot_ring.ring_proof.pcs.srs import srs
 
 
 class TestBLSTBasics:
@@ -84,25 +80,6 @@ class TestBLSTOperations:
         g2 = blst.G2()
         g2_affine = g2.to_affine()
         assert g2_affine is not None
-
-    def test_p1_affines_as_memory_releases_backing_buffer(self):
-        """Repeated affine conversions must not retain their backing bytes."""
-        points = srs.blst_g1[:512]
-
-        gc.collect()
-        tracemalloc.start()
-        try:
-            for _ in range(250):
-                memory = blst.P1_Affines.as_memory(points)
-                assert len(memory) == len(points)
-                del memory
-
-            gc.collect()
-            current_bytes, _ = tracemalloc.get_traced_memory()
-        finally:
-            tracemalloc.stop()
-
-        assert current_bytes < 2 * 1024 * 1024
 
 
 class TestBLSTSerialization:

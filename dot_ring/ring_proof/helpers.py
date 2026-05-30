@@ -131,6 +131,25 @@ class Helpers:
         return int.from_bytes(byts, "little")
 
     @staticmethod
+    def require_length(data: bytes, expected: int, name: str) -> None:
+        if len(data) != expected:
+            raise ValueError(f"{name} must be exactly {expected} bytes, got {len(data)}")
+
+    @staticmethod
+    def canonical_scalar_from_bytes(
+        data: bytes,
+        modulus: int,
+        name: str = "scalar",
+        order: Literal["little", "big"] = "little",
+        length: int = 32,
+    ) -> int:
+        Helpers.require_length(data, length, name)
+        value = int.from_bytes(data, order)
+        if value >= modulus:
+            raise ValueError(f"{name} is not canonical")
+        return value
+
+    @staticmethod
     def bls_projective_2_affine(points_3d: list[tuple[Any, Any, Any]]) -> list[tuple[Any, Any]]:
         """
         Convert a list of 3D coordinate points to 2D by removing the z-coordinate.

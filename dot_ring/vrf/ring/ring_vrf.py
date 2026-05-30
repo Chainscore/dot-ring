@@ -6,6 +6,7 @@ from dot_ring.ring_proof.columns.columns import Column, require_commitment
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.opening import Opening
 from dot_ring.ring_proof.pcs.protocol import G1Commitment
+from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.verify import Verify
 from dot_ring.vrf.pedersen.pedersen import PedersenVRF
 
@@ -57,6 +58,14 @@ class RingVRF(VRF[Any]):
     open_agg_zeta: Opening
     open_l_zeta_omega: Opening
 
+    @classmethod
+    def proof_len(cls, skip_pedersen: bool = False) -> int:
+        params = RingProofParams(cv=cls.cv)
+        proof_len = ring_proof_len(params)
+        if skip_pedersen:
+            return proof_len
+        return PedersenVRF[cast(Any, cls).cv].proof_len() + proof_len  # type: ignore[misc]
+
     def to_bytes(self) -> bytes:
         """
         Serialize the Ring VRF proof to bytes.
@@ -78,6 +87,10 @@ class RingVRF(VRF[Any]):
         Returns:
             RingVRF: Deserialized Ring VRF proof object
         """
+        expected_len = cls.proof_len(skip_pedersen)
+        if len(proof) != expected_len:
+            raise ValueError(f"invalid Ring VRF proof length: Ring VRF proof must be exactly {expected_len} bytes, got {len(proof)}")
+
         if not skip_pedersen:
             point_len = cls.cv.curve.POINT_LEN * (2 if cls.cv.curve.UNCOMPRESSED else 1)
             scalar_size = (cls.cv.curve.ORDER.bit_length() + 7) // 8
@@ -191,6 +204,8 @@ class RingVRF(VRF[Any]):
         """
         Verifies the Ring Proof
         """
+        if not _ring_root_matches_ring(ring, ring_root):
+            return False
         return cast(bool, self._ring_proof_verifier(message, ring, ring_root).is_valid())
 
     @classmethod
@@ -221,6 +236,9 @@ class RingVRF(VRF[Any]):
             >>> ring = Ring(keys)  # Automatically determines optimal domain size
             >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring)
         """
+        if producer_key != cls.get_public_key(secret_key):
+            raise ValueError("producer_key does not match secret_key")
+
         pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove(alpha, secret_key, ad)  # type: ignore[misc]
 
         ring_proof = RingProofBuilder(
@@ -263,6 +281,19 @@ class RingVRF(VRF[Any]):
 
 def _commitments(*columns: Column) -> list[G1Commitment]:
     return [require_commitment(column) for column in columns]
+
+
+def _ring_root_matches_ring(ring: Ring, ring_root: RingRoot) -> bool:
+    params = ring.params
+    if len(ring_root.px.evals) >= params.domain_size and len(ring_root.py.evals) >= params.domain_size:
+        px, py = H.unzip(ring.nm_points)
+        selector_vec = [1 if i < params.max_ring_size else 0 for i in range(params.domain_size)]
+        return (
+            ring_root.px.evals[: params.domain_size] == px
+            and ring_root.py.evals[: params.domain_size] == py
+            and ring_root.s.evals[: params.domain_size] == selector_vec
+        )
+    return RingRoot.from_ring(ring, params).to_bytes() == ring_root.to_bytes()
 
 
 __all__ = [

@@ -52,10 +52,15 @@ class PedersenVRF(VRF[C]):
     _blinding_factor: int = 0
 
     @classmethod
+    def proof_len(cls) -> int:
+        point_length = cls.cv.curve.POINT_LEN * (2 if cls.cv.curve.UNCOMPRESSED else 1)
+        return 4 * point_length + 2 * scalar_len(cls.cv)
+
+    @classmethod
     def from_bytes(cls, proof: bytes) -> PedersenVRF:
         point_length = cls.cv.curve.POINT_LEN * (2 if cls.cv.curve.UNCOMPRESSED else 1)
         scalar_size = scalar_len(cls.cv)
-        expected = 4 * point_length + 2 * scalar_size
+        expected = cls.proof_len()
         if len(proof) != expected:
             raise ValueError(f"invalid Pedersen VRF proof length: expected {expected}, got {len(proof)}")
 
@@ -68,6 +73,10 @@ class PedersenVRF(VRF[C]):
             raise ValueError("Invalid point in proof") from exc
         s = scalar_decode(cls.cv, proof[4 * point_length : 4 * point_length + scalar_size])
         sb = scalar_decode(cls.cv, proof[4 * point_length + scalar_size :])
+        if s >= cls.cv.curve.ORDER:
+            raise ValueError("Response scalar s is not canonical")
+        if sb >= cls.cv.curve.ORDER:
+            raise ValueError("Response scalar sb is not canonical")
 
         return cls(
             output_point=output_point,

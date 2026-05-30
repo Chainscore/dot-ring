@@ -129,6 +129,6 @@ class _PayloadReader:
 
     def scalar(self) -> int:
         end = self.offset + 32
-        value = cast(int, H.to_scalar_int(self.data[self.offset : end]))
+        value = H.canonical_scalar_from_bytes(self.data[self.offset : end], self.params.prime)
         self.offset = end
-        return value
+        return cast(int, value)

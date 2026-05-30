@@ -55,8 +55,10 @@ class Ring:
         for key in keys:
             point = self._decode_key(key)
             if point is None:
+                self.nm_points.append(params.padding_point)
                 continue
-            self.key_index.setdefault(point, len(self.nm_points))
+            if point != params.padding_point:
+                self.key_index.setdefault(point, len(self.nm_points))
             self.nm_points.append(point)
 
         while len(self.nm_points) < params.max_ring_size:
