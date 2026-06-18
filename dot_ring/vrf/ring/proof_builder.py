@@ -6,12 +6,9 @@ from typing import cast
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, require_commitment
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
-from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
-from dot_ring.ring_proof.polynomial.ops import poly_multiply, vect_add, vect_scalar_mul
-from dot_ring.ring_proof.proof.aggregation_poly import AggPoly
-from dot_ring.ring_proof.proof.linearization_poly import LAggPoly
-from dot_ring.ring_proof.proof.quotient_poly import QuotientPoly
-from dot_ring.ring_proof.transcript.phases import phase1_alphas_after_vk, phase3_nu_vector
+from dot_ring.ring_proof.polynomial.fft import inverse_fft
+from dot_ring.ring_proof.polynomial.ops import poly_add, poly_divide_by_vanishing, poly_evaluate_single, poly_multiply, poly_scalar_mul
+from dot_ring.ring_proof.transcript.phases import phase1_alphas_after_vk, phase2_eval_point, phase3_nu_vector
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 
 from .members import Ring
@@ -68,33 +65,31 @@ class RingProofBuilder:
         constraint_polys = list(constraints.compute().values())
         c_agg = self._aggregate_constraints(constraint_polys, alpha)
 
-        quotient_poly = QuotientPoly(params.domain_size, params.pcs, params.prime)
-        q_poly, c_q = quotient_poly.quotient_poly(c_agg)
+        q_poly = poly_divide_by_vanishing(c_agg, params.domain_size)
+        c_q = params.pcs.commit(q_poly)
         c_q_column = Column(name="C_q", evals=[], commitment=c_q)
 
-        l_agg = LAggPoly(
+        fixed_columns = (ring_root.px, ring_root.py, ring_root.s)
+
+        current_transcript, zeta, relation_evals, l_agg_poly, zeta_omega, l_zeta_omega = self._linearization_poly(
             transcript,
-            params.pcs.serialize_g1_uncompressed(c_q),
-            [ring_root.px, ring_root.py, ring_root.s],
-            list(witness_columns),
+            c_q,
+            fixed_columns,
+            witness_columns,
             alpha,
-            domain=params.domain,
-            omega=params.omega,
-            prime=params.prime,
-            padding_rows=params.padding_rows,
-            edwards_a=params.ring_edwards_a,
         )
-        current_transcript, zeta, relation_evals, l_agg_poly, zeta_omega, l_zeta_omega = l_agg.l_agg_poly()
-        _, _, phi_zeta, phi_zeta_omega = AggPoly.proof_contents_phi(
+        phi_zeta, phi_zeta_omega = self._opening_proofs(
             zeta,
             zeta_omega,
             l_agg_poly,
-            [ring_root.px, ring_root.py, ring_root.s],
-            list(witness_columns),
+            fixed_columns,
+            witness_columns,
             q_poly,
-            phase3_nu_vector(current_transcript, list(relation_evals.values()), l_zeta_omega),
-            prime=params.prime,
-            pcs=params.pcs,
+            phase3_nu_vector(
+                current_transcript,
+                list(relation_evals.values()),
+                l_zeta_omega,
+            ),
         )
         (
             px_zeta,
@@ -155,12 +150,17 @@ class RingProofBuilder:
         alphas: Sequence[int],
     ) -> list[int]:
         params = self.ring.params
+        if not constraint_evals:
+            return []
+
         aggregated_evals = [0] * len(constraint_evals[0])
         for constraint, alpha in zip(constraint_evals, alphas, strict=False):
-            weighted_constraint = vect_scalar_mul(constraint, alpha, params.prime)
-            aggregated_evals = vect_add(aggregated_evals, weighted_constraint, params.prime)
+            if len(constraint) != len(aggregated_evals):
+                raise ValueError("constraint evaluation lengths must match")
+            for index, value in enumerate(constraint):
+                aggregated_evals[index] = (aggregated_evals[index] + value * alpha) % params.prime
 
-        aggregated_poly = poly_interpolate_fft(aggregated_evals, params.radix_omega, params.prime)
+        aggregated_poly = inverse_fft(aggregated_evals, params.radix_omega, params.prime)
         c_agg = poly_multiply(aggregated_poly, self._tail_vanishing_polynomial(), params.prime)
 
         last_nonzero = len(c_agg) - 1
@@ -174,3 +174,127 @@ class RingProofBuilder:
         for offset in range(1, k + 1):
             vanishing = poly_multiply(vanishing, [-params.domain[-offset], 1], params.prime)
         return vanishing
+
+    def _linearization_poly(
+        self,
+        transcript: FiatShamirTranscript,
+        c_q_commitment: object,
+        fixed_columns: Sequence[Column],
+        witness_columns: tuple[Column, Column, Column, Column],
+        alphas: Sequence[int],
+    ) -> tuple[FiatShamirTranscript, int, dict[str, int], list[int], int, int]:
+        params = self.ring.params
+        current_transcript, zeta = phase2_eval_point(
+            transcript,
+            params.pcs.serialize_g1_uncompressed(c_q_commitment),
+        )
+        zeta_omega = (zeta * params.omega) % params.prime
+        last_index = params.domain_size - params.padding_rows
+        scalar_term = (zeta - params.domain[last_index]) % params.prime
+
+        relation_evals = self._relation_evals_at_zeta(fixed_columns, witness_columns, zeta)
+        l1 = poly_scalar_mul(self._coeffs(witness_columns[3]), scalar_term, params.prime)
+        l2 = poly_scalar_mul(
+            self._coeffs(witness_columns[1]),
+            self._acc_x_constraint_factor(relation_evals, scalar_term),
+            params.prime,
+        )
+        l3 = poly_scalar_mul(
+            self._coeffs(witness_columns[2]),
+            self._acc_y_constraint_factor(relation_evals, scalar_term),
+            params.prime,
+        )
+
+        l_agg = [0]
+        for poly, scalar in zip((l1, l2, l3), alphas[:3], strict=True):
+            l_agg = poly_add(l_agg, poly_scalar_mul(poly, scalar, params.prime), params.prime)
+
+        l_zeta_omega = poly_evaluate_single(l_agg, zeta_omega, params.prime)
+        return current_transcript, zeta, relation_evals, l_agg, zeta_omega, l_zeta_omega
+
+    def _relation_evals_at_zeta(
+        self,
+        fixed_columns: Sequence[Column],
+        witness_columns: tuple[Column, Column, Column, Column],
+        zeta: int,
+    ) -> dict[str, int]:
+        params = self.ring.params
+        c_b, c_accx, c_accy, c_accip = witness_columns
+        return {
+            "P_x_zeta": poly_evaluate_single(self._coeffs(fixed_columns[0]), zeta, params.prime),
+            "P_y_zeta": poly_evaluate_single(self._coeffs(fixed_columns[1]), zeta, params.prime),
+            "s_zeta": poly_evaluate_single(self._coeffs(fixed_columns[2]), zeta, params.prime),
+            "b_zeta": poly_evaluate_single(self._coeffs(c_b), zeta, params.prime),
+            "acc_ip_zeta": poly_evaluate_single(self._coeffs(c_accip), zeta, params.prime),
+            "acc_x_zeta": poly_evaluate_single(self._coeffs(c_accx), zeta, params.prime),
+            "acc_y_zeta": poly_evaluate_single(self._coeffs(c_accy), zeta, params.prime),
+        }
+
+    def _acc_x_constraint_factor(self, evals: dict[str, int], scalar_term: int) -> int:
+        params = self.ring.params
+        b = evals["b_zeta"]
+        x1, y1 = evals["acc_x_zeta"], evals["acc_y_zeta"]
+        x2, y2 = evals["P_x_zeta"], evals["P_y_zeta"]
+        point_relation = y1 * y2 + params.ring_edwards_a * x1 * x2
+        return (b * point_relation + (1 - b)) * scalar_term % params.prime
+
+    def _acc_y_constraint_factor(self, evals: dict[str, int], scalar_term: int) -> int:
+        params = self.ring.params
+        b = evals["b_zeta"]
+        x1, y1 = evals["acc_x_zeta"], evals["acc_y_zeta"]
+        x2, y2 = evals["P_x_zeta"], evals["P_y_zeta"]
+        point_relation = x1 * y2 - x2 * y1
+        return (b * point_relation + (1 - b)) * scalar_term % params.prime
+
+    def _opening_proofs(
+        self,
+        zeta: int,
+        zeta_omega: int,
+        l_agg: list[int],
+        fixed_columns: Sequence[Column],
+        witness_columns: tuple[Column, Column, Column, Column],
+        q_poly: list[int],
+        opening_challenges: Sequence[int],
+    ):
+        params = self.ring.params
+        aggregated_poly = self._aggregated_opening_poly(
+            fixed_columns,
+            witness_columns,
+            q_poly,
+            opening_challenges,
+        )
+        return params.pcs.open(aggregated_poly, zeta), params.pcs.open(l_agg, zeta_omega)
+
+    def _aggregated_opening_poly(
+        self,
+        fixed_columns: Sequence[Column],
+        witness_columns: tuple[Column, Column, Column, Column],
+        q_poly: list[int],
+        opening_challenges: Sequence[int],
+    ) -> list[int]:
+        params = self.ring.params
+        c_b, c_accx, c_accy, c_accip = witness_columns
+        polynomials = [
+            self._coeffs(fixed_columns[0]),
+            self._coeffs(fixed_columns[1]),
+            self._coeffs(fixed_columns[2]),
+            self._coeffs(c_b),
+            self._coeffs(c_accip),
+            self._coeffs(c_accx),
+            self._coeffs(c_accy),
+            q_poly,
+        ]
+        aggregated_poly = [0]
+        for poly, scalar in zip(polynomials, opening_challenges, strict=True):
+            aggregated_poly = poly_add(
+                aggregated_poly,
+                poly_scalar_mul(poly, scalar, params.prime),
+                params.prime,
+            )
+        return aggregated_poly
+
+    @staticmethod
+    def _coeffs(column: Column) -> list[int]:
+        if column.coeffs is None:
+            raise ValueError(f"{column.name} column is not interpolated")
+        return column.coeffs

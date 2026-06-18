@@ -186,7 +186,6 @@ if __name__ == "__main__":
             "dot_ring": ["py.typed"],
             "dot_ring.blst": ["*.so", "*.dylib", "*.dll", "*.pyd"],
             "dot_ring.vrf": ["data/*.bin"],
-            "dot_ring.ring_proof": ["columns/*.json"],
         },
         include_package_data=True,
     )

@@ -48,17 +48,6 @@ def get_root_of_unity(n: int, prime: int) -> int:
         candidate += 1
 
 
-def vect_scalar_mul(vec: Sequence[int], scalar: int, mod: int | None = None) -> list[int]:
-    """Multiply each vector element by a scalar."""
-    return [(x * scalar) % mod if mod else x * scalar for x in vec]
-
-
-def vect_add(a: Sequence[int], b: Sequence[int], prime: int) -> list[int]:
-    if len(a) != len(b):
-        raise ValueError("Vector lengths must match")
-    return [(int(x) + int(y)) % prime for x, y in zip(a, b, strict=True)]
-
-
 def poly_add(poly1: Sequence[int], poly2: Sequence[int], prime: int) -> list[int]:
     """Add two polynomials in a prime field."""
     result_len = max(len(poly1), len(poly2))
@@ -72,25 +61,6 @@ def poly_add(poly1: Sequence[int], poly2: Sequence[int], prime: int) -> list[int
         if val >= prime:
             val -= prime
         result[i] = val
-
-    return result
-
-
-def poly_subtract(poly1: Sequence[int], poly2: Sequence[int], prime: int) -> list[int]:
-    """Subtract poly2 from poly1 in a prime field."""
-    result_len = max(len(poly1), len(poly2))
-    result = [0] * result_len
-
-    for i in range(len(poly1)):
-        result[i] = poly1[i]
-
-    for i in range(len(poly2)):
-        val1 = result[i]
-        val2 = poly2[i]
-        if val1 >= val2:
-            result[i] = val1 - val2
-        else:
-            result[i] = prime - (val2 - val1)
 
     return result
 
@@ -206,18 +176,6 @@ def poly_evaluate_single(poly: Sequence[int], x: int, prime: int) -> int:
     return result
 
 
-def poly_evaluate_domain(poly: Sequence[int], domain: Sequence[int], prime: int) -> list[int]:
-    """Evaluate a polynomial over a point domain.
-
-    Roots-of-unity domains use FFT. Arbitrary point lists use Horner per point.
-    """
-    coeffs = list(poly)
-    omega = _root_of_unity_domain_omega(domain, prime)
-    if omega is not None:
-        return evaluate_poly_fft(coeffs, len(domain), omega, prime)
-    return [poly_evaluate_single(coeffs, x, prime) for x in domain]
-
-
 def lagrange_basis_polynomial(domain: Sequence[int], i: int, prime: int) -> list[int]:
     """Return the i-th Lagrange basis polynomial over the given domain."""
     omega = _root_of_unity_domain_omega(domain, prime)
@@ -246,9 +204,8 @@ def lagrange_basis_polynomial(domain: Sequence[int], i: int, prime: int) -> list
     return poly_scalar_mul(numerator, pow(denominator, -1, prime), prime)
 
 
-def poly_divide_by_vanishing(poly: Sequence[int], domain_size: int, prime: int) -> list[int]:
+def poly_divide_by_vanishing(poly: Sequence[int], domain_size: int) -> list[int]:
     """Return the quotient of poly divided by x^domain_size - 1."""
-    del prime
     if domain_size <= 0:
         raise ValueError("domain_size must be positive")
 

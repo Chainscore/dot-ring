@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-import os
 import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -12,10 +10,7 @@ from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS, G1Commitment
-from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
-
-_H_VEC_DEFAULT = json.load(open(os.path.join(os.path.dirname(__file__), "h_vec.json")))
-_H_VEC_DEFAULT = [tuple(pt) for pt in _H_VEC_DEFAULT]
+from dot_ring.ring_proof.polynomial.fft import inverse_fft
 
 Scalar = int
 
@@ -52,7 +47,7 @@ class Column:
                 if len(self.evals) > self.size:
                     raise ValueError(f"{self.name} evals length {len(self.evals)} exceeds column size {self.size}")
                 self.evals += [0] * (self.size - len(self.evals))
-            self.coeffs = poly_interpolate_fft(self.evals, domain_omega, prime)
+            self.coeffs = inverse_fft(self.evals, domain_omega, prime)
 
     def commit(self, pcs: type[PCS] = KZG) -> None:
         if self.coeffs is None:

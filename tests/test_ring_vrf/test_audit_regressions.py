@@ -104,15 +104,15 @@ def test_prove_rejects_producer_key_that_does_not_match_secret():
         RingVRF[Bandersnatch].prove(b"audit-input", b"audit-ad", sk1, pk2, ring, ring_root)
 
 
-def test_verifier_key_builder_caches_root_when_full():
+def test_ring_root_builder_caches_root_when_full():
     keys = _keys(8)
     params = RingProofParams(test_vectors=True, max_ring_size=8)
     context = RingContext(params)
-    builder = context.verifier_key_builder()
+    builder = context.ring_root_builder()
 
     builder.append(keys)
     built_root = builder.finalize()
-    direct_root = context.verifier_key(keys)
+    direct_root = context.ring_root(keys)
 
     assert built_root.to_bytes() == direct_root.to_bytes()
     assert builder.finalize() is built_root

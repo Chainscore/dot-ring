@@ -13,7 +13,7 @@ from dot_ring.vrf.vrf import PreparedSecretKey
 
 from ..vrf import VRF
 from .batch_verifier import RingBatchItem, RingBatchVerifier, _proof_relation_points, _proof_transcript_commitments
-from .context import RingContext, RingSetup, RingVerifierKeyBuilder
+from .context import RingContext, RingRootBuilder
 from .members import Ring
 from .members import parse_concatenated_keys as _parse_concatenated_keys
 from .proof_builder import RingProofBuilder
@@ -302,7 +302,6 @@ __all__ = [
     "RingBatchItem",
     "RingBatchVerifier",
     "RingContext",
-    "RingSetup",
     "RingVRF",
-    "RingVerifierKeyBuilder",
+    "RingRootBuilder",
 ]

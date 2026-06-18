@@ -9,45 +9,41 @@ from dot_ring.ring_proof.params import RingProofParams
 from .members import Ring, parse_concatenated_keys
 from .root import RingRoot
 
-RingSetup = RingProofParams
-
 
 @dataclass(frozen=True)
 class RingContext:
-    setup: RingSetup
+    params: RingProofParams
 
     @classmethod
     def from_ring_size(cls, ring_size: int, *, test_vectors: bool = False, cv: CurveVariant | None = None) -> RingContext:
-        return cls(RingSetup.from_ring_size(ring_size, test_vectors=test_vectors, cv=cv or RingSetup().cv))
+        default_params = RingProofParams()
+        return cls(RingProofParams.from_ring_size(ring_size, test_vectors=test_vectors, cv=cv or default_params.cv))
 
     @property
     def max_ring_size(self) -> int:
-        return self.setup.max_ring_size
+        return self.params.max_ring_size
 
     def ring(self, keys: Sequence[bytes | str] | bytes) -> Ring:
         if isinstance(keys, bytes):
-            return Ring(parse_concatenated_keys(keys, self.setup.cv), self.setup)
-        return Ring(keys, self.setup)
+            return Ring(parse_concatenated_keys(keys, self.params.cv), self.params)
+        return Ring(keys, self.params)
 
     def ring_root(self, ring: Ring | Sequence[bytes | str] | bytes) -> RingRoot:
         if not isinstance(ring, Ring):
             ring = self.ring(ring)
-        return RingRoot.from_ring(ring, self.setup)
+        return RingRoot.from_ring(ring, self.params)
 
-    def verifier_key(self, ring: Ring | Sequence[bytes | str] | bytes) -> RingRoot:
-        return self.ring_root(ring)
-
-    def verifier_key_from_commitment(self, commitment: RingRoot | bytes) -> RingRoot:
+    def ring_root_from_bytes(self, commitment: RingRoot | bytes) -> RingRoot:
         if isinstance(commitment, RingRoot):
             return commitment
-        return RingRoot.from_bytes(commitment, self.setup)
+        return RingRoot.from_bytes(commitment, self.params)
 
-    def verifier_key_builder(self) -> RingVerifierKeyBuilder:
-        return RingVerifierKeyBuilder(self)
+    def ring_root_builder(self) -> RingRootBuilder:
+        return RingRootBuilder(self)
 
 
 @dataclass
-class RingVerifierKeyBuilder:
+class RingRootBuilder:
     context: RingContext
     keys: list[bytes] = field(default_factory=list)
     _root: RingRoot | None = field(default=None, init=False, repr=False)
@@ -60,15 +56,15 @@ class RingVerifierKeyBuilder:
 
     def extend(self, keys: list[bytes] | bytes) -> None:
         if isinstance(keys, bytes):
-            keys = parse_concatenated_keys(keys, self.context.setup.cv)
+            keys = parse_concatenated_keys(keys, self.context.params.cv)
         if len(self.keys) + len(keys) > self.context.max_ring_size:
-            raise ValueError("too many keys for ring verifier-key builder")
+            raise ValueError("too many keys for ring root builder")
         self.keys.extend(keys)
         self._root = None
         if len(self.keys) == self.context.max_ring_size:
-            self._root = self.context.verifier_key(self.keys)
+            self._root = self.context.ring_root(self.keys)
 
     def finalize(self) -> RingRoot:
         if self._root is None:
-            self._root = self.context.verifier_key(self.keys)
+            self._root = self.context.ring_root(self.keys)
         return self._root

@@ -24,14 +24,6 @@ class LinearPcsVerification(NamedTuple):
     value: Scalar
 
 
-def synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
-    """Return q(X) such that f(X)−y = (X−x)·q(X).  Checks remainder."""
-    q, rem = synthetic_div_with_eval(poly, x)
-    if rem != y:
-        raise ValueError("point/value pair inconsistent with polynomial")
-    return q
-
-
 def synthetic_div_with_eval(poly: CoeffVector, x: Scalar) -> tuple[CoeffVector, Scalar]:
     """Return quotient by ``X-x`` and ``f(x)`` in one Horner pass."""
     n = len(poly)

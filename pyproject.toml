@@ -1,9 +1,9 @@
 [project]
 name = "dot-ring"
 dynamic = ["version"]
-description = "Serves as a library to generate and verify signatures using Tiny, Thin, Pedersen and Ring VRF-AD schemes"
+description = "Library to generate and verify signatures using Tiny, Thin, Pedersen and Ring VRF-AD schemes"
 authors = [
-    {name = "prasad-kumkar", email = "prasad@chainscore.finance"}
+    {name = "prasad-kumkar", email = "prasad@chainscorelabs.com"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
@@ -16,7 +16,8 @@ keywords = [
     "Interpolation","Ring Root", "Commitment", "Constraints",
     "fflonk", "powers of tau", "string to point", "point to string",
     "encode to curve","public key", "elliptic curve cryptography", "proof to hash",
-    "bls12_381", "Bandersnatch", "fiat shamir", "pairings"
+    "bls12_381", "Bandersnatch", "fiat shamir", "pairings",
+    "hash to curve", "hash to field"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -53,7 +54,6 @@ exclude = ["tests*", "blst*", "perf*", "testenv*"]
 dot_ring = [
     "py.typed",
     "vrf/data/*.bin",
-    "ring_proof/columns/*.json",
     "blst/*.so",
     "blst/*.dylib",
     "blst/*.dll",

@@ -190,11 +190,6 @@ class PedersenVRF(VRF[C]):
         return nonce(cls.cv, secret_scalar, t)
 
     @classmethod
-    def blinding(cls, secret: bytes, input_point: bytes, add: bytes) -> int:
-        del input_point, add
-        return cls.blinding_scalar(scalar_decode(cls.cv, secret), vrf_transcript(cls.cv, DomSep.PEDERSEN_VRF, [], b"")[0])
-
-    @classmethod
     def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
         if mul_cofactor:
             gamma = gamma * cls.cv.curve.params.cofactor

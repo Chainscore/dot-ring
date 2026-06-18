@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import lru_cache
 
 from dot_ring.curve.curve import CurveVariant
-from dot_ring.ring_proof.constants import DEFAULT_SIZE
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.transcript import point_len
 
@@ -15,16 +15,34 @@ def parse_concatenated_keys(keys: bytes, cv: CurveVariant) -> list[bytes]:
     return [keys[encoded_point_len * i : encoded_point_len * (i + 1)] for i in range(len(keys) // encoded_point_len)]
 
 
-def _h_vector(params: RingProofParams, size: int = DEFAULT_SIZE) -> list[tuple[int, int]]:
+def blinding_base_powers(params: RingProofParams, count: int) -> tuple[tuple[int, int], ...]:
+    def _bb_cache_key(params: RingProofParams) -> tuple[str, int, int, int, tuple[int, int]]:
+        return (
+            params.ring_curve_variant().name,
+            params.prime,
+            params.ring_edwards_a,
+            params.ring_edwards_d,
+            params.blinding_base,
+        )
+
+    return _blinding_base_powers(params, _bb_cache_key(params), count)
+
+
+@lru_cache(maxsize=16)
+def _blinding_base_powers(
+    params: RingProofParams,
+    _cache_key: tuple[str, int, int, int, tuple[int, int]],
+    count: int,
+) -> tuple[tuple[int, int], ...]:
     """Return `[2^0 * H, 2^1 * H, ...]` in ring coordinates."""
     point = params.blinding_base
     points = []
-    for _ in range(size):
+    for _ in range(count):
         points.append(point)
         point_obj = params.ring_point(point)
         result = point_obj + point_obj
         point = int(result.x), int(result.y)
-    return points
+    return tuple(points)
 
 
 class Ring:
@@ -60,8 +78,7 @@ class Ring:
 
         fill_count = params.domain_size - params.padding_rows - len(nm_points)
         if fill_count > 0:
-            h_vec = _h_vector(params, params.domain_size)
-            nm_points.extend(h_vec[:fill_count])
+            nm_points.extend(blinding_base_powers(params, fill_count))
         if params.padding_rows > 0:
             nm_points.extend([(0, 0)] * params.padding_rows)
 

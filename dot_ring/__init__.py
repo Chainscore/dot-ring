@@ -51,7 +51,7 @@ from dot_ring.curve.specs.secp256k1 import Secp256k1_NU, Secp256k1_RO
 from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.ietf import ThinBatchVerifier, ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenBatchVerifier, PedersenVRF
-from dot_ring.vrf.ring import Ring, RingBatchContext, RingBatchVerifier, RingContext, RingRoot, RingSetup, RingVerifierKeyBuilder, RingVRF
+from dot_ring.vrf.ring import Ring, RingBatchContext, RingBatchVerifier, RingContext, RingRoot, RingRootBuilder, RingVRF
 
 # =============================================================================
 # Convenience aliases
@@ -80,9 +80,8 @@ __all__ = [
     "PedersenVRF",
     "PedersenBatchVerifier",
     "RingVRF",
-    "RingSetup",
     "RingContext",
-    "RingVerifierKeyBuilder",
+    "RingRootBuilder",
     "RingBatchContext",
     "RingBatchVerifier",
     # Primary curves

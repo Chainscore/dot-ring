@@ -260,13 +260,13 @@ def test_ring_context_helpers() -> None:
     context = RingContext(RingProofParams(test_vectors=True))
 
     ring = context.ring(keys_blob)
-    ring_root = context.verifier_key(ring)
-    builder = context.verifier_key_builder()
+    ring_root = context.ring_root(ring)
+    builder = context.ring_root_builder()
     builder.extend(keys_blob)
 
     assert ring_root.to_bytes().hex() == vector["ring_pks_com"]
     assert context.ring_root(keys_blob).to_bytes() == ring_root.to_bytes()
-    assert context.verifier_key_from_commitment(ring_root.to_bytes()).to_bytes() == ring_root.to_bytes()
+    assert context.ring_root_from_bytes(ring_root.to_bytes()).to_bytes() == ring_root.to_bytes()
     assert builder.finalize().to_bytes() == ring_root.to_bytes()
 
 

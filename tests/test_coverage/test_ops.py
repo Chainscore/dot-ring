@@ -6,16 +6,11 @@ from dot_ring.ring_proof.polynomial.ops import (
     lagrange_basis_polynomial,
     poly_add,
     poly_divide_by_vanishing,
-    poly_evaluate_domain,
     poly_evaluate_single,
     poly_mul_linear,
     poly_multiply,
     poly_scalar_mul,
-    poly_subtract,
-    vect_scalar_mul,
 )
-
-poly_scalar = poly_scalar_mul
 
 
 class TestPolynomialOps:
@@ -43,29 +38,6 @@ class TestPolynomialOps:
         p2 = [8, 5]
         result = poly_add(p1, p2, 17)
         assert result == [1, 3]  # (18 mod 17, 20 mod 17)
-
-    def test_poly_subtract_same_length(self):
-        """Test polynomial subtraction with same length."""
-        p1 = [5, 7, 9]
-        p2 = [1, 2, 3]
-        result = poly_subtract(p1, p2, 17)
-        assert result == [4, 5, 6]
-
-    def test_poly_subtract_different_length(self):
-        """Test polynomial subtraction with different lengths."""
-        p1 = [5, 7]
-        p2 = [1, 2, 3, 4]
-        result = poly_subtract(p1, p2, 17)
-        # [5-1, 7-2, 0-3, 0-4] = [4, 5, -3, -4] mod 17 = [4, 5, 14, 13]
-        assert result == [4, 5, 14, 13]
-
-    def test_poly_subtract_with_negative_result(self):
-        """Test polynomial subtraction resulting in negative (modular)."""
-        p1 = [1, 2]
-        p2 = [5, 8]
-        result = poly_subtract(p1, p2, 17)
-        # [1-5, 2-8] = [-4, -6] mod 17 = [13, 11]
-        assert result == [13, 11]
 
     def test_poly_multiply_small(self):
         """Test polynomial multiplication with small polynomials."""
@@ -96,13 +68,13 @@ class TestPolynomialOps:
     def test_poly_scalar_basic(self):
         """Test polynomial scalar multiplication."""
         poly = [1, 2, 3]
-        result = poly_scalar(poly, 5, 17)
+        result = poly_scalar_mul(poly, 5, 17)
         assert result == [5, 10, 15]
 
     def test_poly_scalar_with_modulo(self):
         """Test polynomial scalar multiplication with modular reduction."""
         poly = [3, 4, 5]
-        result = poly_scalar(poly, 6, 17)
+        result = poly_scalar_mul(poly, 6, 17)
         # [3*6, 4*6, 5*6] = [18, 24, 30] mod 17 = [1, 7, 13]
         assert result == [1, 7, 13]
 
@@ -126,31 +98,11 @@ class TestPolynomialOps:
         # 1 + 2*2 + 3*4 = 1 + 4 + 12 = 17 mod 17 = 0
         assert result == 0
 
-    def test_poly_evaluate_domain_arbitrary_points(self):
-        """Test domain evaluation with multiple arbitrary points."""
-        poly = [1, 2]  # 1 + 2x
-        points = [0, 1, 2, 3]
-        result = poly_evaluate_domain(poly, points, 17)
-        # At x=0: 1, x=1: 3, x=2: 5, x=3: 7
-        assert result == [1, 3, 5, 7]
-
-    def test_poly_evaluate_domain_d512(self):
-        """Test domain evaluation with D_512 uses FFT."""
-        poly = [1, 2, 3, 4]
-        result = poly_evaluate_domain(poly, D_512, S_PRIME)
-        assert len(result) == 512
-
-    def test_poly_evaluate_domain_d2048(self):
-        """Test domain evaluation with D_2048 uses FFT."""
-        poly = [1, 2, 3, 4]
-        result = poly_evaluate_domain(poly, D_2048, S_PRIME)
-        assert len(result) == 2048
-
     def test_poly_divide_by_vanishing_quotient_zero(self):
         """Test division when deg(f) < domain_size (quotient is 0)."""
         coeffs = [1, 2, 3]  # degree 2
         domain_size = 8
-        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
+        result = poly_divide_by_vanishing(coeffs, domain_size)
         assert result == [0]
 
     def test_poly_divide_by_vanishing_basic(self):
@@ -160,7 +112,7 @@ class TestPolynomialOps:
         domain_size = 4
         # Dividing by x^4 - 1
         # quotient is coefficient of x^4, which is 1
-        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
+        result = poly_divide_by_vanishing(coeffs, domain_size)
         assert result == [1]
 
     def test_poly_divide_by_vanishing_larger(self):
@@ -168,7 +120,7 @@ class TestPolynomialOps:
         # f(x) with degree 7, domain_size 4
         coeffs = [1, 2, 3, 4, 5, 6, 7, 8]  # coeffs[4:] = [5,6,7,8] is initial quotient
         domain_size = 4
-        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
+        result = poly_divide_by_vanishing(coeffs, domain_size)
         # quotient = coeffs[n:] = [5, 6, 7, 8]
         assert len(result) == 4
 
@@ -176,7 +128,7 @@ class TestPolynomialOps:
         """Test that division strips trailing zeros from quotient."""
         coeffs = [1, 2, 3, 4, 5, 0, 0, 0]  # trailing zeros in quotient part
         domain_size = 4
-        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
+        result = poly_divide_by_vanishing(coeffs, domain_size)
         # quotient should have trailing zeros stripped
         assert result[-1] != 0 or result == [0]
 
@@ -259,18 +211,6 @@ class TestPolynomialOps:
             if n > 1:
                 assert pow(root, n // 2, S_PRIME) != 1
 
-    def test_vect_scalar_mul_basic(self):
-        """Test vector scalar multiplication."""
-        vec = [1, 2, 3, 4]
-        result = vect_scalar_mul(vec, 5, 17)
-        assert result == [5, 10, 15, 3]  # 20 mod 17 = 3
-
-    def test_vect_scalar_mul_no_modulo(self):
-        """Test vector scalar multiplication without modulo."""
-        vec = [1, 2, 3]
-        result = vect_scalar_mul(vec, 5, None)
-        assert result == [5, 10, 15]
-
 
 class TestPolynomialOpsEdgeCases:
     """Edge case tests for polynomial operations."""
@@ -278,11 +218,6 @@ class TestPolynomialOpsEdgeCases:
     def test_poly_add_empty(self):
         """Test adding empty polynomials."""
         result = poly_add([], [], 17)
-        assert result == []
-
-    def test_poly_subtract_empty(self):
-        """Test subtracting empty polynomials."""
-        result = poly_subtract([], [], 17)
         assert result == []
 
     def test_poly_multiply_by_zero(self):
@@ -295,7 +230,7 @@ class TestPolynomialOpsEdgeCases:
     def test_poly_scalar_zero(self):
         """Test scalar multiplication by zero."""
         poly = [1, 2, 3]
-        result = poly_scalar(poly, 0, 17)
+        result = poly_scalar_mul(poly, 0, 17)
         assert result == [0, 0, 0]
 
     def test_poly_evaluate_empty(self):

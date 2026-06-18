@@ -12,7 +12,6 @@ from dot_ring.curve.specs.parameters import (
     TwistedEdwardsCurveParams,
 )
 from dot_ring.curve.twisted_edwards.te_affine_point import TEAffinePoint
-from dot_ring.ring_proof.proof.quotient_poly import QuotientPoly
 from dot_ring.ring_proof.transcript.serialize import serialize
 
 
@@ -70,15 +69,6 @@ class TestCoverageCurve:
         # But we can mock or use a point that we know doubles to identity if any.
         # Alternatively, we can test the denominator check by mocking.
         pass
-
-    def test_quotient_poly_vector_xn_minus_1(self):
-        """Test QuotientPoly.poly_vector_xn_minus_1."""
-        n = 4
-        vec = QuotientPoly.poly_vector_xn_minus_1(n)
-        assert len(vec) == n + 1
-        assert vec[0] == -1
-        assert vec[n] == 1
-        assert vec[1] == 0
 
     def test_serialize_large_int(self):
         """Test serialize with integer too large."""

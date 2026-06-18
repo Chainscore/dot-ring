@@ -56,18 +56,6 @@ def _get_twiddle_factors(n: int, omega: int, prime: int) -> list[list[int]]:
     return twiddles
 
 
-@lru_cache(maxsize=1024)
-def _get_roots(n: int, omega: int, prime: int) -> list[int]:
-    """Get precomputed roots of unity (legacy, for compatibility)."""
-    powers = [1] * (n // 2)
-    curr = 1
-    for i in range(1, n // 2):
-        curr = (curr * omega) % prime
-        powers[i] = curr
-
-    return powers
-
-
 def _use_native_ntt(prime: int) -> bool:
     return prime == S_PRIME
 
@@ -151,42 +139,6 @@ def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:
     coeffs = values[:]
     inv_n = pow(n, -1, prime)
     _fft_in_place_scaled(coeffs, inv_omega, prime, inv_n)
-    return coeffs
-
-
-def evaluate_poly_over_domain(poly: list[int], domain: list[int], omega: int, prime: int) -> list[int]:
-    """Evaluate polynomial over a structured domain using FFT.
-
-    Assumes domain = [omega^0, omega^1, ..., omega^(n-1)] mod prime.
-
-    Args:
-        poly: Polynomial coefficients (lowest degree first)
-        domain: Evaluation domain (must be powers of omega)
-        omega: Primitive n-th root of unity mod prime
-        prime: Field modulus
-
-    Returns:
-        List of polynomial evaluations at each domain point
-    """
-    n = len(domain)
-
-    # Pad or truncate coefficients to domain size
-    # If poly has more coefficients than domain size, we need to reduce mod (X^n - 1)
-    coeffs = poly[:] if len(poly) <= n else poly[:]
-
-    # Reduce polynomial modulo X^n - 1 by folding coefficients
-    if len(poly) > n:
-        result = [0] * n
-        for i, c in enumerate(poly):
-            result[i % n] = (result[i % n] + c) % prime
-        coeffs = result
-    else:
-        # Pad with zeros if needed
-        coeffs = coeffs + [0] * (n - len(coeffs))
-
-    # Perform FFT
-    _fft_in_place(coeffs, omega, prime)
-
     return coeffs
 
 
