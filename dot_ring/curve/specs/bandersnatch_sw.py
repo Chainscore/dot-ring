@@ -1,150 +1,89 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
-from typing import Final, Literal, Self, cast
+from typing import Literal, Self, cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
 
 from ..short_weierstrass.sw_affine_point import SWAffinePoint
 from ..short_weierstrass.sw_curve import SWCurve
+from .parameters import (
+    AuxiliaryPointParams,
+    EncodingParams,
+    HashToCurveParams,
+    ShortWeierstrassCurveParams,
+)
 
-
-@dataclass(frozen=True)
-class BandersnatchSWParams:
-    SUITE_STRING = b"Bandersnatch-SW-SHA512-TAI-v1"
-    SUITE_ID = b"Bandersnatch-SW-SHA512-TAI-v1"
-    DST = b""
-
-    PRIME_FIELD: Final[int] = 52435875175126190479447740508185965837690552500527637822603658699938581184513
-    ORDER: Final[int] = 0x1CFB69D4CA675F520CCE760202687600FF8F87007419047174FD06B52876E7E1
-    COFACTOR: Final[int] = 4
-
-    WEIERSTRASS_A: Final[int] = 10773120815616481058602537765553212789256758185246796157495669123169359657269
-    WEIERSTRASS_B: Final[int] = 29569587568322301171008055308580903175558631321415017492731745847794083609535
-
-    GENERATOR_X: Final[int] = 30900340493481298850216505686589334086208278925799850409469406976849338430199
-    GENERATOR_Y: Final[int] = 12663882780877899054958035777720958383845500985908634476792678820121468453298
-
-    Z: Final[int] = -11
-    M: Final[int] = 1
-    L: Final[int] = 64
-    K: Final[int] = 1
-    S_in_bytes: Final[int] = 64
-    H_A = hashlib.sha512
-    ENDIAN = "little"
-    BBx: Final[int] = 28115362618644671219696075022370511395136332234538034358311199318506963235315
-    BBy: Final[int] = 3900851469868158154936962463930962496000252801946757953905982128670530185313
-    ACCUMULATOR_BASE_X: Final[int] = 13189182432637108534251278524663360416811744717379968387043749958796254980045
-    ACCUMULATOR_BASE_Y: Final[int] = 14483286006782706188671626508232161325054303360192563232232823772738911894793
-    PADDING_X: Final[int] = 20496180070424734470560955314776462366297546779079302509428101119888111900885
-    PADDING_Y: Final[int] = 8839106592405352067483360946162273985142890146060814748321063063028225641813
-
-    CHALLENGE_LENGTH: Final[int] = 16
-    Requires_Isogeny: Final[bool] = False
-    Isogeny_Coeffs = None
-    UNCOMPRESSED = False
-    POINT_LEN: Final[int] = 33
-    TRANSCRIPT_HASH = "sha512"
-    HASH_TO_CURVE = "tai"
-
-
-Bandersnatch_SW_SW_Curve: Final[SWCurve] = SWCurve(
-    PRIME_FIELD=BandersnatchSWParams.PRIME_FIELD,
-    ORDER=BandersnatchSWParams.ORDER,
-    GENERATOR_X=BandersnatchSWParams.GENERATOR_X,
-    GENERATOR_Y=BandersnatchSWParams.GENERATOR_Y,
-    COFACTOR=BandersnatchSWParams.COFACTOR,
-    Z=BandersnatchSWParams.Z,
-    WeierstrassA=BandersnatchSWParams.WEIERSTRASS_A,
-    WeierstrassB=BandersnatchSWParams.WEIERSTRASS_B,
-    SUITE_STRING=BandersnatchSWParams.SUITE_STRING,
-    DST=BandersnatchSWParams.DST,
-    E2C=E2C_Variant.TAI,
-    BBx=BandersnatchSWParams.BBx,
-    BBy=BandersnatchSWParams.BBy,
-    M=BandersnatchSWParams.M,
-    K=BandersnatchSWParams.K,
-    L=BandersnatchSWParams.L,
-    S_in_bytes=BandersnatchSWParams.S_in_bytes,
-    H_A=BandersnatchSWParams.H_A,
-    Requires_Isogeny=BandersnatchSWParams.Requires_Isogeny,
-    Isogeny_Coeffs=BandersnatchSWParams.Isogeny_Coeffs,
-    UNCOMPRESSED=BandersnatchSWParams.UNCOMPRESSED,
-    ENDIAN=BandersnatchSWParams.ENDIAN,
-    POINT_LEN=BandersnatchSWParams.POINT_LEN,
-    CHALLENGE_LENGTH=BandersnatchSWParams.CHALLENGE_LENGTH,
-    SUITE_ID=BandersnatchSWParams.SUITE_ID,
-    TRANSCRIPT_HASH=BandersnatchSWParams.TRANSCRIPT_HASH,
-    HASH_TO_CURVE=BandersnatchSWParams.HASH_TO_CURVE,
-    ACCUMULATOR_BASE_X=BandersnatchSWParams.ACCUMULATOR_BASE_X,
-    ACCUMULATOR_BASE_Y=BandersnatchSWParams.ACCUMULATOR_BASE_Y,
-    PADDING_X=BandersnatchSWParams.PADDING_X,
-    PADDING_Y=BandersnatchSWParams.PADDING_Y,
+BANDERSNATCH_SW_PARAMS = ShortWeierstrassCurveParams[int](
+    field_modulus=52435875175126190479447740508185965837690552500527637822603658699938581184513,
+    subgroup_order=0x1CFB69D4CA675F520CCE760202687600FF8F87007419047174FD06B52876E7E1,
+    cofactor=4,
+    suite_id=b"Bandersnatch-SW-SHA512-TAI-v1",
+    hash_fn=hashlib.sha512,
+    generator=(
+        30900340493481298850216505686589334086208278925799850409469406976849338430199,
+        12663882780877899054958035777720958383845500985908634476792678820121468453298,
+    ),
+    a=10773120815616481058602537765553212789256758185246796157495669123169359657269,
+    b=29569587568322301171008055308580903175558631321415017492731745847794083609535,
+    hash_to_curve=HashToCurveParams(
+        dst=b"",
+        z=-11,
+        field_extension_degree=1,
+        security_level=1,
+        field_length=64,
+        expand_len=64,
+    ),
+    encoding=EncodingParams(endian="little", point_len=33, challenge_len=16),
+    auxiliary_points=AuxiliaryPointParams(
+        blinding_base=(
+            28115362618644671219696075022370511395136332234538034358311199318506963235315,
+            3900851469868158154936962463930962496000252801946757953905982128670530185313,
+        ),
+        accumulator_base=(
+            13189182432637108534251278524663360416811744717379968387043749958796254980045,
+            14483286006782706188671626508232161325054303360192563232232823772738911894793,
+        ),
+        padding_point=(
+            20496180070424734470560955314776462366297546779079302509428101119888111900885,
+            8839106592405352067483360946162273985142890146060814748321063063028225641813,
+        ),
+    ),
 )
 
 
-class Bandersnatch_SW_Point(SWAffinePoint):
-    curve: SWCurve = Bandersnatch_SW_SW_Curve
-
-    @classmethod
-    def identity_point(cls) -> None:
-        return None
-
-    @classmethod
-    def _x_recover(cls, y: int) -> tuple[int, int]:
-        return SWAffinePoint._x_recover(y)
+class BandersnatchSWPoint(SWAffinePoint):
+    """Point on Bandersnatch in short-Weierstrass form."""
 
     def point_to_string(self, compressed: bool = False) -> bytes:
-        """ """
-
-        p = self.curve.PRIME_FIELD
+        p = self.curve.params.field_modulus
         field_bit_len = p.bit_length()
-        flag_bit_len = 2  # SWFlags: YIsNegative + PointAtInfinity
-        total_bits = field_bit_len + flag_bit_len
+        output_byte_len = (field_bit_len + 2 + 7) // 8
 
-        # Compute number of bytes to hold field + flags
-        output_byte_len = (total_bits + 7) // 8  # ceil(total_bits/8)
-
-        # Handle point at infinity
         if self.x is None and self.y is None:
-            # field = 0, flags = 0b01 << 6 = 0x40
             result = bytearray(output_byte_len)
-            result[-1] |= 1 << 6  # PointAtInfinity flag
+            result[-1] |= 1 << 6
             return bytes(result)
 
-        # Determine flags
-        if self.y is None:
+        if self.x is None or self.y is None:
             raise ValueError("Cannot serialize identity point")
+
         y_int = cast(int, self.y)
-        if y_int <= (-y_int % p):
-            flag = 0  # Y positive
-        else:
-            flag = 1 << 7  # Y negative
+        flag = 0 if y_int <= (-y_int % p) else 1 << 7
+        x_bytes = int(cast(int, self.x)).to_bytes((field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.encoding_endian()))
 
-        # Serialize x-coordinate
-        if self.x is None:
-            raise ValueError("Cannot serialize identity point")
-        x_bytes = int(cast(int, self.x)).to_bytes((field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.ENDIAN))
-
-        # Copy x_bytes into buffer of total length
         result = bytearray(output_byte_len)
         result[: len(x_bytes)] = x_bytes
-
-        # Merge flag bits into last byte
         result[-1] |= flag
-
         return bytes(result)
 
     @classmethod
-    def _y_recover(cls, x: int) -> tuple[int, int] | None:
-        p = cls.curve.PRIME_FIELD
-        A = cast(int, cls.curve.WeierstrassA)
-        B = cast(int, cls.curve.WeierstrassB)
-        y_square = (pow(x, 3, p) + A * x + B) % p
+    def _y_recover(cls, x: int, curve: SWCurve) -> tuple[int, int] | None:
+        p = curve.params.field_modulus
+        y_square = (pow(x, 3, p) + curve.params.a * x + curve.params.b) % p
         try:
-            y = cls.curve.mod_sqrt(y_square)
+            y = curve.mod_sqrt(y_square)
         except ValueError:
             return None
 
@@ -156,19 +95,16 @@ class Bandersnatch_SW_Point(SWAffinePoint):
         return neg_y, y
 
     @classmethod
-    def string_to_point(cls, data: str | bytes) -> Self:
+    def string_to_point(cls, data: str | bytes, curve: SWCurve) -> Self:
         if isinstance(data, str):
             data = bytes.fromhex(data)
 
         if len(data) == 0:
             raise ValueError("Empty octet string")
 
-        # Assuming the input `data` is still an octet string as per original logic
-        # and the `x_str`, `y_str`, `Helpers` part was a mis-paste or incomplete change.
-        # Reverting to original parsing logic but using `data` instead of `octet_string`.
         x_bytes = data[:-1]
-        x = int.from_bytes(x_bytes, cast(Literal["little", "big"], cls.curve.ENDIAN))
-        y_candidates = cls._y_recover(x)
+        x = int.from_bytes(x_bytes, curve.encoding_endian())
+        y_candidates = cls._y_recover(x, curve)
         if not y_candidates:
             raise ValueError("Invalid point: no y-coordinate found for x")
         y, y_neg = y_candidates
@@ -184,58 +120,14 @@ class Bandersnatch_SW_Point(SWAffinePoint):
                 raise ValueError("Invalid infinity point: negative flag is set")
             raise ValueError("Invalid infinity point: not supported")
 
-        if is_negative:
-            try:
-                return cls(x, y_neg)
-            except ValueError:
-                raise ValueError("Invalid point") from None
-        else:
-            try:
-                return cls(x, y)
-            except ValueError:
-                raise ValueError("Invalid point") from None
-
-    @classmethod  # modified
-    def encode_to_curve_tai(cls, alpha_string: bytes | str, salt: bytes = b"") -> Self:
-        """
-        Encode a string to a curve point using try-and-increment method for ECVRF.
-
-        Args:
-            alpha: String to encode
-            salt: Optional salt for the encoding
-
-        Returns:
-            TEAffinePoint: Resulting curve point
-        """
-        ctr = 0
-        import hashlib
-
-        front = b"\x01"
-        back = b"\x00"
-        alpha_string = alpha_string.encode() if isinstance(alpha_string, str) else alpha_string
-        salt = salt.encode() if isinstance(salt, str) else salt
-        suite_string = cls.curve.SUITE_STRING
-
-        while True:
-            ctr_string = ctr.to_bytes(1, "big")
-            hash_input = suite_string + front + salt + alpha_string + ctr_string + back
-            hash_output = hashlib.sha512(hash_input).digest()
-            try:
-                point = cls.string_to_point(hash_output[:33])
-            except ValueError:
-                ctr += 1
-                continue
-
-            if cls.curve.COFACTOR > 1:
-                point = cast(Self, point * cls.curve.COFACTOR)  # type: ignore[operator]
-
-            if point != cls.identity_point():
-                return point
-            ctr += 1
+        try:
+            return cls(x, y_neg if is_negative else y, curve)
+        except ValueError:
+            raise ValueError("Invalid point") from None
 
 
 Bandersnatch_SW = CurveVariant(
     name="Bandersnatch_SW",
-    curve=Bandersnatch_SW_SW_Curve,
-    point=Bandersnatch_SW_Point,
+    curve=SWCurve(params=BANDERSNATCH_SW_PARAMS, e2c_variant=E2C_Variant.TAI),
+    point_type=BandersnatchSWPoint,
 )
