@@ -1,45 +1,11 @@
-from typing import NamedTuple
-
-from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchPoint
-
-
-class BigInt(NamedTuple):
-    inner: list[int]
-
-
-def process_field_elements(big_ints: list[BigInt]) -> list[int]:
-    results = []
-    limb_size = 64  # each limb represents 64 bits
-    for b in big_ints:
-        number = 0
-        for index, limb in enumerate(b.inner):
-            number += limb << (limb_size * index)
-        results.append(number)
-    return results
+from dot_ring.curve.specs.bandersnatch import Bandersnatch, Bandersnatch_TE_Curve, BandersnatchPoint
 
 
 def test_h2f():
-    # Test vector from specification
-    expected_field_elements = process_field_elements(
-        [
-            BigInt(
-                [
-                    13667986260176768296,
-                    7615788394780045608,
-                    16744902074056285084,
-                    5843483180372586193,
-                ]
-            ),
-            BigInt(
-                [
-                    10069264885616157454,
-                    379900787323118714,
-                    5986637957723933190,
-                    6530082265195051099,
-                ]
-            ),
-        ]
-    )
+    expected_field_elements = [
+        51868557272037678616201174487618104615692125483749830231812383640086259094753,
+        28148112010555661709849764589968816930893551111405645473366527007776586648740,
+    ]
 
     data = bytes("foo", "utf-8")
     u = Bandersnatch_TE_Curve.hash_to_field(data, 2)
@@ -50,21 +16,19 @@ def test_m2c():
     data = bytes("foo", "utf-8")
 
     u = Bandersnatch_TE_Curve.hash_to_field(data, 2)
-    p0 = BandersnatchPoint.map_to_curve(u[0])
-    p1 = BandersnatchPoint.map_to_curve(u[1])
+    p0 = BandersnatchPoint.map_to_curve(u[0], Bandersnatch_TE_Curve)
+    p1 = BandersnatchPoint.map_to_curve(u[1], Bandersnatch_TE_Curve)
 
-    # Test vector from specification
-    assert p0.x == 45311200032263316917859627542467284358670199398458214934254495151428460867180
-    assert p0.y == 12776320642587906524824617948027275973876805685686439823724827627303230293583
-    assert p1.x == 4062918070531615925962241074596089620660059154890696073867928698119996156623
-    assert p1.y == 28091649524129975855673249115644895380082395569265826631567705939331162643040
+    assert p0.x == 8864805491392651408849860969071502422330330403516577719645408615048305804698
+    assert p0.y == 3141991639291324936022779954882288522159181883763336030616570191472121730763
+    assert p1.x == 15951435375274270238335190310049552077179069857488797671983601737994539723286
+    assert p1.y == 7365450909453271239422049886386045513107923934059991464613784473257165293593
 
 
 def test_e2c():
     data = bytes("foo", "utf-8")
 
-    u = BandersnatchPoint.encode_to_curve(data)
+    u = Bandersnatch.encode_to_curve(data)
 
-    # Test vector from specification
-    assert u.x == 26037012954893424526367048031037997009889535281273781660989300420960588198291
-    assert u.y == 2904166584983200306316763312322681981821413355244066354672834649878949825050
+    assert u.x == 41706851287321768980670436615954402659160947743433584884323702829779219804533
+    assert u.y == 45261115535002764022712885934321790255618221679857277845409327068867281988279

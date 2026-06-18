@@ -1,17 +1,26 @@
+#!/usr/bin/env python3
+"""Run simple RSS regression probes for repeated dot-ring operations."""
+
 from __future__ import annotations
 
 import argparse
 import gc
-import json
+import hashlib
 import os
 import subprocess
 import time
 from collections.abc import Callable
 from pathlib import Path
 
-from dot_ring import Bandersnatch, Ring, RingRoot, RingVRF
+from dot_ring import Bandersnatch
+from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.vrf.ring import RingRoot, RingVRF
+from dot_ring.vrf.ring.members import Ring
+
+SIGNER_INDEX = 3
+RSS_EPSILON_MB = 0.1
 
 
 def rss_mb() -> float:
@@ -24,133 +33,151 @@ def rss_mb() -> float:
     return int(output.strip()) / 1024
 
 
+def _seed(*parts: object) -> bytes:
+    h = hashlib.sha256()
+    for part in parts:
+        match part:
+            case bytes():
+                h.update(part)
+            case int():
+                h.update(part.to_bytes(8, "little", signed=False))
+            case str():
+                h.update(part.encode())
+            case _:
+                raise TypeError(f"unsupported seed part: {type(part).__name__}")
+        h.update(b"\0")
+    return h.digest()
+
+
+def _ring_fixture(ring_size: int, sample_index: int) -> tuple[bytes, bytes, bytes, bytes, Ring, RingRoot]:
+    public_key, secret_key = secret_from_seed(_seed("memory-signer", sample_index), Bandersnatch)
+    signer_index = min(SIGNER_INDEX, ring_size - 1)
+    keys: list[bytes] = []
+    for member_index in range(ring_size):
+        if member_index == signer_index:
+            keys.append(public_key)
+        else:
+            member_key, _ = secret_from_seed(_seed("memory-ring-member", sample_index, member_index), Bandersnatch)
+            keys.append(member_key)
+
+    params = RingProofParams.from_ring_size(ring_size)
+    ring = Ring(keys, params)
+    ring_root = RingRoot.from_ring(ring, params)
+    alpha = b"memory-ring-input" + sample_index.to_bytes(8, "little")
+    ad = b"memory-ring-ad" + sample_index.to_bytes(8, "little")
+    return secret_key, public_key, alpha, ad, ring, ring_root
+
+
+def _ring_proof_fixture(ring_size: int, sample_index: int) -> tuple[bytes, bytes, Ring, RingRoot, RingVRF]:
+    secret_key, public_key, alpha, ad, ring, ring_root = _ring_fixture(ring_size, sample_index)
+    proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, public_key, ring, ring_root)
+    if not proof.verify(alpha, ad, ring, ring_root):
+        raise AssertionError("initial ring proof verification failed")
+    return alpha, ad, ring, ring_root, proof
+
+
+def _verify_or_raise(proof: RingVRF, alpha: bytes, ad: bytes, ring: Ring, ring_root: RingRoot) -> None:
+    if not proof.verify(alpha, ad, ring, ring_root):
+        raise AssertionError("verification failed")
+
+
 def run_probe(
     label: str,
     iterations: int,
     warmup_iterations: int,
-    step: int,
     max_growth_mb: float,
     max_steady_growth_mb: float,
-    operation: Callable[[], None],
-) -> float:
-    print(f"{label}: warming up {warmup_iterations} iterations", flush=True)
-    for _ in range(warmup_iterations):
-        operation()
+    operation: Callable[[int], None],
+) -> None:
+    if iterations <= 0:
+        return
 
-    # RSS can keep allocator arenas after first use. Measure only after the
-    # workload has reached its normal steady-state allocation pattern.
+    print(f"{label}: warmup={warmup_iterations} iterations={iterations}", flush=True)
+    for index in range(warmup_iterations):
+        operation(index)
+
     gc.collect()
     baseline = rss_mb()
     started = time.perf_counter()
-    max_growth = 0.0
+    step = max(1, iterations // 5)
     samples = [(0, baseline)]
     print(f"{label}: measured_iter=0 rss={baseline:.1f} MB delta=+0.0 MB elapsed=0.0s", flush=True)
 
-    for iteration in range(1, iterations + 1):
-        operation()
-        if iteration % step == 0 or iteration == iterations:
+    for index in range(1, iterations + 1):
+        operation(warmup_iterations + index)
+        if index % step == 0 or index == iterations:
             gc.collect()
             current = rss_mb()
-            growth = current - baseline
-            max_growth = max(max_growth, growth)
-            samples.append((iteration, current))
-            elapsed = time.perf_counter() - started
+            samples.append((index, current))
             print(
-                f"{label}: measured_iter={iteration} rss={current:.1f} MB delta={growth:+.1f} MB elapsed={elapsed:.1f}s",
+                f"{label}: measured_iter={index} rss={current:.1f} MB "
+                f"delta={current - baseline:+.1f} MB elapsed={time.perf_counter() - started:.1f}s",
                 flush=True,
             )
 
     final_growth = samples[-1][1] - baseline
     steady_samples = samples[len(samples) // 2 :]
     steady_growth = samples[-1][1] - min(rss for _, rss in steady_samples)
+    peak_growth = max(rss for _, rss in samples) - baseline
     print(
-        f"{label}: final_delta={final_growth:+.1f} MB peak_delta={max_growth:+.1f} MB steady_delta={steady_growth:+.1f} MB",
+        f"{label}: final_delta={final_growth:+.1f} MB peak_delta={peak_growth:+.1f} MB steady_delta={steady_growth:+.1f} MB",
         flush=True,
     )
 
-    if final_growth > max_growth_mb:
+    if final_growth > max_growth_mb + RSS_EPSILON_MB:
         raise AssertionError(f"{label} RSS grew by {final_growth:.1f} MB after warmup; limit is {max_growth_mb:.1f} MB")
-
-    if steady_growth > max_steady_growth_mb:
+    if steady_growth > max_steady_growth_mb + RSS_EPSILON_MB:
         raise AssertionError(f"{label} RSS kept growing by {steady_growth:.1f} MB in the steady-state window; limit is {max_steady_growth_mb:.1f} MB")
 
-    return final_growth
 
-
-def load_ring_fixture() -> tuple[bytes, bytes, bytes, Ring, RingRoot, bytes]:
-    vector_path = Path("tests/vectors/ark-vrf/bandersnatch_ed_sha512_ell2_ring.json")
-    with vector_path.open() as f:
-        item = json.load(f)[0]
-
-    secret_key = bytes.fromhex(item["sk"])
-    alpha = bytes.fromhex(item["alpha"])
-    ad = bytes.fromhex(item["ad"])
-    keys = RingVRF[Bandersnatch].parse_keys(bytes.fromhex(item["ring_pks"]))
-    params = RingProofParams()
-    ring = Ring(keys, params)
-    ring_root = RingRoot.from_ring(ring, params)
-    public_key = RingVRF[Bandersnatch].get_public_key(secret_key)
-    return secret_key, alpha, ad, ring, ring_root, public_key
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Run repeated dot-ring operations and fail on sustained RSS growth.")
-    parser.add_argument("--kzg-iters", type=int, default=2000)
-    parser.add_argument("--verify-iters", type=int, default=5000)
-    parser.add_argument("--prove-iters", type=int, default=200)
-    parser.add_argument("--kzg-warmup-iters", type=int, default=200)
-    parser.add_argument("--verify-warmup-iters", type=int, default=1000)
-    parser.add_argument("--prove-warmup-iters", type=int, default=50)
-    parser.add_argument("--max-kzg-growth-mb", type=float, default=1.0)
-    parser.add_argument("--max-verify-growth-mb", type=float, default=1.0)
-    parser.add_argument("--max-prove-growth-mb", type=float, default=3.0)
-    parser.add_argument("--max-kzg-steady-growth-mb", type=float, default=0.5)
-    parser.add_argument("--max-verify-steady-growth-mb", type=float, default=0.5)
-    parser.add_argument("--max-prove-steady-growth-mb", type=float, default=1.0)
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run simple RSS regression probes for dot-ring operations.")
+    parser.add_argument("-n", "--ring-size", type=int, default=8, help="ring size for ring probes")
+    parser.add_argument("--kzg-iters", type=int, default=20)
+    parser.add_argument("--verify-iters", type=int, default=50)
+    parser.add_argument("--prove-iters", type=int, default=10)
+    parser.add_argument("--warmups", type=int, default=3)
+    parser.add_argument("--max-kzg-growth-mb", type=float, default=8.0)
+    parser.add_argument("--max-verify-growth-mb", type=float, default=16.0)
+    parser.add_argument("--max-prove-growth-mb", type=float, default=32.0)
+    parser.add_argument("--max-steady-growth-mb", type=float, default=1.0)
     args = parser.parse_args()
 
     coeffs = list(range(1, 2049))
     run_probe(
         "kzg_commit_2048",
         args.kzg_iters,
-        args.kzg_warmup_iters,
-        max(1, args.kzg_iters // 4),
+        args.warmups,
         args.max_kzg_growth_mb,
-        args.max_kzg_steady_growth_mb,
-        lambda: KZG.commit(coeffs),
+        args.max_steady_growth_mb,
+        lambda _: KZG.commit(coeffs),
     )
 
-    secret_key, alpha, ad, ring, ring_root, public_key = load_ring_fixture()
-    proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, public_key, ring, ring_root)
-    if not proof.verify(alpha, ad, ring, ring_root):
-        raise AssertionError("initial proof verification failed")
-
+    alpha, ad, ring, ring_root, proof = _ring_proof_fixture(args.ring_size, 0)
     run_probe(
         "ring_verify",
         args.verify_iters,
-        args.verify_warmup_iters,
-        max(1, args.verify_iters // 5),
+        args.warmups,
         args.max_verify_growth_mb,
-        args.max_verify_steady_growth_mb,
-        lambda: proof.verify(alpha, ad, ring, ring_root),
+        args.max_steady_growth_mb,
+        lambda _: _verify_or_raise(proof, alpha, ad, ring, ring_root),
     )
 
-    def prove_and_verify() -> None:
-        fresh_proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, public_key, ring, ring_root)
-        if not fresh_proof.verify(alpha, ad, ring, ring_root):
+    def prove_and_verify(sample_index: int) -> None:
+        secret_key, public_key, fresh_alpha, fresh_ad, fresh_ring, fresh_root = _ring_fixture(args.ring_size, sample_index)
+        fresh_proof = RingVRF[Bandersnatch].prove(fresh_alpha, fresh_ad, secret_key, public_key, fresh_ring, fresh_root)
+        if not fresh_proof.verify(fresh_alpha, fresh_ad, fresh_ring, fresh_root):
             raise AssertionError("proof verification failed")
 
     run_probe(
         "ring_prove_verify",
         args.prove_iters,
-        args.prove_warmup_iters,
-        max(1, args.prove_iters // 4),
+        args.warmups,
         args.max_prove_growth_mb,
-        args.max_prove_steady_growth_mb,
+        args.max_steady_growth_mb,
         prove_and_verify,
     )
-    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

@@ -63,29 +63,7 @@ void bls_scalar_add(bls_scalar_t *out, const bls_scalar_t *a, const bls_scalar_t
     // Also need to account for the initial carry from addition.
     // If carry=1, result > 2^256 > P, so we definitely subtract P.
     
-    // Logic:
-    // If carry=1, we must subtract P. The result fits in 256 bits.
-    // If carry=0, we subtract P only if res >= P.
-    
-    // Actually, simpler constant-time way:
-    // mask = 0 if (res < P and carry=0) else 0xFF..FF
-    // But let's stick to simple conditional move logic for now or just use the borrow.
-    
-    // If carry is set, we definitely wrap around.
-    // If borrow is NOT set (meaning res >= P), we also wrap around.
-    // So if (carry | !borrow), we use tmp.
-    
-    // Wait, sbb returns borrow=1 if a < b.
-    // So if res < P, borrow=1.
-    // We want to subtract P if res >= P. i.e., borrow=0.
-    // BUT, if carry=1, then the real value is 2^256 + res.
-    // 2^256 + res - P is the correct result.
-    // The sbb above computes res - P.
-    // If carry=1, then 2^256 + res - P = (2^256 - P) + res.
-    // This is getting complicated to explain but standard practice:
-    // If carry=1, we need the result of the subtraction.
-    // If carry=0, we need the result of subtraction ONLY IF borrow=0.
-    
+    // Use the subtraction when addition overflowed or the unreduced sum was >= P.
     bool use_sub = carry || (borrow == 0);
     
     for(int i=0; i<4; i++) {
@@ -229,14 +207,12 @@ void bls_scalar_to_mont(bls_scalar_t *out, const bls_scalar_t *in) {
 }
 
 void bls_scalar_from_mont(bls_scalar_t *out, const bls_scalar_t *in) {
-    // Multiply by 1 in Montgomery form (which is just R^-1 mod P in normal form? No.)
-    // Montgomery mul: out = a * b * R^-1
-    // If we want a * R^-1, we set b = 1.
+    // Montgomery multiplication by the raw value 1 converts back from Montgomery form.
     bls_scalar_t one = {{1, 0, 0, 0}};
     bls_scalar_mul_mont(out, in, &one);
 }
 
-// Montgomery Squaring (just wrapper around mul for now)
+// Montgomery squaring.
 void bls_scalar_sqr_mont(bls_scalar_t *out, const bls_scalar_t *a) {
     bls_scalar_mul_mont(out, a, a);
 }
@@ -246,16 +222,7 @@ void bls_scalar_sqr_mont(bls_scalar_t *out, const bls_scalar_t *a) {
 // exp is a standard integer (scalar)
 // result is in Montgomery form
 void bls_scalar_exp(bls_scalar_t *out, const bls_scalar_t *base, const bls_scalar_t *exp) {
-    // res = 1 (in Montgomery form, i.e., R mod P)
-    bls_scalar_t res = BLS_SCALAR_R2; // R^2 * 1 * R^-1 = R
-    // Wait, R2 is R^2. 1 in Mont is 1 * R.
-    // My mul_mont(a, b) computes a * b * R^-1.
-    // If I want 1 in Mont, I need 1 * R.
-    // R2 is R^2.
-    // mul_mont(R2, 1) = R^2 * 1 * R^-1 = R.
-    // So yes, to get 1_Mont, I can use mul_mont(R2, 1).
-    // Or just precompute R.
-    // Let's compute 1_Mont dynamically for now to be safe.
+    bls_scalar_t res;
     bls_scalar_t one = {{1, 0, 0, 0}};
     bls_scalar_to_mont(&res, &one);
     

@@ -1,0 +1,86 @@
+[
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-1",
+    "sk": "75c75d41f91fbca3267abd6560f1d9bd2511a12062ae58a65a9d29543e4ce002",
+    "pk": "6c9e6f1bac4f9cc706f424cdd1adb22c7d5b8a25063cd6152b5a1ed948861200",
+    "alpha": "",
+    "ad": "",
+    "h": "1d9289985dab3e6864df5efc85b97ea4a79bc7943a3b865d9c22e0adf9c19299",
+    "gamma": "95dfb9fca03856e821b4747d97ec2f6d461b0bce12e792e8721eda5c2b0d1d97",
+    "beta": "03f65e3c19f8ad8322b4d6543280e3a6c6afd0928da29c1acbf0a01ce71b1407",
+    "proof_r": "5c51d2d4206550cc271b92e84559ac0e77c86868570ce2bef19b542a3e224198",
+    "proof_s": "27aaf6c9b2f199330fc94cc8563a0e7a985532738c685eb897727f38a0dc2a03"
+  },
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-2",
+    "sk": "8244450428fd0ae3a72bd2095f562389e2a78dbce614d9854e99507d1d527802",
+    "pk": "e590fdb2f00b182e9b6e77ec71878cb13705232befd0a43d62b733ecf5b7e6ae",
+    "alpha": "0a",
+    "ad": "",
+    "h": "980356ff4b852833fd681f9ff056073fd2fadb1bc9cd8f46d7e9f290e4eea68b",
+    "gamma": "0fcae8899ded28352ac272cb19ddbf06c8a68179eaa9380e2c4d1cd46915c2ad",
+    "beta": "cf990824162b61902f65dfcab58dc2d23d5c0c9c78df2c28ba1571516834f62c",
+    "proof_r": "949b3f36307170f4a1ebc91049b02b3aca4296a0bf3ed6d63b5223b8dcf3d1a4",
+    "proof_s": "6af733946286c0e523617d33dc69a2ebadec880a5216ade18f24a0a7bb767d00"
+  },
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-3",
+    "sk": "a3a96e2f150ea6a93d9924ed1a7142d134940f610e48a56241a2f3cc7ff8a203",
+    "pk": "494a5383019c0ca307cc5f4e31b965ca5f1c295da3b0b2822c17c037ccf42cae",
+    "alpha": "",
+    "ad": "0b8c",
+    "h": "1d9289985dab3e6864df5efc85b97ea4a79bc7943a3b865d9c22e0adf9c19299",
+    "gamma": "2c7df8b3dbbe5942c00203838142749ea74b64a932f8783fdba47d81ae192905",
+    "beta": "f8364f237a518324fe260a3b906cb410f3b581def3d85eb5946071f6ed14110a",
+    "proof_r": "0312558c1881cf60d8981607dcc28be481f0f99e4c638991982d0c572a0bd9a1",
+    "proof_s": "4d2c1990f552d8b894051dcbcbedde4607fc5bfca896b49f7eaa35548e1a1802"
+  },
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-4",
+    "sk": "a2cda2be43f2a2968588cc54c70311985fa4766e0de3e76748cc401cdc9c1801",
+    "pk": "311a038654756b3a646f2a359764eafdf1c0766412dd5aa9d7e1cd1a28760e92",
+    "alpha": "73616d706c65",
+    "ad": "",
+    "h": "e238e9cb991472563e1f635da3cd56d90111ddbf6d12449004327e3c41a43d92",
+    "gamma": "6cf0585162db08a9273a82614273dd6a3ef96a64d4a8f7e24fc05aa11a6ea88b",
+    "beta": "c3605fdb279de0329f0242655742cb11e082919b056399deec5746261abaf592",
+    "proof_r": "ad9bda7ee584b308db23133776bf39363bb9d4ce57e23ed66c6369b20dc0fa10",
+    "proof_s": "d2dc4037da4b24e6a9ee98cea2cc3796382705a6ca3eaaa27aa267656a0ec100"
+  },
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-5",
+    "sk": "8303383ad90d1e1e1c1c1664f4f90058e3ca36a7e7c2c4ccb0d9c1ddae4df701",
+    "pk": "5ffa68eca7adc6230bb03b887a748abb32257d06ccdb9c431ac0a0c7c807b185",
+    "alpha": "42616e646572736e6174636820766563746f72",
+    "ad": "",
+    "h": "017b9cf18f3a889a2517dda29ce2950245212febd74b8f83ffb421b1e9528c1f",
+    "gamma": "73ec0fcb15baa30832f91e5413dd66956755b987dd90e5d3d34e07c803adcc27",
+    "beta": "19beae839d5569cbfc3a4345fe6078f8474de9be3c62526f97bbac351ecba598",
+    "proof_r": "c52877bfa7b282f40255ab8f84c95e30ee41e2ef648a742e23a94d37d6d45f90",
+    "proof_s": "e1e6a697dd866e137269d9e46cd9b88a5d65bac03fecf7a6f3ffe8c9af9c5f05"
+  },
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-6",
+    "sk": "8303383ad90d1e1e1c1c1664f4f90058e3ca36a7e7c2c4ccb0d9c1ddae4df701",
+    "pk": "5ffa68eca7adc6230bb03b887a748abb32257d06ccdb9c431ac0a0c7c807b185",
+    "alpha": "42616e646572736e6174636820766563746f72",
+    "ad": "1f42",
+    "h": "017b9cf18f3a889a2517dda29ce2950245212febd74b8f83ffb421b1e9528c1f",
+    "gamma": "73ec0fcb15baa30832f91e5413dd66956755b987dd90e5d3d34e07c803adcc27",
+    "beta": "19beae839d5569cbfc3a4345fe6078f8474de9be3c62526f97bbac351ecba598",
+    "proof_r": "68c4d71df0b535907fc12d6ee1684b6e4dc9edfba86cd2f2e4362c53da6dae05",
+    "proof_s": "97ae93e34fac032734f6b8ab5c74229077a5d2b44d09859fe042fdc3b0e6dd00"
+  },
+  {
+    "comment": "baby-jubjub_sha-512_tai_thin - vector-7",
+    "sk": "5bdbbae35f50a4bd2a2c22f666c7eb76a9b009b7355d0fff8cfd93706a8af402",
+    "pk": "3db2666a89ee66c4024405f27fafe22d349e0632b0ce03dd9fcaae2290ee11a0",
+    "alpha": "42616e646572736e6174636820766563746f72",
+    "ad": "1f42",
+    "h": "017b9cf18f3a889a2517dda29ce2950245212febd74b8f83ffb421b1e9528c1f",
+    "gamma": "a4fcbe20925d4ed283653fc89ceafbf0bef39d9d3c234da05c7ab27ec40f351d",
+    "beta": "9b35bb4efe4f216fa467905e03be0b42b38c02f73f9d676127477b5935bf8d37",
+    "proof_r": "f976c046262cd6e7a5d92861f6a50537a0c13960c6eabeef321c4157fe7b1ba7",
+    "proof_s": "b8c61b40793e6cebe5d79c1e2ed57c524be638fe729a606a73ab38a3f4a36b02"
+  }
+]

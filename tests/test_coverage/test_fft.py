@@ -5,10 +5,8 @@ from dot_ring.ring_proof.constants import S_PRIME
 from dot_ring.ring_proof.polynomial.fft import (
     _fft_in_place,
     _get_bit_reverse,
-    _get_roots,
     _get_twiddle_factors,
     evaluate_poly_fft,
-    evaluate_poly_over_domain,
     inverse_fft,
 )
 
@@ -71,27 +69,6 @@ class TestFFT:
         # twiddles[1] = [1, 4]
         assert twiddles[1] == [1, 4]
 
-    def test_get_roots(self):
-        """Test roots of unity computation."""
-        n = 8
-        omega = 4
-        prime = 17
-
-        # omega^4 mod 17 = 256 mod 17 = 1, but we need 8th root
-        # Let's find 8th root: need omega^8 = 1 mod 17
-        # 2^8 = 256 mod 17 = 1. Yes! 2 is 8th root
-        omega = 2
-
-        roots = _get_roots(n, omega, prime)
-
-        # Should have n/2 = 4 roots
-        assert len(roots) == 4
-        # roots[i] = omega^i
-        assert roots[0] == 1
-        assert roots[1] == 2
-        assert roots[2] == 4
-        assert roots[3] == 8
-
     def test_fft_in_place_trivial(self):
         """Test FFT with single coefficient."""
         coeffs = [5]
@@ -128,51 +105,6 @@ class TestFFT:
         recovered = inverse_fft(values, omega_8, S_PRIME)
 
         assert recovered == original
-
-    def test_evaluate_poly_over_domain_basic(self):
-        """Test polynomial evaluation over domain."""
-        # poly = 1 + 2x (coefficients [1, 2])
-        poly = [1, 2]
-        n = 4
-        omega = 4  # 4th root of unity mod 17
-        prime = 17
-        domain = [pow(omega, i, prime) for i in range(n)]  # [1, 4, 16, 13]
-
-        result = evaluate_poly_over_domain(poly, domain, omega, prime)
-
-        # Should evaluate at each domain point
-        # At x=1: 1 + 2*1 = 3
-        # At x=4: 1 + 2*4 = 9
-        # At x=16: 1 + 2*16 = 33 mod 17 = 16
-        # At x=13: 1 + 2*13 = 27 mod 17 = 10
-        assert len(result) == 4
-
-    def test_evaluate_poly_over_domain_with_padding(self):
-        """Test polynomial evaluation when poly is smaller than domain."""
-        poly = [5]  # constant polynomial
-        n = 4
-        omega = 4
-        prime = 17
-        domain = [pow(omega, i, prime) for i in range(n)]
-
-        result = evaluate_poly_over_domain(poly, domain, omega, prime)
-
-        # Constant polynomial evaluates to same value everywhere
-        assert len(result) == 4
-
-    def test_evaluate_poly_over_domain_with_folding(self):
-        """Test polynomial evaluation with folding (poly larger than domain)."""
-        # poly of degree > n requires folding
-        poly = [1, 2, 3, 4, 5]  # degree 4
-        n = 4
-        omega = 4
-        prime = 17
-        domain = [pow(omega, i, prime) for i in range(n)]
-
-        result = evaluate_poly_over_domain(poly, domain, omega, prime)
-
-        # Result should fold coefficients
-        assert len(result) == 4
 
     def test_evaluate_poly_fft_standard(self):
         """Test FFT polynomial evaluation with coset_offset=1."""
@@ -256,11 +188,3 @@ class TestFFT:
 
         assert result1 == result2
         assert result1 is result2  # Same cached object
-
-    def test_caching_roots(self):
-        """Test that roots caching works correctly."""
-        result1 = _get_roots(16, OMEGA, S_PRIME)
-        result2 = _get_roots(16, OMEGA, S_PRIME)
-
-        assert result1 == result2
-        assert result1 is result2

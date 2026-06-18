@@ -7,13 +7,13 @@ import pytest
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dot_ring import blst
-from dot_ring.ring_proof.constants import EVAL_DOMAINS
-from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
-from dot_ring.ring_proof.pcs import srs
+from dot_ring import Bandersnatch, blst
+from dot_ring.ring_proof.constants import EVAL_DOMAINS, S_PRIME
+from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g2_to_blst
+from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 from dot_ring.ring_proof.verify import Verify
-from tests.utils.arkworks_serde import (
+from tests.utils.rust_serde import (
     compressed_g1_to_uncompressed_bytes,
     compressed_g2_to_uncompressed_bytes,
     deserialize_bandersnatch_point,
@@ -21,6 +21,20 @@ from tests.utils.arkworks_serde import (
     deserialize_bls12_381_g2,
     deserialize_fq_field_element,
 )
+
+
+def add_bandersnatch_points(
+    point1: tuple[int | None, int | None],
+    point2: tuple[int | None, int | None],
+) -> tuple[int | None, int | None]:
+    def to_point(point: tuple[int | None, int | None]):
+        x, y = point
+        if x is None or y is None:
+            return Bandersnatch.identity()
+        return Bandersnatch.point(int(x), int(y))
+
+    result = to_point(point1) + to_point(point2)
+    return result.x, result.y
 
 
 def parse_proof_from_json(proof_json: dict) -> tuple:
@@ -106,7 +120,7 @@ def verify_vector(vector_path: Path) -> None:
     result_point = deserialize_bandersnatch_point(result_x_bytes, result_y_bytes)
 
     result_ark_bytes = result_x_bytes + result_y_bytes
-    result_plus_seed = TwistedEdwardCurve.add(result_point, seed_point)
+    result_plus_seed = add_bandersnatch_points(result_point, seed_point)
 
     proof_tuple, raw_bytes = parse_proof_from_json(proof_data)
     vk_bytes, fixed_cols = parse_verifier_key(proof_data["verifier_key"]["verification_key"])
@@ -122,38 +136,45 @@ def verify_vector(vector_path: Path) -> None:
     g2_0_blst = g2_to_blst(g2_0_affine)
     g2_1_blst = g2_to_blst(g2_1_affine)
 
-    original_g1 = srs.srs.blst_g1
-    original_g2 = srs.srs.blst_g2
-    srs.srs.blst_g1 = [g1_0_blst] + list(original_g1[1:])
-    srs.srs.blst_g2 = [g2_0_blst, g2_1_blst] + list(original_g2[2:])
+    active_srs = KZG.srs
+    original_g1 = active_srs.blst_g1
+    original_g2 = active_srs.blst_g2
+    try:
+        active_srs.blst_g1 = [g1_0_blst] + list(original_g1[1:])
+        active_srs.blst_g2 = [g2_0_blst, g2_1_blst] + list(original_g2[2:])
 
-    vk_uncompressed = (
-        compressed_g1_to_uncompressed_bytes(vk_bytes[0:48])
-        + compressed_g2_to_uncompressed_bytes(vk_bytes[48:144])
-        + compressed_g2_to_uncompressed_bytes(vk_bytes[144:240])
-        + compressed_g1_to_uncompressed_bytes(vk_bytes[240:288])
-        + compressed_g1_to_uncompressed_bytes(vk_bytes[288:336])
-        + compressed_g1_to_uncompressed_bytes(vk_bytes[336:384])
-    )
+        vk_uncompressed = (
+            compressed_g1_to_uncompressed_bytes(vk_bytes[0:48])
+            + compressed_g2_to_uncompressed_bytes(vk_bytes[48:144])
+            + compressed_g2_to_uncompressed_bytes(vk_bytes[144:240])
+            + compressed_g1_to_uncompressed_bytes(vk_bytes[240:288])
+            + compressed_g1_to_uncompressed_bytes(vk_bytes[288:336])
+            + compressed_g1_to_uncompressed_bytes(vk_bytes[336:384])
+        )
+        witness_uncompressed = b"".join(compressed_g1_to_uncompressed_bytes(commitment) for commitment in raw_bytes["col_commitments"])
 
-    quotient_compressed = bytes.fromhex(proof_data["proof"]["quotient_commitment"])
-    quotient_uncompressed = compressed_g1_to_uncompressed_bytes(quotient_compressed)
-    raw_bytes["quotient_commitment_uncompressed"] = quotient_uncompressed
+        quotient_compressed = bytes.fromhex(proof_data["proof"]["quotient_commitment"])
+        quotient_uncompressed = compressed_g1_to_uncompressed_bytes(quotient_compressed)
+        transcript_prefix = FiatShamirTranscript(S_PRIME, b"w3f-ring-proof-test")
+        transcript_prefix.absorb_labeled(b"vk", vk_uncompressed)
 
-    verifier = Verify(
-        proof=proof_tuple,
-        vk=vk_uncompressed,
-        fixed_cols=fixed_cols,
-        rl_to_proove=result_ark_bytes,
-        rps=result_plus_seed,
-        seed_point=seed_point,
-        Domain=domain,
-        raw_proof_bytes=raw_bytes,
-        transcript_challenge=b"w3f-ring-proof-test",
-        padding_rows=padding_rows,
-    )
+        verifier = Verify(
+            proof=proof_tuple,
+            fixed_cols=fixed_cols,
+            relation_to_prove=result_ark_bytes,
+            result_plus_seed=result_plus_seed,
+            seed_point=seed_point,
+            domain=domain,
+            transcript_prefix=transcript_prefix,
+            padding_rows=padding_rows,
+            transcript_witness_commitments=witness_uncompressed,
+            transcript_quotient_commitment=quotient_uncompressed,
+        )
 
-    assert verifier.is_valid(), f"Verification failed for {vector_path.name}"
+        assert verifier.is_valid(), f"Verification failed for {vector_path.name}"
+    finally:
+        active_srs.blst_g1 = original_g1
+        active_srs.blst_g2 = original_g2
 
 
 def get_vector_paths() -> list[Path]:

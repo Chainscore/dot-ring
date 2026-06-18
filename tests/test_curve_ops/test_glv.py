@@ -7,16 +7,10 @@ from dot_ring.curve.specs.ed25519 import Ed25519_RO
 class TestCoverageGLV:
     def test_glv_identity_handling(self):
         """Test GLV methods with identity points."""
-        PointClass = Ed25519_RO.point
-        # We need access to the GLV instance.
-        # It's usually attached to the curve or used by the point.
-        # But here we can instantiate GLV directly and pass points.
-
-        # Create a dummy GLV instance
         glv = GLV(lambda_param=1, constant_b=1, constant_c=1)
 
-        g = PointClass.generator_point()
-        identity = PointClass.identity_point()
+        g = Ed25519_RO.generator_point()
+        identity = Ed25519_RO.identity()
 
         # Test windowed_simultaneous_mult with identity
         # P1 identity

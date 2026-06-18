@@ -11,7 +11,7 @@ from dot_ring.curve.specs.p256 import P256_RO
 from dot_ring.curve.specs.p384 import P384_RO
 from dot_ring.curve.specs.p521 import P521_RO
 from dot_ring.curve.specs.secp256k1 import Secp256k1_RO
-from dot_ring.vrf.ietf.ietf import IETF_VRF
+from dot_ring.vrf.ietf import TinyVRF
 
 HERE = os.path.dirname(__file__)
 
@@ -50,11 +50,11 @@ def test_ietf_base(curve_variant, file_prefix):
                 additional_data = bytes.fromhex(vector["ad"])
 
                 # Public Key
-                pk_bytes = IETF_VRF[curve_variant].get_public_key(secret_scalar)
+                pk_bytes = TinyVRF[curve_variant].get_public_key(secret_scalar)
 
-                proof = IETF_VRF[curve_variant].prove(alpha, secret_scalar, additional_data)
+                proof = TinyVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
                 proof_bytes = proof.to_bytes()
-                proof_rt = IETF_VRF[curve_variant].from_bytes(proof_bytes)
+                proof_rt = TinyVRF[curve_variant].from_bytes(proof_bytes)
 
                 # Verify
                 verified = proof.verify(pk_bytes, alpha, additional_data)

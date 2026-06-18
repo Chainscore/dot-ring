@@ -12,7 +12,7 @@ from dot_ring.ring_proof.pcs.pairing import (
 from dot_ring.ring_proof.pcs.srs import srs
 
 
-class TestPairingHelpers:
+class TestPairing:
     """Test pairing helper functions."""
 
     def test_ensure_p1_affine_from_p1(self):

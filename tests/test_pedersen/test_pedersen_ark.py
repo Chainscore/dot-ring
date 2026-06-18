@@ -6,10 +6,11 @@ import pytest
 from dot_ring.curve.specs.baby_jubjub import BabyJubJub
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
-from dot_ring.curve.specs.ed25519 import Ed25519_NU
+from dot_ring.curve.specs.ed25519 import Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
-from dot_ring.curve.specs.p256 import P256_NU
-from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+from dot_ring.curve.specs.p256 import P256_TAI
+from dot_ring.vrf.pedersen import PedersenVRF
+from dot_ring.vrf.transcript import scalar_len
 
 HERE = os.path.dirname(__file__)
 
@@ -17,9 +18,9 @@ TEST_CASES = [
     (Bandersnatch, "bandersnatch_ed_sha512_ell2_pedersen", "ark-vrf"),
     (BabyJubJub, "babyjubjub_sha512_tai_pedersen", "ark-vrf"),
     (Bandersnatch_SW, "bandersnatch_sw_sha512_tai_pedersen", "ark-vrf"),
-    (Ed25519_NU, "ed25519_sha512_tai_pedersen.json", "ark-vrf"),
+    (Ed25519_TAI, "ed25519_sha512_tai_pedersen.json", "ark-vrf"),
     (JubJub, "jubjub_sha512_tai_pedersen.json", "ark-vrf"),
-    (P256_NU, "secp256r1_sha256_tai_pedersen", "ark-vrf"),
+    (P256_TAI, "secp256r1_sha256_tai_pedersen", "ark-vrf"),
 ]
 
 
@@ -48,7 +49,7 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 pk_bytes = PedersenVRF[curve_variant].get_public_key(secret_scalar)
 
                 # Input Point check
-                input_point = curve_variant.point.encode_to_curve(alpha)
+                input_point = curve_variant.encode_to_curve(alpha)
                 if "h" in vector:
                     assert input_point.point_to_string().hex() == vector["h"]
 
@@ -62,12 +63,12 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 assert proof.result_point.point_to_string().hex() == vector["proof_r"]
                 assert proof.ok.point_to_string().hex() == vector["proof_ok"]
                 assert proof.s.to_bytes(
-                    (curve_variant.curve.PRIME_FIELD.bit_length() + 7) // 8,
-                    curve_variant.curve.ENDIAN,
+                    scalar_len(curve_variant),
+                    curve_variant.curve.encoding_endian(),
                 ) == bytes.fromhex(vector["proof_s"])
                 assert proof.sb.to_bytes(
-                    (curve_variant.curve.PRIME_FIELD.bit_length() + 7) // 8,
-                    curve_variant.curve.ENDIAN,
+                    scalar_len(curve_variant),
+                    curve_variant.curve.encoding_endian(),
                 ) == bytes.fromhex(vector["proof_sb"])
                 assert PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
 

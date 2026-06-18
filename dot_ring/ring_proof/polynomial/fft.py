@@ -7,8 +7,8 @@ the naive O(n * m) Horner evaluation.
 
 from functools import lru_cache
 
-# Cython-based FTT
-from dot_ring.ring_proof.polynomial.ntt import ntt_in_place
+from dot_ring.ring_proof.constants import S_PRIME
+from dot_ring.ring_proof.polynomial.ntt import BlsScalarNTTPlan
 
 
 @lru_cache(maxsize=1024)
@@ -56,16 +56,15 @@ def _get_twiddle_factors(n: int, omega: int, prime: int) -> list[list[int]]:
     return twiddles
 
 
-@lru_cache(maxsize=1024)
-def _get_roots(n: int, omega: int, prime: int) -> list[int]:
-    """Get precomputed roots of unity (legacy, for compatibility)."""
-    powers = [1] * (n // 2)
-    curr = 1
-    for i in range(1, n // 2):
-        curr = (curr * omega) % prime
-        powers[i] = curr
+def _use_native_ntt(prime: int) -> bool:
+    return prime == S_PRIME
 
-    return powers
+
+@lru_cache(maxsize=1024)
+def _get_native_ntt_plan(n: int, omega: int, prime: int):
+    if not _use_native_ntt(prime):
+        raise ValueError("native NTT is only available for the BLS12-381 scalar field")
+    return BlsScalarNTTPlan(_get_twiddle_factors(n, omega, prime), _get_bit_reverse(n))
 
 
 def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
@@ -80,11 +79,48 @@ def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     if n == 1:
         return
 
-    rev = _get_bit_reverse(n)
-    twiddles = _get_twiddle_factors(n, omega, prime)
+    if not _use_native_ntt(prime):
+        rev = _get_bit_reverse(n)
+        for i, j in enumerate(rev):
+            if i < j:
+                coeffs[i], coeffs[j] = coeffs[j], coeffs[i]
 
-    ntt_in_place(coeffs, twiddles, rev, prime)
-    return
+        m = 2
+        while m <= n:
+            half_m = m >> 1
+            w_step = pow(omega, n // m, prime)
+            for start in range(0, n, m):
+                w = 1
+                for j in range(half_m):
+                    u = coeffs[start + j]
+                    v = coeffs[start + j + half_m] * w % prime
+                    coeffs[start + j] = (u + v) % prime
+                    coeffs[start + j + half_m] = (u - v) % prime
+                    w = w * w_step % prime
+            m <<= 1
+        return
+
+    _get_native_ntt_plan(n, omega, prime).transform(coeffs)
+
+
+def _fft_in_place_scaled(coeffs: list[int], omega: int, prime: int, scale: int) -> None:
+    """In-place Cooley-Tukey followed by a scalar multiply on every output."""
+    if scale == 1:
+        _fft_in_place(coeffs, omega, prime)
+        return
+
+    n = len(coeffs)
+    if n == 1:
+        coeffs[0] = (coeffs[0] * scale) % prime
+        return
+
+    if not _use_native_ntt(prime):
+        _fft_in_place(coeffs, omega, prime)
+        for i, value in enumerate(coeffs):
+            coeffs[i] = (value * scale) % prime
+        return
+
+    _get_native_ntt_plan(n, omega, prime).transform_scaled(coeffs, scale)
 
 
 def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:
@@ -101,44 +137,8 @@ def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:
     n = len(values)
     inv_omega = pow(omega, -1, prime)
     coeffs = values[:]
-    _fft_in_place(coeffs, inv_omega, prime)
     inv_n = pow(n, -1, prime)
-    return [(c * inv_n) % prime for c in coeffs]
-
-
-def evaluate_poly_over_domain(poly: list[int], domain: list[int], omega: int, prime: int) -> list[int]:
-    """Evaluate polynomial over a structured domain using FFT.
-
-    Assumes domain = [omega^0, omega^1, ..., omega^(n-1)] mod prime.
-
-    Args:
-        poly: Polynomial coefficients (lowest degree first)
-        domain: Evaluation domain (must be powers of omega)
-        omega: Primitive n-th root of unity mod prime
-        prime: Field modulus
-
-    Returns:
-        List of polynomial evaluations at each domain point
-    """
-    n = len(domain)
-
-    # Pad or truncate coefficients to domain size
-    # If poly has more coefficients than domain size, we need to reduce mod (X^n - 1)
-    coeffs = poly[:] if len(poly) <= n else poly[:]
-
-    # Reduce polynomial modulo X^n - 1 by folding coefficients
-    if len(poly) > n:
-        result = [0] * n
-        for i, c in enumerate(poly):
-            result[i % n] = (result[i % n] + c) % prime
-        coeffs = result
-    else:
-        # Pad with zeros if needed
-        coeffs = coeffs + [0] * (n - len(coeffs))
-
-    # Perform FFT
-    _fft_in_place(coeffs, omega, prime)
-
+    _fft_in_place_scaled(coeffs, inv_omega, prime, inv_n)
     return coeffs
 
 

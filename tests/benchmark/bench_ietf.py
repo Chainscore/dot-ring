@@ -1,119 +1,106 @@
 #!/usr/bin/env python3
-"""
-Benchmark script for IETF VRF proof generation and verification.
+"""Benchmark fresh IETF/Tiny VRF proof and verification timings."""
 
-Run with:
-    python tests/bench_ietf.py
+from __future__ import annotations
 
-- Runs multiple warmup iterations
-- Measures over multiple iterations
-- Reports min, mean, and std deviation
-"""
-
-import json
+import argparse
+import hashlib
 import statistics
 import time
-from pathlib import Path
+from dataclasses import dataclass
 
 from dot_ring import Bandersnatch
-from dot_ring.vrf.ietf.ietf import IETF_VRF
+from dot_ring.keygen import secret_from_seed
+from dot_ring.vrf.ietf import TinyVRF
 
 
-def load_test_data():
-    """Load test vector data."""
-    vector_path = Path(__file__).parent / "vectors" / "ark-vrf" / "bandersnatch_ed_sha512_ell2_ietf.json"
-    with open(vector_path) as f:
-        return json.load(f)[0]
+@dataclass(frozen=True)
+class Timing:
+    prove_ms: float
+    verify_ms: float
+    total_ms: float
+    proof_size: int
 
 
-def benchmark_ietf_vrf(warmup_iters: int = 5, bench_iters: int = 100):
-    """Benchmark IETF VRF proof generation and verification."""
+def _seed(*parts: object) -> bytes:
+    h = hashlib.sha256()
+    for part in parts:
+        match part:
+            case bytes():
+                h.update(part)
+            case int():
+                h.update(part.to_bytes(8, "little", signed=False))
+            case str():
+                h.update(part.encode())
+            case _:
+                raise TypeError(f"unsupported seed part: {type(part).__name__}")
+        h.update(b"\0")
+    return h.digest()
 
-    print("=" * 60)
-    print("IETF VRF Benchmark (Python/Cython + gmpy2)")
-    print("=" * 60)
+
+def benchmark_once(sample_index: int) -> Timing:
+    public_key, secret_key = secret_from_seed(_seed("ietf-signer", sample_index), Bandersnatch)
+    alpha = b"bench-ietf-input" + sample_index.to_bytes(8, "little")
+    ad = b"bench-ietf-ad" + sample_index.to_bytes(8, "little")
+    salt = b"bench-ietf-salt" + sample_index.to_bytes(8, "little")
+
+    total_start = time.perf_counter()
+
+    start = time.perf_counter()
+    proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, ad, salt)
+    prove_ms = (time.perf_counter() - start) * 1000
+
+    start = time.perf_counter()
+    verified = proof.verify(public_key, alpha, ad, salt)
+    verify_ms = (time.perf_counter() - start) * 1000
+
+    if not verified:
+        raise AssertionError("IETF VRF verification failed")
+
+    return Timing(
+        prove_ms=prove_ms,
+        verify_ms=verify_ms,
+        total_ms=(time.perf_counter() - total_start) * 1000,
+        proof_size=len(proof.to_bytes()),
+    )
+
+
+def _stats(values: list[float]) -> tuple[float, float, float, float]:
+    stddev = statistics.stdev(values) if len(values) > 1 else 0.0
+    return min(values), statistics.mean(values), max(values), stddev
+
+
+def _print_stats(label: str, values: list[float]) -> None:
+    minimum, mean, maximum, stddev = _stats(values)
+    print(f"{label:<8} min={minimum:8.2f} ms  mean={mean:8.2f} ms  max={maximum:8.2f} ms  stddev={stddev:8.2f} ms")
+
+
+def run(samples: int) -> None:
+    if samples <= 0:
+        raise ValueError("samples must be positive")
+
+    timings = [benchmark_once(sample_index) for sample_index in range(samples)]
+
+    print(f"IETF/Tiny VRF benchmark: samples={samples}")
+    print("Scope: each sample builds fresh key material, input, proof, and verification.")
     print()
+    print("sample  prove_ms  verify_ms  total_ms")
+    for index, timing in enumerate(timings, start=1):
+        print(f"{index:>6}  {timing.prove_ms:>8.2f}  {timing.verify_ms:>9.2f}  {timing.total_ms:>8.2f}")
 
-    # Load test data
-    data = load_test_data()
-    s_k = bytes.fromhex(data["sk"])
-    alpha = bytes.fromhex(data["alpha"])
-    ad = bytes.fromhex(data["ad"])
-    salt = bytes.fromhex(data.get("salt", ""))
-
-    # Get public key
-    p_k = IETF_VRF[Bandersnatch].get_public_key(s_k)
-
-    print("Curve: Bandersnatch (Twisted Edwards)")
-    print(f"Warmup iterations: {warmup_iters}")
-    print(f"Benchmark iterations: {bench_iters}")
     print()
+    _print_stats("prove", [timing.prove_ms for timing in timings])
+    _print_stats("verify", [timing.verify_ms for timing in timings])
+    _print_stats("total", [timing.total_ms for timing in timings])
+    print(f"proof_size: {timings[-1].proof_size} bytes")
 
-    # =========================================================================
-    # Warmup
-    # =========================================================================
-    print("Warming up...")
-    for _ in range(warmup_iters):
-        proof = IETF_VRF[Bandersnatch].prove(alpha, s_k, ad, salt)
-        proof.verify(p_k, alpha, ad, salt)
 
-    # =========================================================================
-    # Benchmark Proof Generation
-    # =========================================================================
-    print("Benchmarking Proof Generation...")
-    proof_times = []
-    proofs = []
-    for _ in range(bench_iters):
-        start = time.perf_counter()
-        proof = IETF_VRF[Bandersnatch].prove(alpha, s_k, ad, salt)
-        elapsed = (time.perf_counter() - start) * 1000
-        proof_times.append(elapsed)
-        proofs.append(proof)
-
-    # =========================================================================
-    # Benchmark Verification
-    # =========================================================================
-    print("Benchmarking Verification...")
-    verify_times = []
-    for proof in proofs:
-        start = time.perf_counter()
-        result = proof.verify(p_k, alpha, ad, salt)
-        elapsed = (time.perf_counter() - start) * 1000
-        verify_times.append(elapsed)
-        assert result, "Verification failed!"
-
-    # =========================================================================
-    # Results
-    # =========================================================================
-    print()
-    print("=" * 60)
-    print("RESULTS")
-    print("=" * 60)
-    print()
-
-    def print_stats(name: str, times: list):
-        min_t = min(times)
-        mean_t = statistics.mean(times)
-        std_t = statistics.stdev(times) if len(times) > 1 else 0
-        print(f"{name}:")
-        print(f"  Min:    {min_t:8.2f} ms")
-        print(f"  Mean:   {mean_t:8.2f} ms")
-        print(f"  Stddev: {std_t:8.2f} ms")
-        print()
-        return min_t, mean_t
-
-    proof_min, proof_mean = print_stats("Proof Generation", proof_times)
-    verify_min, verify_mean = print_stats("Verification", verify_times)
-
-    print("-" * 60)
-    print(f"Total (Proof + Verify) Min:  {proof_min + verify_min:8.2f} ms")
-    print(f"Total (Proof + Verify) Mean: {proof_mean + verify_mean:8.2f} ms")
-    print()
-
-    # Proof size
-    proof_bytes = proofs[0].to_bytes()
-    print(f"Proof size: {len(proof_bytes)} bytes")
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Benchmark fresh IETF/Tiny VRF prove and verify timings.")
+    parser.add_argument("-s", "--samples", type=int, default=30, help="number of fresh samples to run")
+    args = parser.parse_args()
+    run(args.samples)
 
 
 if __name__ == "__main__":
-    benchmark_ietf_vrf(warmup_iters=5, bench_iters=100)
+    main()

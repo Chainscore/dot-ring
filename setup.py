@@ -39,13 +39,12 @@ def build_cython_extensions() -> list[Extension]:
     compile_args = get_compile_args()
     return [
         Extension(
-            "dot_ring.curve.field_arithmetic",
-            ["dot_ring/curve/field_arithmetic.pyx"],
-            extra_compile_args=["-O3", "-ffast-math"],
-        ),
-        Extension(
-            "dot_ring.curve.fast_math",
-            ["dot_ring/curve/fast_math.pyx"],
+            "dot_ring.curve.native_field.bandersnatch_te",
+            [
+                "dot_ring/curve/native_field/bandersnatch_te.pyx",
+                "dot_ring/curve/native_field/bls12_381_scalar.c",
+            ],
+            include_dirs=["dot_ring/curve/native_field"],
             extra_compile_args=["-O3", "-ffast-math"],
         ),
         Extension(
@@ -58,25 +57,9 @@ def build_cython_extensions() -> list[Extension]:
             extra_compile_args=["-O3", "-ffast-math"],
         ),
         Extension(
-            "dot_ring.ring_proof.polynomial.poly_ops",
-            ["dot_ring/ring_proof/polynomial/poly_ops.pyx"],
-            extra_compile_args=compile_args,
-            extra_link_args=[] if sys.platform == "win32" else ["-flto"],
-        ),
-        Extension(
             "dot_ring.curve.native_field.scalar",
             [
                 "dot_ring/curve/native_field/scalar.pyx",
-                "dot_ring/curve/native_field/bls12_381_scalar.c",
-            ],
-            include_dirs=["dot_ring/curve/native_field"],
-            extra_compile_args=compile_args,
-            extra_link_args=[] if sys.platform == "win32" else ["-flto"],
-        ),
-        Extension(
-            "dot_ring.curve.native_field.vector_ops",
-            [
-                "dot_ring/curve/native_field/vector_ops.pyx",
                 "dot_ring/curve/native_field/bls12_381_scalar.c",
             ],
             include_dirs=["dot_ring/curve/native_field"],
@@ -203,7 +186,6 @@ if __name__ == "__main__":
             "dot_ring": ["py.typed"],
             "dot_ring.blst": ["*.so", "*.dylib", "*.dll", "*.pyd"],
             "dot_ring.vrf": ["data/*.bin"],
-            "dot_ring.ring_proof": ["columns/*.json"],
         },
         include_package_data=True,
     )

@@ -1,155 +1,187 @@
 from collections.abc import Sequence
+from functools import lru_cache
 
-from dot_ring.ring_proof.constants import D_512, D_2048, OMEGA_2048
-from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
 from dot_ring.ring_proof.polynomial.fft import evaluate_poly_fft, inverse_fft
-from dot_ring.ring_proof.polynomial.poly_ops import (
-    poly_evaluate_single,
-    poly_mul_linear,
-    poly_multiply_naive,
-)
-from dot_ring.ring_proof.polynomial.poly_ops import (
-    poly_scalar_mul as poly_scalar_mul_fast,
-)
+
+_ROOT_SEARCH_START = 5
 
 
-def mod_inverse(val: int, prime: int) -> int:
-    """Find the modular multiplicative inverse of a under modulo m."""
-    if pow(val, prime - 1, prime) != 1:
-        raise ValueError("No inverse exists")
-    return pow(val, prime - 2, prime)
+def _is_power_of_two(n: int) -> bool:
+    return n > 0 and (n & (n - 1)) == 0
 
 
-GENERATOR = 5
+def _root_of_unity_domain_omega(domain: Sequence[int], prime: int) -> int | None:
+    n = len(domain)
+    if not _is_power_of_two(n):
+        return None
+    if domain[0] % prime != 1:
+        return None
+    if n == 1:
+        return 1
 
-_root_of_unity_cache: dict[tuple[int, int], int] = {}
+    omega = domain[1] % prime
+    if omega == 1 or pow(omega, n, prime) != 1 or pow(omega, n // 2, prime) == 1:
+        return None
+
+    current = 1
+    for x in domain:
+        if x % prime != current:
+            return None
+        current = (current * omega) % prime
+    return omega
 
 
+@lru_cache(maxsize=128)
 def get_root_of_unity(n: int, prime: int) -> int:
-    """Get n-th primitive root of unity."""
-    key = (n, prime)
-    if key in _root_of_unity_cache:
-        return _root_of_unity_cache[key]
+    """Return an n-th primitive root of unity in the given prime field."""
+    if not _is_power_of_two(n):
+        raise ValueError(f"n must be a power of two, got {n}")
+    if (prime - 1) % n != 0:
+        raise ValueError(f"n={n} does not divide prime-1")
 
-    # We need n to be a power of 2 and divide prime-1
-    # prime-1 is divisible by 2^32, so any power of 2 <= 2^32 works
     exponent = (prime - 1) // n
-    root = pow(GENERATOR, exponent, prime)
-    _root_of_unity_cache[key] = root
-    return root
+    candidate = _ROOT_SEARCH_START
+    while True:
+        root = pow(candidate, exponent, prime)
+        if root != 1 and pow(root, n, prime) == 1 and (n == 1 or pow(root, n // 2, prime) != 1):
+            return root
+        candidate += 1
 
 
-# (On^2)
-def poly_multiply(poly1: list[int], poly2: list[int], prime: int) -> list[int]:
+def poly_add(poly1: Sequence[int], poly2: Sequence[int], prime: int) -> list[int]:
+    """Add two polynomials in a prime field."""
+    result_len = max(len(poly1), len(poly2))
+    result = [0] * result_len
+
+    for i in range(len(poly1)):
+        result[i] = poly1[i]
+
+    for i in range(len(poly2)):
+        val = result[i] + poly2[i]
+        if val >= prime:
+            val -= prime
+        result[i] = val
+
+    return result
+
+
+def poly_scalar_mul(poly: Sequence[int], scalar: int, prime: int) -> list[int]:
+    """Multiply a polynomial by a scalar in a prime field."""
+    n = len(poly)
+
+    if scalar >= prime:
+        scalar = scalar % prime
+
+    if scalar == 0:
+        return [0] * n
+    if scalar == 1:
+        return [coef % prime if coef >= prime else coef for coef in poly]
+
+    result = [0] * n
+    for i, coef in enumerate(poly):
+        if coef >= prime:
+            coef = coef % prime
+        result[i] = (coef * scalar) % prime
+
+    return result
+
+
+def poly_mul_linear(poly: Sequence[int], a: int, b: int, prime: int) -> list[int]:
+    """Multiply a polynomial by (a*x + b) in O(n)."""
+    n = len(poly)
+    result = [0] * (n + 1)
+
+    if a >= prime:
+        a = a % prime
+    if b >= prime:
+        b = b % prime
+
+    coef = poly[0]
+    if coef >= prime:
+        coef = coef % prime
+    result[0] = (b * coef) % prime
+
+    for i in range(1, n):
+        prev_coef = poly[i - 1]
+        if prev_coef >= prime:
+            prev_coef = prev_coef % prime
+
+        coef = poly[i]
+        if coef >= prime:
+            coef = coef % prime
+
+        term1 = (a * prev_coef) % prime
+        term2 = (b * coef) % prime
+        result[i] = (term1 + term2) % prime
+
+    coef = poly[n - 1]
+    if coef >= prime:
+        coef = coef % prime
+    result[n] = (a * coef) % prime
+
+    return result
+
+
+def _poly_multiply_schoolbook(poly1: Sequence[int], poly2: Sequence[int], prime: int) -> list[int]:
+    """Multiply two small polynomials directly."""
+    result = [0] * (len(poly1) + len(poly2) - 1)
+    for i, val1 in enumerate(poly1):
+        if val1 >= prime:
+            val1 = val1 % prime
+
+        if val1 == 0:
+            continue
+
+        for j, val2 in enumerate(poly2):
+            if val2 >= prime:
+                val2 = val2 % prime
+
+            if val2 == 0:
+                continue
+
+            prod = (val1 * val2) % prime
+            current = result[i + j] + prod
+            if current >= prime:
+                current -= prime
+            result[i + j] = current
+    return result
+
+
+def poly_multiply(poly1: Sequence[int], poly2: Sequence[int], prime: int) -> list[int]:
     """Multiply two polynomials in a prime field."""
+    if min(len(poly1), len(poly2)) <= 8:
+        return _poly_multiply_schoolbook(poly1, poly2, prime)
+
     result_len = len(poly1) + len(poly2) - 1
+    if result_len <= 64:
+        return _poly_multiply_schoolbook(poly1, poly2, prime)
 
-    # Use FFT if polynomials are large enough
-    # Threshold chosen empirically - FFT overhead is not worth it for very small polys
-    if result_len > 64:
-        # Find next power of 2
-        domain_size = 1
-        while domain_size < result_len:
-            domain_size *= 2
+    domain_size = 1
+    while domain_size < result_len:
+        domain_size *= 2
 
-        # We can support up to 2^32
-        omega = get_root_of_unity(domain_size, prime)
-
-        evals1 = evaluate_poly_fft(poly1, domain_size, omega, prime)
-        evals2 = evaluate_poly_fft(poly2, domain_size, omega, prime)
-
-        evals_prod = [(e1 * e2) % prime for e1, e2 in zip(evals1, evals2, strict=False)]
-
-        coeffs = inverse_fft(evals_prod, omega, prime)
-
-        # Truncate to expected length (higher terms should be 0)
-        return coeffs[:result_len]
-
-    return poly_multiply_naive(poly1, poly2, prime)
+    omega = get_root_of_unity(domain_size, prime)
+    evals1 = evaluate_poly_fft(list(poly1), domain_size, omega, prime)
+    evals2 = evaluate_poly_fft(list(poly2), domain_size, omega, prime)
+    evals_prod = [(e1 * e2) % prime for e1, e2 in zip(evals1, evals2, strict=True)]
+    return inverse_fft(evals_prod, omega, prime)[:result_len]
 
 
-def poly_division_general(coeffs: list[int], domain_size: int) -> list[int]:
-    """
-    Divide polynomial f(x) by vanishing polynomial Z_H(x) = x^domain_size - 1
-
-    Args:
-        coeffs: list[int or Fp] - coefficients of f(x), lowest degree first
-        domain_size: int - size of the evaluation domain (n)
-
-    Returns:
-        (quotient) a lists of coefficients
-    """
-
-    n = domain_size
-    deg_f = len(coeffs)
-
-    # Case 1: degree(f) < domain_size -> quotient = 0, remainder = f
-    if deg_f < n:
-        return [0]
-
-    # Step 1️: initial quotient is the higher-degree coefficients
-    quotient = coeffs[n:].copy()
-
-    # Step 2️: accumulate wrapped parts if polynomial is longer than 2n
-    # Equivalent to folding coefficients every n steps
-    for i in range(1, deg_f // n):
-        for j in range(len(quotient)):
-            src_index = n * (i + 1) + j
-            if src_index < deg_f:
-                quotient[j] += coeffs[src_index]
-
-    # trim trailing zeros for cleaner output
-    while quotient and quotient[-1] == 0:
-        quotient.pop()
-    return quotient
+def poly_evaluate_single(poly: Sequence[int], x: int, prime: int) -> int:
+    """Evaluate a polynomial at one point with Horner's method."""
+    x %= prime
+    result = 0
+    for coef in reversed(poly):
+        result = (result * x + coef) % prime
+    return result
 
 
-def poly_evaluate(poly: list | Sequence[int], xs: list | int | Sequence[int], prime: int) -> list[int] | int:
-    """Evaluate polynomial at points xs.
-
-    Uses FFT when xs is one of the predefined evaluation domains (D_512, D_2048).
-    Falls back to Horner evaluation for arbitrary points.
-
-    Args:
-        poly: Polynomial coefficients (lowest degree first)
-        xs: Either a list of evaluation points or a single point
-        prime: Field modulus
-
-    Returns:
-        List of evaluations (or single value if xs is a single point)
-    """
-    # Handle single point evaluation
-    if isinstance(xs, int):
-        return poly_evaluate_single(poly, xs, prime)
-
-    # Check if xs is one of the FFT-friendly domains
-    # Compare by identity first (fast path), then by equality
-    if xs is D_2048 or (len(xs) == 2048 and xs == D_2048):
-        # Use FFT for D_2048
-        return evaluate_poly_fft(list(poly), 2048, OMEGA_2048, prime, coset_offset=1)
-    elif xs is D_512 or (len(xs) == 512 and xs == D_512):
-        # Use FFT for D_512
-        return evaluate_poly_fft(list(poly), 512, OMEGA, prime, coset_offset=1)
-    else:
-        # Fall back to Horner evaluation for arbitrary points
-        results = [poly_evaluate_single(poly, x, prime) for x in xs]
-        return results
-
-
-def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[int]:
-    """
-    Compute the i-th Lagrange basis polynomial.
-
-    L_i(x) = (x - x_j) / (x_i - x_j)
-    """
-    # Optimization for roots of unity domains
-    if x_coords is D_512 or (len(x_coords) == 512 and x_coords == D_512) or x_coords is D_2048 or (len(x_coords) == 2048 and x_coords == D_2048):
-        n = len(x_coords)
-        x_i = x_coords[i]
-
-        # L_i(x) = 1/n * sum_{j=0}^{n-1} (x_i^{-j}) x^j
-        # coeff[j] = 1/n * (x_i^{-1})^j
-
+def lagrange_basis_polynomial(domain: Sequence[int], i: int, prime: int) -> list[int]:
+    """Return the i-th Lagrange basis polynomial over the given domain."""
+    omega = _root_of_unity_domain_omega(domain, prime)
+    if omega is not None:
+        n = len(domain)
+        x_i = domain[i] % prime
         inv_n = pow(n, -1, prime)
         inv_xi = pow(x_i, -1, prime)
 
@@ -158,35 +190,35 @@ def lagrange_basis_polynomial(x_coords: list[int], i: int, prime: int) -> list[i
         for j in range(n):
             coeffs[j] = current
             current = (current * inv_xi) % prime
-
         return coeffs
 
-    n = len(x_coords)
-    numerator = [1]  # Start with polynomial 1
+    numerator = [1]
     denominator = 1
+    x_i = domain[i] % prime
+    for j, x_j in enumerate(domain):
+        if j == i:
+            continue
+        numerator = poly_mul_linear(numerator, 1, (-x_j) % prime, prime)
+        denominator = denominator * ((x_i - x_j) % prime) % prime
 
-    for j in range(n):
-        if j != i:
-            # Multiply numerator by (x - x_j)
-            # term = [(-x_coords[j]) % prime, 1]
-            # numerator = poly_multiply(numerator, term, prime)
-
-            # Use optimized linear multiplication: multiply by (1*x - x_j)
-            numerator = poly_mul_linear(numerator, 1, (-x_coords[j]) % prime, prime)
-
-            # Multiply denominator by (x_i - x_j)
-            diff = (x_coords[i] - x_coords[j]) % prime
-            denominator = (denominator * diff) % prime
-
-    # Calculate modular inverse of denominator
-    # inv_denominator = mod_inverse(denominator, prime)
-    inv_denominator = pow(denominator, -1, prime)
-    # Scale the numerator polynomial
-    basis_poly = poly_scalar_mul_fast(numerator, inv_denominator, prime)
-
-    return basis_poly
+    return poly_scalar_mul(numerator, pow(denominator, -1, prime), prime)
 
 
-def vect_scalar_mul(vec: list[int] | Sequence[int], scalar: int, mod: int | None = None) -> list[int]:
-    """Multiply each element in the vector by the scalar"""
-    return [(x * scalar) % mod if mod else x * scalar for x in vec]
+def poly_divide_by_vanishing(poly: Sequence[int], domain_size: int) -> list[int]:
+    """Return the quotient of poly divided by x^domain_size - 1."""
+    if domain_size <= 0:
+        raise ValueError("domain_size must be positive")
+
+    if len(poly) < domain_size:
+        return [0]
+
+    quotient = list(poly[domain_size:])
+    for i in range(1, len(poly) // domain_size):
+        for j in range(len(quotient)):
+            source_index = domain_size * (i + 1) + j
+            if source_index < len(poly):
+                quotient[j] += poly[source_index]
+
+    while quotient and quotient[-1] == 0:
+        quotient.pop()
+    return quotient

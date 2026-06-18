@@ -1,8 +1,8 @@
 """
-Export Python-generated ring proofs to arkworks-compatible JSON.
+Export Python-generated ring proofs to canonical JSON.
 
 This script generates multiple ring proof variants using the Python implementation and
-exports them in the same format as Rust's arkworks-serialized proof vectors.
+exports them in a Rust-verifier-compatible proof-vector format.
 """
 
 from __future__ import annotations
@@ -18,12 +18,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from py_ecc.optimized_bls12_381 import normalize as nm
 
-from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchParams, BandersnatchPoint
-from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
+from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.srs import srs
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
-from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.ring.proof_builder import RingProofBuilder
 from tests.utils.python_to_rust_serde import (
     serialize_bls12_381_g1,
     serialize_bls12_381_g2,
@@ -41,6 +40,29 @@ SeedPoint = (
 )
 
 blinding_factor = int.from_bytes(bytes.fromhex("2e98974f0b99a70d4fbe7c1ea62a5ada75c899deb30e9d27f9e5da79177c0619"), "big")
+
+
+def _as_bandersnatch_point(point: tuple[int | None, int | None]):
+    x, y = point
+    if x is None or y is None:
+        return Bandersnatch.identity()
+    return Bandersnatch.point(int(x), int(y))
+
+
+def _bandersnatch_mul(k: int, point: tuple[int | None, int | None]) -> tuple[int | None, int | None]:
+    if point[0] is None or point[1] is None:
+        result = Bandersnatch.identity()
+    else:
+        result = _as_bandersnatch_point(point) * k
+    return result.x, result.y
+
+
+def _bandersnatch_add(
+    point1: tuple[int | None, int | None],
+    point2: tuple[int | None, int | None],
+) -> tuple[int | None, int | None]:
+    result = _as_bandersnatch_point(point1) + _as_bandersnatch_point(point2)
+    return result.x, result.y
 
 
 @dataclass(frozen=True)
@@ -96,7 +118,7 @@ def generate_test_keys(
     if prover_index >= num_keys:
         raise ValueError("prover_index must be < num_keys")
 
-    base = BandersnatchPoint(BandersnatchParams.GENERATOR_X, BandersnatchParams.GENERATOR_Y)
+    base = Bandersnatch.generator_point()
 
     keys_bytes: list[bytes] = []
     keys_points: list[tuple[int, int]] = []
@@ -149,17 +171,22 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
     producer_key_point = keys_points[prover_index]
 
     # Generate ring proof using a Rust-test-compatible transcript label
-    proof_components = RingVRF[Bandersnatch].generate_bls_signature(
-        blinding_factor=blinding_factor,
-        producer_key=producer_key_bytes,
-        ring=ring,
-        transcript_challenge=b"w3f-ring-proof-test",
-        ring_root=ring_root,
+    proof_components = (
+        RingProofBuilder(
+            curve=Bandersnatch,
+            blinding_factor=blinding_factor,
+            producer_key=producer_key_bytes,
+            ring=ring,
+            transcript_challenge=b"w3f-ring-proof-test",
+            ring_root=ring_root,
+        )
+        .build()
+        .as_tuple()
     )
 
     # Compute result point (blinded public key)
-    result_point = TwistedEdwardCurve.mul(blinding_factor, Blinding_Base)
-    result_point = TwistedEdwardCurve.add(result_point, producer_key_point)
+    result_point = _bandersnatch_mul(blinding_factor, Blinding_Base)
+    result_point = _bandersnatch_add(result_point, producer_key_point)
 
     # Unpack proof components
     (
@@ -283,7 +310,7 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
 
 def export_proof_to_json(output_dir: str | None = None, variants: list[VariantSpec] | None = None) -> list[dict[str, Any]]:
     """
-    Generate Python ring proofs and export them to JSON in arkworks format.
+    Generate Python ring proofs and export them to JSON.
 
     Args:
         output_dir: Directory to save JSON files (default: tests/vectors/others)

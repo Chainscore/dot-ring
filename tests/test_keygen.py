@@ -1,7 +1,7 @@
 import pytest
 
 from dot_ring import Bandersnatch, secret_from_seed
-from dot_ring.vrf.ietf.ietf import IETF_VRF
+from dot_ring.vrf.ietf import TinyVRF
 
 
 @pytest.mark.parametrize(
@@ -9,13 +9,13 @@ from dot_ring.vrf.ietf.ietf import IETF_VRF
     [
         (
             0,
-            "5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d",
-            "51c1537c18eea5c5969cb2ae45c1224cc245de5c5b8e6e25f48fb99f2786ee05",
+            "dff68d8158281c3ee65e678d75c7f5c007de51d0c3a800675208b7c61d2e6f98",
+            "cc1a43aef9a710b8def623da1eae8f35d7992f46302c08242e0a2bb823ccac08",
         ),
         (
             100,
-            "caf7eb70d84e27511179c83ac352f8d3e9b9661371520c54c9ad56781f374a32",
-            "ad20931d3f8cee57206bc1c3e5dad50677afb9fb712217c6a980867d3a56451c",
+            "84c569f6371c182164b6ca1b94097274c7071d3a005050df39c14275f60b01cf",
+            "0d28a81b0a4b8d197c7c10d60472d9ab9c5b7743803c4b68dc1a274d34009104",
         ),
     ],
 )
@@ -28,7 +28,7 @@ def test_secret_from_seed_vectors(seed: int, expected_pk: str, expected_sk: str)
 def test_secret_from_seed_public_key_roundtrip() -> None:
     seed = (2**32 - 1).to_bytes(32, "little")
     pk, sk = secret_from_seed(seed, Bandersnatch)
-    assert pk == IETF_VRF[Bandersnatch].get_public_key(sk)
+    assert pk == TinyVRF[Bandersnatch].get_public_key(sk)
 
 
 def test_secret_from_seed_type_errors() -> None:

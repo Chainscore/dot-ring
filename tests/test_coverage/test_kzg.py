@@ -1,80 +1,7 @@
 """Tests for KZG module to improve coverage."""
 
-import pytest
-
-from dot_ring.ring_proof.pcs.kzg import (
-    KZG,
-    Opening,
-    p1_add,
-    p1_neg,
-    p1_scalar_mul,
-    p2_add,
-    p2_neg,
-    p2_scalar_mul,
-)
-from dot_ring.ring_proof.pcs.srs import srs
-
-
-class TestKZGHelpers:
-    """Test KZG helper functions."""
-
-    def test_p1_scalar_mul(self):
-        """Test P1 scalar multiplication."""
-        p = srs.blst_g1[0]  # Generator
-        scalar = 5
-
-        result = p1_scalar_mul(p, scalar)
-
-        assert result is not None
-        # Result should be different from input (unless scalar is 1)
-        assert not result.is_equal(p)
-
-    def test_p1_add(self):
-        """Test P1 point addition."""
-        p1 = srs.blst_g1[0]
-        p2 = srs.blst_g1[1]
-
-        result = p1_add(p1, p2)
-
-        assert result is not None
-
-    def test_p1_neg(self):
-        """Test P1 point negation."""
-        p = srs.blst_g1[0]
-
-        neg_p = p1_neg(p)
-
-        # p + (-p) should be the point at infinity
-        result = p1_add(p, neg_p)
-        assert result.is_inf()
-
-    def test_p2_scalar_mul(self):
-        """Test P2 scalar multiplication."""
-        p = srs.blst_g2[0]
-        scalar = 5
-
-        result = p2_scalar_mul(p, scalar)
-
-        assert result is not None
-
-    def test_p2_add(self):
-        """Test P2 point addition."""
-        p1 = srs.blst_g2[0]
-        p2 = srs.blst_g2[1]
-
-        result = p2_add(p1, p2)
-
-        assert result is not None
-
-    def test_p2_neg(self):
-        """Test P2 point negation."""
-        p = srs.blst_g2[0]
-
-        neg_p = p2_neg(p)
-
-        # p + (-p) should be the point at infinity
-        result = p2_add(p, neg_p)
-        assert result.is_inf()
+from dot_ring import blst
+from dot_ring.ring_proof.pcs.kzg import KZG, Opening
 
 
 class TestKZGCommit:
@@ -87,9 +14,7 @@ class TestKZGCommit:
         commitment = KZG.commit(coeffs)
 
         assert commitment is not None
-        assert isinstance(commitment, tuple)
-        # Commitment is (x, y, z) in projective coordinates
-        assert len(commitment) in [2, 3]  # (x, y) or (x, y, z) coordinates
+        assert isinstance(commitment, blst.P1)
 
     def test_commit_zero_poly(self):
         """Test commitment to zero polynomial."""
@@ -116,13 +41,17 @@ class TestKZGCommit:
 
         assert commitment is not None
 
-    def test_commit_exceeds_srs_raises(self):
-        """Test that committing to too large polynomial raises."""
-        # Create polynomial larger than SRS
-        coeffs = [1] * (len(srs.g1) + 100)
+    def test_commit_requests_srs_capacity(self, monkeypatch):
+        """Test that committing asks KZG to load enough SRS points."""
+        requested = []
 
-        with pytest.raises(ValueError, match="polynomial degree exceeds SRS size"):
-            KZG.commit(coeffs)
+        def ensure_srs_size(max_degree: int) -> None:
+            requested.append(max_degree)
+
+        monkeypatch.setattr(KZG, "ensure_srs_size", ensure_srs_size)
+        KZG.commit([1, 2, 3])
+
+        assert requested == [2]
 
 
 class TestKZGOpen:
