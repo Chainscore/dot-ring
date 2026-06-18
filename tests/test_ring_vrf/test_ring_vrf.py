@@ -4,8 +4,8 @@ import time
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
-from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.ring import RingVRF
 
 HERE = os.path.dirname(__file__)
 

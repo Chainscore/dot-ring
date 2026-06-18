@@ -1,22 +1,23 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, require_commitment
-from dot_ring.ring_proof.constraints.aggregation import aggregate_constraints
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
-from dot_ring.ring_proof.pcs.protocol import G1Commitment
+from dot_ring.ring_proof.pcs.utils import pcs_transcript_g1
+from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
+from dot_ring.ring_proof.polynomial.ops import poly_multiply, vect_add, vect_scalar_mul
 from dot_ring.ring_proof.proof.aggregation_poly import AggPoly
 from dot_ring.ring_proof.proof.linearization_poly import LAggPoly
 from dot_ring.ring_proof.proof.quotient_poly import QuotientPoly
-from dot_ring.ring_proof.transcript.phases import phase1_alphas, phase3_nu_vector
-from dot_ring.ring_proof.transcript.transcript import Transcript
+from dot_ring.ring_proof.transcript.phases import phase1_alphas_after_vk, phase3_nu_vector
+from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 
-from .ring import Ring
-from .ring_proof_payload import RingProofPayload
-from .ring_root import RingRoot
-from .ring_serialization import transcript_g1, transcript_vk
+from .members import Ring
+from .proof_payload import RingProofPayload
+from .root import RingRoot
 
 
 class RingProofBuilder:
@@ -34,7 +35,7 @@ class RingProofBuilder:
         self.producer_key = producer_key
         self.ring = ring
         self.ring_root = ring_root
-        self.transcript_challenge = transcript_challenge or curve.curve.SUITE_ID or curve.curve.SUITE_STRING
+        self.transcript_challenge = transcript_challenge or curve.curve.params.suite_id
 
     def build(self) -> RingProofPayload:
         params = self.ring.params
@@ -66,15 +67,15 @@ class RingProofBuilder:
         )
         transcript, alpha = self._phase1_transcript(ring_root, relation_point, witness_columns)
         constraint_polys = list(constraints.compute().values())
-        c_agg = aggregate_constraints(constraint_polys, alpha, params.radix_omega, params.prime, domain=params.domain)
+        c_agg = self._aggregate_constraints(constraint_polys, alpha)
 
-        quotient_poly = QuotientPoly(params.domain_size, params.pcs)
+        quotient_poly = QuotientPoly(params.domain_size, params.pcs, params.prime)
         q_poly, c_q = quotient_poly.quotient_poly(c_agg)
         c_q_column = Column(name="C_q", evals=[], commitment=c_q)
 
         l_agg = LAggPoly(
             transcript,
-            transcript_g1(params, c_q),
+            pcs_transcript_g1(params.pcs, c_q),
             [ring_root.px, ring_root.py, ring_root.s],
             list(witness_columns),
             alpha,
@@ -130,26 +131,47 @@ class RingProofBuilder:
         ring_root: RingRoot,
         relation_point: tuple[int, int],
         witness_columns: tuple[Column, Column, Column, Column],
-    ) -> tuple[Transcript, list[int]]:
+    ) -> tuple[FiatShamirTranscript, list[int]]:
         params = self.ring.params
         c_b, c_accx, c_accy, c_accip = witness_columns
         witness_commitments = [
-            transcript_g1(params, require_commitment(c_b)),
-            transcript_g1(params, require_commitment(c_accip)),
-            transcript_g1(params, require_commitment(c_accx)),
-            transcript_g1(params, require_commitment(c_accy)),
+            pcs_transcript_g1(params.pcs, require_commitment(c_b)),
+            pcs_transcript_g1(params.pcs, require_commitment(c_accip)),
+            pcs_transcript_g1(params.pcs, require_commitment(c_accx)),
+            pcs_transcript_g1(params.pcs, require_commitment(c_accy)),
         ]
-        transcript = Transcript(params.prime, self.transcript_challenge)
+        transcript = ring_root.verifier_transcript_prefix(params, self.transcript_challenge).copy()
         return cast(
-            tuple[Transcript, list[int]],
-            phase1_alphas(
+            tuple[FiatShamirTranscript, list[int]],
+            phase1_alphas_after_vk(
                 transcript,
-                transcript_vk(params, _commitments(ring_root.px, ring_root.py, ring_root.s)),
                 relation_point,
                 witness_commitments,
             ),
         )
 
+    def _aggregate_constraints(
+        self,
+        constraint_evals: Sequence[Sequence[int]],
+        alphas: Sequence[int],
+    ) -> list[int]:
+        params = self.ring.params
+        aggregated_evals = [0] * len(constraint_evals[0])
+        for constraint, alpha in zip(constraint_evals, alphas, strict=False):
+            weighted_constraint = vect_scalar_mul(constraint, alpha, params.prime)
+            aggregated_evals = vect_add(aggregated_evals, weighted_constraint, params.prime)
 
-def _commitments(*columns: Column) -> list[G1Commitment]:
-    return [require_commitment(column) for column in columns]
+        aggregated_poly = poly_interpolate_fft(aggregated_evals, params.radix_omega, params.prime)
+        c_agg = poly_multiply(aggregated_poly, self._tail_vanishing_polynomial(), params.prime)
+
+        last_nonzero = len(c_agg) - 1
+        while last_nonzero >= 0 and c_agg[last_nonzero] == 0:
+            last_nonzero -= 1
+        return c_agg[: last_nonzero + 1]
+
+    def _tail_vanishing_polynomial(self, k: int = 3) -> list[int]:
+        params = self.ring.params
+        vanishing = [1]
+        for offset in range(1, k + 1):
+            vanishing = poly_multiply(vanishing, [-params.domain[-offset], 1], params.prime)
+        return vanishing

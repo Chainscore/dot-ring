@@ -3,8 +3,10 @@ import pytest
 from dot_ring import Bandersnatch, RingVRF
 from dot_ring.ring_proof.constants import PaddingPoint
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.pedersen.pedersen import PedersenVRF
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
+from dot_ring.vrf.pedersen import PedersenVRF
+from dot_ring.vrf.ring import RingContext
+from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.transcript import point_len
 
 
 def _keys(count: int) -> list[bytes]:
@@ -12,7 +14,7 @@ def _keys(count: int) -> list[bytes]:
 
 
 def _point_tuple(key: bytes) -> tuple[int, int]:
-    point = Bandersnatch.point.string_to_point(key)
+    point = Bandersnatch.string_to_point(key)
     assert not isinstance(point, str)
     return (point.x, point.y)
 
@@ -35,6 +37,16 @@ def test_ring_verification_rejects_mismatched_ring_for_same_root():
     assert not proof.verify(b"audit-input", b"audit-ad", other_ring, ring_root)
 
 
+def test_ring_root_match_rejects_mismatched_ring():
+    _, pk, ring, ring_root, _ = _proof_fixture()
+    other_ring = Ring([pk, *_keys(7)], ring.params)
+
+    assert ring_root.matches_ring(ring)
+    assert ring_root.matches_ring(ring)
+    assert not ring_root.matches_ring(other_ring)
+    assert not ring_root.matches_ring(other_ring)
+
+
 def test_ring_keys_pad_decode_failures_in_place():
     pk1, pk2 = _keys(2)
     identity = (1).to_bytes(32, "little")
@@ -55,12 +67,25 @@ def test_ring_vrf_from_bytes_rejects_trailing_bytes():
         RingRoot.from_bytes(ring_root.to_bytes() + b"junk")
 
 
+def test_ring_root_from_bytes_cache_returns_fresh_root():
+    _, _, _, ring_root, _ = _proof_fixture()
+    root_bytes = ring_root.to_bytes()
+
+    parsed1 = RingRoot.from_bytes(root_bytes, ring_root.params)
+    parsed2 = RingRoot.from_bytes(root_bytes, ring_root.params)
+
+    assert parsed1.to_bytes() == root_bytes
+    assert parsed2.to_bytes() == root_bytes
+    assert parsed1 is not parsed2
+    assert parsed1.px.commitment is not parsed2.px.commitment
+
+
 def test_pedersen_from_bytes_rejects_noncanonical_scalars():
     _, _, _, _, proof = _proof_fixture()
     pedersen_bytes = bytearray(proof.pedersen_proof.to_bytes())
-    scalar_offset = 4 * Bandersnatch.curve.POINT_LEN
+    scalar_offset = 4 * point_len(Bandersnatch)
     s = int.from_bytes(pedersen_bytes[scalar_offset : scalar_offset + 32], "little")
-    pedersen_bytes[scalar_offset : scalar_offset + 32] = (s + Bandersnatch.curve.ORDER).to_bytes(32, "little")
+    pedersen_bytes[scalar_offset : scalar_offset + 32] = (s + Bandersnatch.curve.params.subgroup_order).to_bytes(32, "little")
 
     with pytest.raises(ValueError, match="not canonical"):
         PedersenVRF[Bandersnatch].from_bytes(bytes(pedersen_bytes))
@@ -80,8 +105,25 @@ def test_prove_rejects_producer_key_that_does_not_match_secret():
         RingVRF[Bandersnatch].prove(b"audit-input", b"audit-ad", sk1, pk2, ring, ring_root)
 
 
+def test_verifier_key_builder_caches_root_when_full():
+    keys = _keys(8)
+    params = RingProofParams(test_vectors=True, max_ring_size=8)
+    context = RingContext(params)
+    builder = context.verifier_key_builder()
+
+    builder.append(keys)
+    built_root = builder.finalize()
+    direct_root = context.verifier_key(keys)
+
+    assert built_root.to_bytes() == direct_root.to_bytes()
+    assert builder.finalize() is built_root
+    with pytest.raises(ValueError, match="too many keys"):
+        builder.push(keys[0])
+
+
 def test_unsupported_params_fail_at_construction():
     with pytest.raises(ValueError, match="padding_rows must be 4"):
         RingProofParams(padding_rows=5, max_ring_size=1)
-    with pytest.raises(ValueError, match="exceeds supported SRS domain size"):
-        RingProofParams.from_ring_size(1792)
+    params = RingProofParams.from_ring_size(2047)
+    assert params.domain_size == 4096
+    assert params.max_ring_size == 3839

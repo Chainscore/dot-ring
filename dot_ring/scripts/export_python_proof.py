@@ -18,12 +18,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from py_ecc.optimized_bls12_381 import normalize as nm
 
-from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchParams, BandersnatchPoint
-from dot_ring.ring_proof.curve.bandersnatch import TwistedEdwardCurve
+from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.srs import srs
-from dot_ring.vrf.ring.ring_proof_builder import RingProofBuilder
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
+from dot_ring.vrf.ring.proof_builder import RingProofBuilder
+from dot_ring.vrf.ring import Ring, RingRoot
 from tests.utils.python_to_rust_serde import (
     serialize_bls12_381_g1,
     serialize_bls12_381_g2,
@@ -41,6 +40,29 @@ SeedPoint = (
 )
 
 blinding_factor = int.from_bytes(bytes.fromhex("2e98974f0b99a70d4fbe7c1ea62a5ada75c899deb30e9d27f9e5da79177c0619"), "big")
+
+
+def _as_bandersnatch_point(point: tuple[int | None, int | None]):
+    x, y = point
+    if x is None or y is None:
+        return Bandersnatch.identity()
+    return Bandersnatch.point(int(x), int(y))
+
+
+def _bandersnatch_mul(k: int, point: tuple[int | None, int | None]) -> tuple[int | None, int | None]:
+    if point[0] is None or point[1] is None:
+        result = Bandersnatch.identity()
+    else:
+        result = _as_bandersnatch_point(point) * k
+    return result.x, result.y
+
+
+def _bandersnatch_add(
+    point1: tuple[int | None, int | None],
+    point2: tuple[int | None, int | None],
+) -> tuple[int | None, int | None]:
+    result = _as_bandersnatch_point(point1) + _as_bandersnatch_point(point2)
+    return result.x, result.y
 
 
 @dataclass(frozen=True)
@@ -96,7 +118,7 @@ def generate_test_keys(
     if prover_index >= num_keys:
         raise ValueError("prover_index must be < num_keys")
 
-    base = BandersnatchPoint(BandersnatchParams.GENERATOR_X, BandersnatchParams.GENERATOR_Y)
+    base = Bandersnatch.generator_point()
 
     keys_bytes: list[bytes] = []
     keys_points: list[tuple[int, int]] = []
@@ -163,8 +185,8 @@ def export_variant(variant: VariantSpec, output_dir: Path) -> dict[str, Any]:
     )
 
     # Compute result point (blinded public key)
-    result_point = TwistedEdwardCurve.mul(blinding_factor, Blinding_Base)
-    result_point = TwistedEdwardCurve.add(result_point, producer_key_point)
+    result_point = _bandersnatch_mul(blinding_factor, Blinding_Base)
+    result_point = _bandersnatch_add(result_point, producer_key_point)
 
     # Unpack proof components
     (

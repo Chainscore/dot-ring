@@ -8,8 +8,13 @@ from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.opening import Opening
 from dot_ring.ring_proof.pcs.protocol import G1Commitment
+from dot_ring.ring_proof.pcs.utils import pcs_compress_g1, pcs_decompress_g1
 
-from .ring_serialization import compress_g1, decompress_g1, ring_proof_len
+RING_SCALAR_LEN = 32
+
+
+def ring_proof_len(params: RingProofParams) -> int:
+    return 7 * params.pcs.commitment_size + 8 * RING_SCALAR_LEN
 
 
 @dataclass(slots=True)
@@ -70,10 +75,10 @@ class RingProofPayload:
     def to_bytes(self, params: RingProofParams) -> bytes:
         return b"".join(
             (
-                compress_g1(params, require_commitment(self.c_b)),
-                compress_g1(params, require_commitment(self.c_accip)),
-                compress_g1(params, require_commitment(self.c_accx)),
-                compress_g1(params, require_commitment(self.c_accy)),
+                pcs_compress_g1(params.pcs, require_commitment(self.c_b)),
+                pcs_compress_g1(params.pcs, require_commitment(self.c_accip)),
+                pcs_compress_g1(params.pcs, require_commitment(self.c_accx)),
+                pcs_compress_g1(params.pcs, require_commitment(self.c_accy)),
                 H.to_l_endian(self.px_zeta),
                 H.to_l_endian(self.py_zeta),
                 H.to_l_endian(self.s_zeta),
@@ -81,10 +86,10 @@ class RingProofPayload:
                 H.to_l_endian(self.accip_zeta),
                 H.to_l_endian(self.accx_zeta),
                 H.to_l_endian(self.accy_zeta),
-                compress_g1(params, require_commitment(self.c_q)),
+                pcs_compress_g1(params.pcs, require_commitment(self.c_q)),
                 H.to_l_endian(self.l_zeta_omega),
-                compress_g1(params, self.open_agg_zeta.proof),
-                compress_g1(params, self.open_l_zeta_omega.proof),
+                pcs_compress_g1(params.pcs, self.open_agg_zeta.proof),
+                pcs_compress_g1(params.pcs, self.open_l_zeta_omega.proof),
             )
         )
 
@@ -123,7 +128,7 @@ class _PayloadReader:
     def commitment(self) -> G1Commitment:
         commitment_size = self.params.pcs.commitment_size
         end = self.offset + commitment_size
-        commitment = decompress_g1(self.params, self.data[self.offset : end])
+        commitment = pcs_decompress_g1(self.params.pcs, self.data[self.offset : end])
         self.offset = end
         return commitment
 

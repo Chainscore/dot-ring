@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.params import RingProofParams
 
-from .ring import Ring
-from .ring_keys import parse_concatenated_keys
-from .ring_root import RingRoot
-
-if TYPE_CHECKING:
-    from .ring_verifier_key_builder import RingVerifierKeyBuilder
+from .members import Ring, parse_concatenated_keys
+from .root import RingRoot
 
 RingSetup = RingProofParams
 
@@ -48,6 +43,32 @@ class RingContext:
         return RingRoot.from_bytes(commitment, self.setup)
 
     def verifier_key_builder(self) -> RingVerifierKeyBuilder:
-        from .ring_verifier_key_builder import RingVerifierKeyBuilder
-
         return RingVerifierKeyBuilder(self)
+
+
+@dataclass
+class RingVerifierKeyBuilder:
+    context: RingContext
+    keys: list[bytes] = field(default_factory=list)
+    _root: RingRoot | None = field(default=None, init=False, repr=False)
+
+    def push(self, key: bytes) -> None:
+        self.extend([key])
+
+    def append(self, keys: list[bytes] | bytes) -> None:
+        self.extend(keys)
+
+    def extend(self, keys: list[bytes] | bytes) -> None:
+        if isinstance(keys, bytes):
+            keys = parse_concatenated_keys(keys, self.context.setup.cv)
+        if len(self.keys) + len(keys) > self.context.max_ring_size:
+            raise ValueError("too many keys for ring verifier-key builder")
+        self.keys.extend(keys)
+        self._root = None
+        if len(self.keys) == self.context.max_ring_size:
+            self._root = self.context.verifier_key(self.keys)
+
+    def finalize(self) -> RingRoot:
+        if self._root is None:
+            self._root = self.context.verifier_key(self.keys)
+        return self._root
