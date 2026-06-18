@@ -5,14 +5,20 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, TypeVar, cast
 
-from .field_arithmetic import (
+from .native_field.bandersnatch_te import (
+    msm_pippenger_signed_native_cy as _native_signed_pippenger_msm,
+)
+from .native_field.bandersnatch_te import (
     projective_to_affine_cy as projective_to_affine,
 )
-from .field_arithmetic import (
-    scalar_mult_4_cy as _compiled_msm4,
+from .native_field.bandersnatch_te import (
+    scalar_mult_4_native_w2_cy as _native_msm4_w2,
 )
-from .field_arithmetic import (
-    scalar_mult_windowed_cy as _compiled_msm,
+from .native_field.bandersnatch_te import (
+    scalar_mult_6_native_w2_cy as _native_msm6_w2,
+)
+from .native_field.bandersnatch_te import (
+    scalar_mult_windowed_native_w2_cy as _native_msm_w2,
 )
 from .twisted_edwards.te_affine_point import TEAffinePoint
 
@@ -81,6 +87,7 @@ class GLV:
 
         return sequence[:-1]
 
+    # Per-GLV bounded cache: scalar decomposition basis only depends on curve constants.
     @lru_cache(maxsize=1024)  # noqa: B019
     def find_short_vectors(self, n: int, lam: int) -> tuple[tuple[int, int], tuple[int, int]]:
         """
@@ -153,6 +160,7 @@ class GLV:
 
         return k1, k2
 
+    # Per-GLV bounded cache: fixed-base scalar multiplication reuses the same endomorphism point.
     @lru_cache(maxsize=128)  # noqa: B019
     def compute_endomorphism(self, point: AffinePointT) -> AffinePointT:
         """
@@ -161,18 +169,15 @@ class GLV:
         Returns:
             AffinePointT: Result of endomorphism
         """
-        x, y, p = point.x, point.y, point.curve.PRIME_FIELD
+        x, y, p = point.x, point.y, point.curve.params.field_modulus
 
-        # These constants should ideally be curve attributes
-        B = 0x52C9F28B828426A561F00D3A63511A882EA712770D9AF4D6EE0F014D172510B4
-        C = 0x6CC624CF865457C3A97C6EFD6C17D1078456ABCFFF36F4E9515C806CDF650B3D
         if x is None or y is None:
-            return point.__class__(None, None)
+            return point.__class__.identity(point.curve)
         y2 = pow(cast(int, y), 2, p)
         xy = (cast(int, x) * cast(int, y)) % p
-        f_y = (C * (1 - y2)) % p
-        g_y = (B * (y2 + B)) % p
-        h_y = (y2 - B) % p
+        f_y = (self.constant_c * (1 - y2)) % p
+        g_y = (self.constant_b * (y2 + self.constant_b)) % p
+        h_y = (y2 - self.constant_b) % p
 
         x_p = (f_y * h_y) % p
         y_p = (g_y * xy) % p
@@ -181,7 +186,7 @@ class GLV:
         x_a = (x_p * pow(z_p, -1, p)) % p
         y_a = (y_p * pow(z_p, -1, p)) % p
 
-        return point.__class__(x_a, y_a)
+        return point.__class__(x_a, y_a, point.curve)
 
     def windowed_simultaneous_mult(self, k1: int, k2: int, P1: AffinePointT, P2: AffinePointT, w: int = 2) -> AffinePointT:
         """
@@ -211,9 +216,16 @@ class GLV:
             k2 = -k2
             P2 = -P2
 
-        p = P1.curve.PRIME_FIELD
-        a_coeff = P1.curve.EdwardsA
-        d_coeff = P1.curve.EdwardsD
+        if P1.is_identity():
+            return P2 * k2
+        if P2.is_identity():
+            return P1 * k1
+        if w != 2:
+            return cast(AffinePointT, P1 * k1 + P2 * k2)  # type: ignore[operator]
+
+        p = P1.curve.params.field_modulus
+        a_coeff = P1.curve.params.a
+        d_coeff = P1.curve.params.d
 
         # Convert to projective coordinates
         if P1.x is None or P1.y is None or P2.x is None or P2.y is None:
@@ -228,13 +240,12 @@ class GLV:
         p2_t = P2.x * P2.y % p
 
         assert projective_to_affine is not None
-        # Use compiled MSM
-        rx, ry, rz, rt = _compiled_msm(k1, k2, P1.x, P1.y, 1, p1_t, P2.x, P2.y, 1, p2_t, a_coeff, d_coeff, p, w)
+        rx, ry, rz, rt = _native_msm_w2(k1, k2, P1.x, P1.y, 1, p1_t, P2.x, P2.y, 1, p2_t, a_coeff, d_coeff, p)
 
         # Convert back to affine
         ax, ay = projective_to_affine(rx, ry, rz, p)
         point_cls = cast(type[AffinePointT], P1.__class__)
-        return point_cls(ax, ay)
+        return point_cls(ax, ay, P1.curve)
 
     def multi_scalar_mult_4(
         self,
@@ -275,9 +286,24 @@ class GLV:
             k4 = -k4
             P4 = -P4
 
-        p = P1.curve.PRIME_FIELD
-        a_coeff = P1.curve.EdwardsA
-        d_coeff = P1.curve.EdwardsD
+        if P1.is_identity() or P2.is_identity() or P3.is_identity() or P4.is_identity():
+            point_cls = cast(type[AffinePointT], P1.__class__)
+            result = point_cls.identity(P1.curve)
+            for scalar, point in ((k1, P1), (k2, P2), (k3, P3), (k4, P4)):
+                if scalar != 0 and not point.is_identity():
+                    result = result + point * scalar  # type: ignore[operator]
+            return result
+        if w != 2:
+            point_cls = cast(type[AffinePointT], P1.__class__)
+            result = point_cls.identity(P1.curve)
+            for scalar, point in ((k1, P1), (k2, P2), (k3, P3), (k4, P4)):
+                if scalar:
+                    result = result + point * scalar  # type: ignore[operator]
+            return result
+
+        p = P1.curve.params.field_modulus
+        a_coeff = P1.curve.params.a
+        d_coeff = P1.curve.params.d
 
         # Convert to projective coordinates
         if P1.x is None or P1.y is None or P2.x is None or P2.y is None or P3.x is None or P3.y is None or P4.x is None or P4.y is None:
@@ -293,7 +319,7 @@ class GLV:
         p4_t = (cast(int, P4.x) * cast(int, P4.y)) % p
 
         assert projective_to_affine is not None
-        rx, ry, rz, rt = _compiled_msm4(
+        rx, ry, rz, rt = _native_msm4_w2(
             k1,
             k2,
             k3,
@@ -317,9 +343,130 @@ class GLV:
             a_coeff,
             d_coeff,
             p,
-            w,
         )
 
         ax, ay = projective_to_affine(rx, ry, rz, p)
         point_cls = cast(type[AffinePointT], P1.__class__)
-        return point_cls(ax, ay)
+        return point_cls(ax, ay, P1.curve)
+
+    def multi_scalar_mult_pippenger(
+        self,
+        scalars: list[int],
+        points: list[AffinePointT],
+        window_bits: int = 4,
+    ) -> AffinePointT:
+        if not points:
+            raise ValueError("Pippenger MSM requires at least one point")
+        p = points[0].curve.params.field_modulus
+        a_coeff = points[0].curve.params.a
+        d_coeff = points[0].curve.params.d
+        ax, ay = _native_signed_pippenger_msm(points, scalars, a_coeff, d_coeff, p, window_bits, True)
+        point_cls = cast(type[AffinePointT], points[0].__class__)
+        return point_cls(ax, ay, points[0].curve)
+
+    def multi_scalar_mult_6(
+        self,
+        scalars: list[int],
+        points: list[AffinePointT],
+        w: int = 2,
+    ) -> AffinePointT:
+        """
+        Compute a 6-point MSM using native fixed-window arithmetic.
+
+        This is used for GLV-split 3-point MSMs.
+        """
+        if len(scalars) != 6 or len(points) != 6:
+            raise ValueError("multi_scalar_mult_6 expects exactly 6 scalars and 6 points")
+
+        work_points = list(points)
+        work_scalars = list(scalars)
+        for i, scalar in enumerate(work_scalars):
+            if scalar < 0:
+                work_scalars[i] = -scalar
+                work_points[i] = -work_points[i]
+
+        if any(point.is_identity() for point in work_points):
+            point_cls = cast(type[AffinePointT], work_points[0].__class__)
+            result = point_cls.identity(work_points[0].curve)
+            for scalar, point in zip(work_scalars, work_points, strict=True):
+                if scalar != 0 and not point.is_identity():
+                    result = result + point * scalar  # type: ignore[operator]
+            return result
+
+        P1, P2, P3, P4, P5, P6 = work_points
+        if (
+            P1.x is None
+            or P1.y is None
+            or P2.x is None
+            or P2.y is None
+            or P3.x is None
+            or P3.y is None
+            or P4.x is None
+            or P4.y is None
+            or P5.x is None
+            or P5.y is None
+            or P6.x is None
+            or P6.y is None
+        ):
+            point_cls = cast(type[AffinePointT], P1.__class__)
+            result = point_cls.identity(P1.curve)
+            for scalar, point in zip(work_scalars, work_points, strict=True):
+                result = result + point * scalar  # type: ignore[operator]
+            return result
+
+        p = P1.curve.params.field_modulus
+        a_coeff = P1.curve.params.a
+        d_coeff = P1.curve.params.d
+
+        p1_t = (cast(int, P1.x) * cast(int, P1.y)) % p
+        p2_t = (cast(int, P2.x) * cast(int, P2.y)) % p
+        p3_t = (cast(int, P3.x) * cast(int, P3.y)) % p
+        p4_t = (cast(int, P4.x) * cast(int, P4.y)) % p
+        p5_t = (cast(int, P5.x) * cast(int, P5.y)) % p
+        p6_t = (cast(int, P6.x) * cast(int, P6.y)) % p
+
+        if w != 2:
+            point_cls = cast(type[AffinePointT], P1.__class__)
+            result = point_cls.identity(P1.curve)
+            for scalar, point in zip(work_scalars, work_points, strict=True):
+                result = result + point * scalar  # type: ignore[operator]
+            return result
+
+        rx, ry, rz, rt = _native_msm6_w2(
+            work_scalars[0],
+            work_scalars[1],
+            work_scalars[2],
+            work_scalars[3],
+            work_scalars[4],
+            work_scalars[5],
+            P1.x,
+            P1.y,
+            1,
+            p1_t,
+            P2.x,
+            P2.y,
+            1,
+            p2_t,
+            P3.x,
+            P3.y,
+            1,
+            p3_t,
+            P4.x,
+            P4.y,
+            1,
+            p4_t,
+            P5.x,
+            P5.y,
+            1,
+            p5_t,
+            P6.x,
+            P6.y,
+            1,
+            p6_t,
+            a_coeff,
+            d_coeff,
+            p,
+        )
+        ax, ay = projective_to_affine(rx, ry, rz, p)
+        point_cls = cast(type[AffinePointT], P1.__class__)
+        return point_cls(ax, ay, P1.curve)

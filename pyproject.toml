@@ -68,7 +68,6 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
     "pytest-xdist>=3.6.0",
-    "pytest-benchmark>=4.0.0",
     "Cython>=3.0.0",
     "build>=1.0.0",
     "setuptools>=65.0.0",
@@ -105,7 +104,6 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 dev = [
     "cython>=3.2.1",
-    "pytest-benchmark>=5.2.3",
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.6.0",
     "setuptools>=80.9.0",
@@ -127,7 +125,7 @@ disallow_untyped_defs = true
 exclude = ["build/"]
 
 [[tool.mypy.overrides]]
-module = ["dot_ring.curve.field_arithmetic", "dot_ring.curve.fast_math", "dot_ring.ring_proof.polynomial.ntt", "dot_ring.ring_proof.polynomial.poly_ops", "dot_ring.blst.*", "py_ecc.*"]
+module = ["dot_ring.curve.native_field.bandersnatch_te", "dot_ring.ring_proof.polynomial.ntt", "dot_ring.blst.*", "py_ecc.*"]
 ignore_missing_imports = true
 disallow_untyped_defs = false
 check_untyped_defs = false

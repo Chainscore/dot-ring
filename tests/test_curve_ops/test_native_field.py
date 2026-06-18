@@ -2,9 +2,9 @@ import random
 
 from dot_ring.curve.native_field.scalar import Scalar
 
-from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS
 
-MODULUS = BandersnatchParams.PRIME_FIELD
+MODULUS = BANDERSNATCH_PARAMS.field_modulus
 
 
 def test_scalar_init():

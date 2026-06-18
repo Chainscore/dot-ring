@@ -8,62 +8,62 @@ class TestGLVScalarDecomposition:
 
     def test_decompose_scalar_small(self):
         """Test scalar decomposition with small scalar."""
-        from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+        from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS
 
         glv = GLV(
-            lambda_param=BandersnatchParams.GLV_LAMBDA,
-            constant_b=BandersnatchParams.GLV_B,
-            constant_c=BandersnatchParams.GLV_C,
+            lambda_param=BANDERSNATCH_PARAMS.glv_lambda,
+            constant_b=BANDERSNATCH_PARAMS.glv_b,
+            constant_c=BANDERSNATCH_PARAMS.glv_c,
         )
 
         scalar = 12345
-        n = BandersnatchParams.ORDER
+        n = BANDERSNATCH_PARAMS.subgroup_order
 
         k1, k2 = glv.decompose_scalar(scalar, n)
 
         # k1 + k2 * lambda should equal scalar mod n
-        lambda_param = BandersnatchParams.GLV_LAMBDA
+        lambda_param = BANDERSNATCH_PARAMS.glv_lambda
         reconstructed = (k1 + k2 * lambda_param) % n
         assert reconstructed == scalar % n
 
     def test_decompose_scalar_large(self):
         """Test scalar decomposition with large scalar."""
-        from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+        from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS
 
         glv = GLV(
-            lambda_param=BandersnatchParams.GLV_LAMBDA,
-            constant_b=BandersnatchParams.GLV_B,
-            constant_c=BandersnatchParams.GLV_C,
+            lambda_param=BANDERSNATCH_PARAMS.glv_lambda,
+            constant_b=BANDERSNATCH_PARAMS.glv_b,
+            constant_c=BANDERSNATCH_PARAMS.glv_c,
         )
 
         # Use a large scalar
         scalar = 2**200 + 12345
-        n = BandersnatchParams.ORDER
+        n = BANDERSNATCH_PARAMS.subgroup_order
 
         k1, k2 = glv.decompose_scalar(scalar % n, n)
 
         # k1 + k2 * lambda should equal scalar mod n
-        lambda_param = BandersnatchParams.GLV_LAMBDA
+        lambda_param = BANDERSNATCH_PARAMS.glv_lambda
         reconstructed = (k1 + k2 * lambda_param) % n
         assert reconstructed == scalar % n
 
     def test_decompose_scalar_zero(self):
         """Test scalar decomposition with zero scalar."""
-        from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+        from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS
 
         glv = GLV(
-            lambda_param=BandersnatchParams.GLV_LAMBDA,
-            constant_b=BandersnatchParams.GLV_B,
-            constant_c=BandersnatchParams.GLV_C,
+            lambda_param=BANDERSNATCH_PARAMS.glv_lambda,
+            constant_b=BANDERSNATCH_PARAMS.glv_b,
+            constant_c=BANDERSNATCH_PARAMS.glv_c,
         )
 
         scalar = 0
-        n = BandersnatchParams.ORDER
+        n = BANDERSNATCH_PARAMS.subgroup_order
 
         k1, k2 = glv.decompose_scalar(scalar, n)
 
         # 0 = k1 + k2 * lambda mod n
-        lambda_param = BandersnatchParams.GLV_LAMBDA
+        lambda_param = BANDERSNATCH_PARAMS.glv_lambda
         reconstructed = (k1 + k2 * lambda_param) % n
         assert reconstructed == 0
 
@@ -73,9 +73,9 @@ class TestGLVEndomorphism:
 
     def test_compute_endomorphism(self):
         """Test computing endomorphism."""
-        from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchGLV, BandersnatchPoint
+        from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = BandersnatchPoint(Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y)
+        G = Bandersnatch.generator_point()
 
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
@@ -84,12 +84,12 @@ class TestGLVEndomorphism:
 
     def test_endomorphism_lambda_times_generator(self):
         """Test that phi(P) = lambda * P for the endomorphism."""
-        from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchGLV, BandersnatchParams, BandersnatchPoint
+        from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS, Bandersnatch, BandersnatchGLV
 
-        G = BandersnatchPoint(Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y)
+        G = Bandersnatch.generator_point()
 
         phi_G = BandersnatchGLV.compute_endomorphism(G)
-        lambda_G = G * BandersnatchParams.GLV_LAMBDA
+        lambda_G = G * BANDERSNATCH_PARAMS.glv_lambda
 
         # phi(G) should equal lambda * G
         assert phi_G == lambda_G
@@ -100,9 +100,9 @@ class TestGLVWindowedMult:
 
     def test_windowed_simultaneous_mult_basic(self):
         """Test windowed simultaneous multiplication."""
-        from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchGLV, BandersnatchPoint
+        from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = BandersnatchPoint(Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y)
+        G = Bandersnatch.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = 100
@@ -115,9 +115,9 @@ class TestGLVWindowedMult:
 
     def test_windowed_mult_with_negative_k1(self):
         """Test windowed mult with negative k1."""
-        from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchGLV, BandersnatchPoint
+        from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = BandersnatchPoint(Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y)
+        G = Bandersnatch.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = -50
@@ -130,9 +130,9 @@ class TestGLVWindowedMult:
 
     def test_windowed_mult_with_negative_k2(self):
         """Test windowed mult with negative k2."""
-        from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchGLV, BandersnatchPoint
+        from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = BandersnatchPoint(Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y)
+        G = Bandersnatch.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = 100
@@ -145,9 +145,9 @@ class TestGLVWindowedMult:
 
     def test_windowed_mult_both_negative(self):
         """Test windowed mult with both k1 and k2 negative."""
-        from dot_ring.curve.specs.bandersnatch import Bandersnatch_TE_Curve, BandersnatchGLV, BandersnatchPoint
+        from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = BandersnatchPoint(Bandersnatch_TE_Curve.GENERATOR_X, Bandersnatch_TE_Curve.GENERATOR_Y)
+        G = Bandersnatch.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = -30
