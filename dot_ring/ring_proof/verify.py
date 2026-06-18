@@ -9,7 +9,6 @@ from dot_ring.ring_proof.pcs.utils import (
     LinearPcsVerification,
     PcsVerification,
     g1_to_blst,
-    pcs_transcript_g1,
 )
 from dot_ring.ring_proof.transcript.phases import (
     derive_challenges_after_vk,
@@ -417,10 +416,12 @@ class Verify:
         witness_commitments = (
             transcript_witness_commitments
             if transcript_witness_commitments is not None
-            else [self._transcript_g1(cmt) for cmt in proof_fields.witness_commitments]
+            else [self.pcs.serialize_g1_uncompressed(cmt) for cmt in proof_fields.witness_commitments]
         )
         # Add quotient and evaluations once we have their serialized form.
-        quotient_commitment = transcript_quotient_commitment if transcript_quotient_commitment is not None else self._transcript_g1(proof_fields.c_q)
+        quotient_commitment = (
+            transcript_quotient_commitment if transcript_quotient_commitment is not None else self.pcs.serialize_g1_uncompressed(proof_fields.c_q)
+        )
         if transcript_prefix is not None:
             self.t, self.alpha_list, self.zeta_p, self.V_list = derive_challenges_after_vk(
                 self.t,
@@ -452,9 +453,6 @@ class Verify:
         if 2048 % domain_size != 0:
             raise ValueError(f"omega must be supplied for domain size {domain_size}")
         return pow(OMEGA_2048, 2048 // domain_size, self.prime)
-
-    def _transcript_g1(self, point: Any) -> Any:
-        return pcs_transcript_g1(self.pcs, point)
 
     def contributions_to_constraints_eval_at_zeta(self) -> tuple[Any, Any, Any, Any, Any, Any, Any]:
         # Convert to Scalar for optimized arithmetic

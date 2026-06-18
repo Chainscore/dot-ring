@@ -6,18 +6,8 @@ from dot_ring.ring_proof.columns.columns import Column, require_commitment
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
-from dot_ring.ring_proof.pcs.utils import pcs_compress_g1, pcs_decompress_g1, pcs_transcript_g1
 
 from .members import Ring
-
-
-def _pcs_cache_token(pcs: Any) -> tuple[int, int, int | None]:
-    pcs_srs = getattr(pcs, "srs", None)
-    return (
-        id(pcs_srs),
-        id(getattr(pcs_srs, "blst_g1_memory", None)),
-        getattr(pcs, "commitment_size", None),
-    )
 
 
 # Global bounded cache: selector columns are fixed for a params/PCS tuple.
@@ -28,7 +18,6 @@ def _selector_column_data(
     omega: int,
     prime: int,
     pcs: Any,
-    _pcs_token: tuple[int, int, int | None],
 ) -> tuple[tuple[int, ...], tuple[int, ...], Any]:
     selector_vec = [1 if i < max_ring_size else 0 for i in range(domain_size)]
     selector_col = Column("s", selector_vec, size=domain_size)
@@ -46,40 +35,12 @@ def _selector_column(params: RingProofParams) -> Column:
         params.omega,
         params.prime,
         params.pcs,
-        _pcs_cache_token(params.pcs),
     )
     return Column("s", list(evals), list(coeffs), commitment=_copy_commitment(commitment), size=params.domain_size)
 
 
 def _copy_commitment(commitment: Any) -> Any:
     return commitment.dup() if hasattr(commitment, "dup") else commitment
-
-
-def _decompressed_root_commitments(
-    data: bytes,
-    commitment_size: int,
-    pcs: Any,
-) -> tuple[Any, Any, Any]:
-    expected = 3 * commitment_size
-    if len(data) != expected:
-        raise ValueError(f"invalid ring root length: ring root must be exactly {expected} bytes, got {len(data)}")
-    return (
-        pcs_decompress_g1(pcs, data[0:commitment_size]),
-        pcs_decompress_g1(pcs, data[commitment_size : commitment_size * 2]),
-        pcs_decompress_g1(pcs, data[commitment_size * 2 : expected]),
-    )
-
-
-def _ring_selector(params: RingProofParams) -> tuple[int, ...]:
-    return tuple(1 if i < params.max_ring_size else 0 for i in range(params.domain_size))
-
-
-def _verifier_key_transcript_data(params: RingProofParams, commitments: list[Any]) -> dict[str, Any]:
-    return {
-        "g1": params.pcs.srs.g1_points[0],
-        "g2": H.altered_points(params.pcs.srs.g2_points),
-        "commitments": [pcs_transcript_g1(params.pcs, commitment) for commitment in commitments],
-    }
 
 
 @dataclass
@@ -117,7 +78,11 @@ class RingRoot:
             require_commitment(self.s),
         ]
 
-        verifier_key = _verifier_key_transcript_data(params, commitments)
+        verifier_key = {
+            "g1": params.pcs.srs.g1_points[0],
+            "g2": H.altered_points(params.pcs.srs.g2_points),
+            "commitments": [params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments],
+        }
         return commitments, verifier_key
 
     def verifier_transcript_prefix(self, params: RingProofParams | None = None, transcript_challenge: bytes | None = None):
@@ -144,9 +109,9 @@ class RingRoot:
         if pcs is not None:
             return b"".join(
                 (
-                    pcs_compress_g1(pcs, require_commitment(self.px)),
-                    pcs_compress_g1(pcs, require_commitment(self.py)),
-                    pcs_compress_g1(pcs, require_commitment(self.s)),
+                    pcs.compress_g1(require_commitment(self.px)),
+                    pcs.compress_g1(require_commitment(self.py)),
+                    pcs.compress_g1(require_commitment(self.s)),
                 )
             )
         for col in (self.px, self.py, self.s):
@@ -170,10 +135,10 @@ class RingRoot:
             raise ValueError(f"invalid ring root length: ring root must be exactly {expected} bytes, got {len(data)}")
 
         pcs = params.pcs if params is not None else KZG
-        px_commitment, py_commitment, s_commitment = _decompressed_root_commitments(
-            bytes(data),
-            commitment_size,
-            pcs,
+        px_commitment, py_commitment, s_commitment = (
+            pcs.decompress_g1(data[0:commitment_size]),
+            pcs.decompress_g1(data[commitment_size : commitment_size * 2]),
+            pcs.decompress_g1(data[commitment_size * 2 : expected]),
         )
 
         px = Column(name="px", evals=[], commitment=_copy_commitment(px_commitment))
@@ -189,6 +154,6 @@ class RingRoot:
             return (
                 tuple(self.px.evals[:domain_size]) == tuple(point[0] for point in ring.nm_points)
                 and tuple(self.py.evals[:domain_size]) == tuple(point[1] for point in ring.nm_points)
-                and tuple(self.s.evals[:domain_size]) == _ring_selector(params)
+                and tuple(self.s.evals[:domain_size]) == tuple(1 if i < params.max_ring_size else 0 for i in range(domain_size))
             )
         return RingRoot.from_ring(ring, params).to_bytes() == self.to_bytes()

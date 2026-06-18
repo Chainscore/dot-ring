@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, cast
 from dot_ring.ring_proof.pcs.utils import (
     LinearPcsVerification,
     g1_to_blst,
-    pcs_transcript_g1,
 )
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 from dot_ring.ring_proof.verify import Verify, prepare_linear_pcs_verifications_fast
@@ -160,7 +159,7 @@ def _proof_transcript_commitments(proof: RingVRF, params: Any) -> tuple[bytes, A
         proof.c_accy.commitment,
         proof.c_q.commitment,
     )
-    transcript_commitments = tuple(pcs_transcript_g1(params.pcs, commitment) for commitment in commitments)
+    transcript_commitments = tuple(params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments)
     witness_commitments = b"".join(transcript_commitments[:4])
     quotient_commitment = transcript_commitments[4]
     return witness_commitments, quotient_commitment
@@ -170,10 +169,6 @@ def _proof_relation_points(proof: RingVRF, message: Any, params: Any) -> tuple[t
     relation = params.point_to_ring_point(message)
     result_plus_seed = params.add_points(params.seed_point, relation)
     return relation, result_plus_seed
-
-
-def _verify_pcs_batch(pcs: Any, verifications: list[Any]) -> bool:
-    return bool(pcs.batch_verify_linear_preconverted(cast(list[LinearPcsVerification], verifications)))
 
 
 class RingBatchVerifier:
@@ -274,6 +269,9 @@ class RingBatchVerifier:
             return False
 
         try:
-            return all(_verify_pcs_batch(pcs, verifications) for pcs, verifications in self.pcs_batches.values())
+            return all(
+                pcs.batch_verify_linear_preconverted(cast(list[LinearPcsVerification], verifications))
+                for pcs, verifications in self.pcs_batches.values()
+            )
         except (AssertionError, TypeError, ValueError):
             return False

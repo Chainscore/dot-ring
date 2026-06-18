@@ -24,18 +24,6 @@ class LinearPcsVerification(NamedTuple):
     value: Scalar
 
 
-def pcs_compress_g1(pcs: Any, point: Any) -> bytes:
-    return pcs.compress_g1(point)
-
-
-def pcs_decompress_g1(pcs: Any, data: bytes) -> Any:
-    return pcs.decompress_g1(data)
-
-
-def pcs_transcript_g1(pcs: Any, point: Any) -> Any:
-    return pcs.serialize_g1_uncompressed(point)
-
-
 def synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
     """Return q(X) such that f(X)−y = (X−x)·q(X).  Checks remainder."""
     q, rem = synthetic_div_with_eval(poly, x)

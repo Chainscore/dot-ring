@@ -6,7 +6,6 @@ from typing import cast
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, require_commitment
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
-from dot_ring.ring_proof.pcs.utils import pcs_transcript_g1
 from dot_ring.ring_proof.polynomial.interpolation import poly_interpolate_fft
 from dot_ring.ring_proof.polynomial.ops import poly_multiply, vect_add, vect_scalar_mul
 from dot_ring.ring_proof.proof.aggregation_poly import AggPoly
@@ -75,7 +74,7 @@ class RingProofBuilder:
 
         l_agg = LAggPoly(
             transcript,
-            pcs_transcript_g1(params.pcs, c_q),
+            params.pcs.serialize_g1_uncompressed(c_q),
             [ring_root.px, ring_root.py, ring_root.s],
             list(witness_columns),
             alpha,
@@ -135,10 +134,10 @@ class RingProofBuilder:
         params = self.ring.params
         c_b, c_accx, c_accy, c_accip = witness_columns
         witness_commitments = [
-            pcs_transcript_g1(params.pcs, require_commitment(c_b)),
-            pcs_transcript_g1(params.pcs, require_commitment(c_accip)),
-            pcs_transcript_g1(params.pcs, require_commitment(c_accx)),
-            pcs_transcript_g1(params.pcs, require_commitment(c_accy)),
+            params.pcs.serialize_g1_uncompressed(require_commitment(c_b)),
+            params.pcs.serialize_g1_uncompressed(require_commitment(c_accip)),
+            params.pcs.serialize_g1_uncompressed(require_commitment(c_accx)),
+            params.pcs.serialize_g1_uncompressed(require_commitment(c_accy)),
         ]
         transcript = ring_root.verifier_transcript_prefix(params, self.transcript_challenge).copy()
         return cast(
