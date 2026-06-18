@@ -18,23 +18,23 @@ from dot_ring.curve.specs.p521 import P521_RO
 
 # PROPERTY-BASED TESTS; General mathematical group properties
 @pytest.mark.parametrize(
-    "PointClass, CurveClass",
+    "curve_variant",
     [
-        (Bandersnatch.point, Bandersnatch.curve),
-        (JubJub.point, JubJub.curve),
-        (BabyJubJub.point, BabyJubJub.curve),
-        (Ed448_RO.point, Ed448_RO.curve),
-        (Ed25519_RO.point, Ed25519_RO.curve),
-        (Curve448_RO.point, Curve448_RO.curve),
-        (Curve25519_RO.point, Curve25519_RO.curve),
-        (P256_RO.point, P256_RO.curve),
-        (P384_RO.point, P384_RO.curve),
-        (P521_RO.point, P521_RO.curve),
-        (BLS12_381_G1_RO.point, BLS12_381_G1_RO.curve),
-        (BLS12_381_G2_RO.point, BLS12_381_G2_RO.curve),
+        Bandersnatch,
+        JubJub,
+        BabyJubJub,
+        Ed448_RO,
+        Ed25519_RO,
+        Curve448_RO,
+        Curve25519_RO,
+        P256_RO,
+        P384_RO,
+        P521_RO,
+        BLS12_381_G1_RO,
+        BLS12_381_G2_RO,
     ],
 )
-def test_curve_property_based(PointClass, CurveClass):
+def test_curve_property_based(curve_variant):
     """
     Property-based tests for fundamental group operations:
     - Commutativity: P + Q == Q + P
@@ -43,8 +43,8 @@ def test_curve_property_based(PointClass, CurveClass):
     - Scalar wrap-around: (order * P) == identity
     - Negation: P + (-P) == identity
     """
-    Generator = PointClass.generator_point()
-    order = CurveClass.ORDER
+    Generator = curve_variant.generator_point()
+    order = curve_variant.curve.params.subgroup_order
 
     # Random scalars within valid range
     a = random.randint(1, order - 1)
@@ -83,24 +83,24 @@ def test_curve_sanity_operations():
     """
 
     curve_data = [
-        (Bandersnatch.point, Bandersnatch.curve),
-        (JubJub.point, JubJub.curve),
-        (BabyJubJub.point, BabyJubJub.curve),
-        (Ed448_RO.point, Ed448_RO.curve),
-        (Ed25519_RO.point, Ed25519_RO.curve),
-        (Curve448_RO.point, Curve448_RO.curve),
-        (Curve25519_RO.point, Curve25519_RO.curve),
-        (P256_RO.point, P256_RO.curve),
-        (P384_RO.point, P384_RO.curve),
-        (P521_RO.point, P521_RO.curve),
-        (BLS12_381_G1_RO.point, BLS12_381_G1_RO.curve),
-        (BLS12_381_G2_RO.point, BLS12_381_G2_RO.curve),
+        Bandersnatch,
+        JubJub,
+        BabyJubJub,
+        Ed448_RO,
+        Ed25519_RO,
+        Curve448_RO,
+        Curve25519_RO,
+        P256_RO,
+        P384_RO,
+        P521_RO,
+        BLS12_381_G1_RO,
+        BLS12_381_G2_RO,
     ]
 
-    for PointClass, CurveClass in curve_data:
-        Generator = PointClass.generator_point()
-        Identity = PointClass.identity()
-        Order = CurveClass.ORDER
+    for curve_variant in curve_data:
+        Generator = curve_variant.generator_point()
+        Identity = curve_variant.identity()
+        Order = curve_variant.curve.params.subgroup_order
 
         # Addition with identity
         assert Generator + Identity == Generator

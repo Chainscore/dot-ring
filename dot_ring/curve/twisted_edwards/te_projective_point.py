@@ -29,32 +29,28 @@ class TEProjectivePoint(Generic[C]):
         from typing import cast
 
         x, y = cast(int, point.x), cast(int, point.y)
-        return cls(x, y, 1, (x * y) % point.curve.PRIME_FIELD, point.curve)
+        return cls(x, y, 1, (x * y) % point.curve.params.field_modulus, point.curve)
 
     @classmethod
     def from_affine(cls, point: TEAffinePoint) -> Self:
         from typing import cast
 
         x, y = cast(int, point.x), cast(int, point.y)
-        return cls(x, y, 1, (x * y) % point.curve.PRIME_FIELD, point.curve)
+        return cls(x, y, 1, (x * y) % point.curve.params.field_modulus, point.curve)
 
-    def to_affine(self, point_cls: type[TEAffinePoint] | None = None) -> TEAffinePoint:
+    def to_affine(self, point_type: type[TEAffinePoint] | None = None) -> TEAffinePoint:
         from .te_affine_point import TEAffinePoint as BaseAffine
 
-        target_cls = point_cls or BaseAffine
-
-        # Ensure the target class has a curve reference
-        if not hasattr(target_cls, "curve"):
-            target_cls.curve = self.curve
+        target_type = point_type or BaseAffine
 
         if self.z == 0:
-            return target_cls(0, 1)
+            return target_type(0, 1, self.curve)
 
-        p = self.curve.PRIME_FIELD
+        p = self.curve.params.field_modulus
         inv_z = pow(self.z, -1, p)
         x = (self.x * inv_z) % p
         y = (self.y * inv_z) % p
-        return target_cls(x, y)
+        return target_type(x, y, self.curve)
 
     @classmethod
     def zero(cls, curve: C) -> Self:
@@ -75,8 +71,8 @@ class TEProjectivePoint(Generic[C]):
         # T3 = E * H
         # Z3 = F * G
 
-        p = self.curve.PRIME_FIELD
-        a_coeff = self.curve.EdwardsA
+        p = self.curve.params.field_modulus
+        a_coeff = self.curve.params.a
 
         # Compute squares
         A = (self.x * self.x) % p
@@ -116,9 +112,9 @@ class TEProjectivePoint(Generic[C]):
         # T3 = E*H
         # Z3 = F*G
 
-        p = self.curve.PRIME_FIELD
-        a_coeff = self.curve.EdwardsA
-        d_coeff = self.curve.EdwardsD
+        p = self.curve.params.field_modulus
+        a_coeff = self.curve.params.a
+        d_coeff = self.curve.params.d
 
         A = (self.x * other.x) % p
         B = (self.y * other.y) % p

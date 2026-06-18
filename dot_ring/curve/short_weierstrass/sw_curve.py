@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Generic, TypeVar, cast
 
 from dot_ring.curve.curve import Curve
+from dot_ring.curve.fp2 import Fp2
+from dot_ring.curve.specs.parameters import ShortWeierstrassCurveParams
+
+CoordT = TypeVar("CoordT", int, Fp2)
 
 
-@dataclass(frozen=True)
-class SWCurve(Curve):
+@dataclass(frozen=True, kw_only=True)
+class SWCurve(Curve[CoordT], Generic[CoordT]):
     """
     Short Weierstrass Curve implementation.
 
@@ -17,12 +21,10 @@ class SWCurve(Curve):
     where a, b are elements of the field such that 4a³ + 27b² ≠ 0.
 
     Attributes:
-        WeierstrassA: The 'a' parameter in the curve equation
-        WeierstrassB: The 'b' parameter in the curve equation
+        params: Short Weierstrass curve-suite constants.
     """
 
-    WeierstrassA: int | tuple[int, int]
-    WeierstrassB: int | tuple[int, int]
+    params: ShortWeierstrassCurveParams[CoordT]
 
     def __post_init__(self) -> None:
         """Validate curve parameters after initialization."""
@@ -40,20 +42,15 @@ class SWCurve(Curve):
             bool: True if parameters are valid
         """
 
-        def is_fp2(value: Any) -> bool:
-            return isinstance(value, (tuple, list)) and len(value) == 2
+        A = self.params.a
+        B = self.params.b
+        p = self.params.field_modulus
 
-        A = self.WeierstrassA
-        B = self.WeierstrassB
-        p = self.PRIME_FIELD
-
-        # Handle Fp2 points
-        if is_fp2(A) or is_fp2(B):
-            # For Fp2, we'll just check that the parameters are not both zero
-            # A more thorough check would involve Fp2 arithmetic
-            a_is_zero = all(x == 0 for x in A) if isinstance(A, (tuple, list)) else A == 0
-            b_is_zero = all(x == 0 for x in B) if isinstance(B, (tuple, list)) else B == 0
-            return not (a_is_zero and b_is_zero)
+        if isinstance(A, Fp2) or isinstance(B, Fp2):
+            if not isinstance(A, Fp2) or not isinstance(B, Fp2):
+                return False
+            discriminant = 4 * (A**3) + 27 * (B**2)
+            return not discriminant.is_zero()
 
         # Original Fp validation
         # Check discriminant: 4a³ + 27b² ≠ 0 (mod p)
@@ -62,7 +59,7 @@ class SWCurve(Curve):
         discriminant = (4 * a_cubed + 27 * b_squared) % p
         return discriminant != 0
 
-    def is_on_curve(self, point: tuple[Any, Any]) -> bool:
+    def is_on_curve(self, point: tuple[CoordT, CoordT]) -> bool:
         """
         Check if a given point (x, y) is on the curve.
 
@@ -72,13 +69,14 @@ class SWCurve(Curve):
         Returns:
             bool: True if the point is on the curve, False otherwise.
         """
-        u, v = cast(int, point[0]), cast(int, point[1])
-        # The curve equation is y² = x³ + ax + b
-        # We need to check if v² % p == (u³ + a*u + b) % p
-        p = self.PRIME_FIELD
-        A = cast(int, self.WeierstrassA)
-        B = cast(int, self.WeierstrassB)
+        u, v = point
+        if isinstance(u, Fp2) or isinstance(v, Fp2):
+            return isinstance(u, Fp2) and isinstance(v, Fp2) and v * v == u * u * u + cast(Fp2, self.params.a) * u + cast(Fp2, self.params.b)
 
+        u, v = cast(int, u), cast(int, v)
+        p = self.params.field_modulus
+        A = cast(int, self.params.a)
+        B = cast(int, self.params.b)
         left_side = pow(v, 2, p)
         right_side = (pow(u, 3, p) + (A * u) % p + B) % p
 
@@ -91,9 +89,9 @@ class SWCurve(Curve):
         Returns:
             int: j-invariant
         """
-        A = self.WeierstrassA
-        B = self.WeierstrassB
-        p = self.PRIME_FIELD
+        A = self.params.a
+        B = self.params.b
+        p = self.params.field_modulus
 
         discriminant = (4 * pow(cast(int, A), 3, p) + 27 * pow(cast(int, B), 2, p)) % p
         numerator = (1728 * 4 * pow(cast(int, A), 3, p)) % p
