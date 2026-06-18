@@ -2,17 +2,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
-from dot_ring.ring_proof.constants import D_2048, DEFAULT_SIZE, MAX_RING_SIZE, OMEGA_2048, S_PRIME, ZK_ROWS
-from dot_ring.ring_proof.pcs.bn254_kzg import BN254KZG
+from dot_ring.ring_proof.constants import (
+    D_2048,
+    DEFAULT_SIZE,
+    EVAL_DOMAINS,
+    MAX_RING_SIZE,
+    OMEGA_2048,
+    OMEGAS,
+    S_PRIME,
+    ZK_ROWS,
+)
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS
 
-MAX_PIOP_DOMAIN_SIZE = 2048
+# 2047-member rings need a 4096-row PIOP domain and a 16384-point radix
+# domain. KZG grows its SRS lazily when these larger quotient polynomials are
+# requested.
+MAX_PIOP_DOMAIN_SIZE = 4096
 
 
 def _is_power_of_two(n: int) -> bool:
@@ -31,9 +41,16 @@ def _next_power_of_two(n: int) -> int:
 def _omega_for_domain(domain_size: int, prime: int = S_PRIME, base_root: int = OMEGA_2048, base_size: int = 2048) -> int:
     if base_size % domain_size != 0:
         raise ValueError(f"Domain size {domain_size} must divide {base_size}")
+    if _uses_precomputed_bls_domain(prime, base_root, base_size) and domain_size in OMEGAS:
+        return OMEGAS[domain_size]
     return pow(base_root, base_size // domain_size, prime)
 
 
+def _uses_precomputed_bls_domain(prime: int, base_root: int, base_size: int) -> bool:
+    return prime == S_PRIME and base_root == OMEGA_2048 and base_size == 2048
+
+
+# Global bounded cache: roots are deterministic for one size/field pair.
 @lru_cache(maxsize=16)
 def _primitive_root_of_unity(size: int, prime: int) -> int:
     if not _is_power_of_two(size):
@@ -49,6 +66,7 @@ def _primitive_root_of_unity(size: int, prime: int) -> int:
         candidate += 1
 
 
+# Global bounded cache: evaluation domains are reused across roots/proofs.
 @lru_cache(maxsize=32)
 def _domain_for_size(
     domain_size: int,
@@ -56,8 +74,15 @@ def _domain_for_size(
     base_root: int = OMEGA_2048,
     base_size: int = 2048,
 ) -> tuple[int, ...]:
+    if _uses_precomputed_bls_domain(prime, base_root, base_size) and domain_size in EVAL_DOMAINS:
+        return tuple(EVAL_DOMAINS[domain_size])
     omega = _omega_for_domain(domain_size, prime, base_root, base_size)
-    return tuple(pow(omega, i, prime) for i in range(domain_size))
+    domain = [1] * domain_size
+    current = 1
+    for i in range(domain_size):
+        domain[i] = current
+        current = (current * omega) % prime
+    return tuple(domain)
 
 
 def _sqrt_mod_prime(n: int, prime: int) -> int:
@@ -117,6 +142,7 @@ def _bandersnatch_sw_to_te(point: tuple[int, int]) -> tuple[int, int]:
     return v % prime, w % prime
 
 
+# Global bounded cache: extended roots are deterministic for one target size.
 @lru_cache(maxsize=8)
 def _extend_root_to_size(base_root: int, base_size: int, target_size: int, prime: int) -> tuple[int, int]:
     """Extend a root of unity by repeated square roots until reaching target size."""
@@ -143,7 +169,7 @@ class RingProofParams:
 
     @property
     def scalar_bits(self) -> int:
-        return self.cv.curve.ORDER.bit_length()
+        return self.cv.curve.params.subgroup_order.bit_length()
 
     @property
     def row_overhead(self) -> int:
@@ -151,12 +177,7 @@ class RingProofParams:
 
     def __post_init__(self) -> None:
         if self.cv.name == "BabyJubJub":
-            if self.prime == S_PRIME:
-                object.__setattr__(self, "prime", int(self.cv.curve.PRIME_FIELD))
-            if self.base_root == OMEGA_2048 and self.base_root_size == 2048:
-                object.__setattr__(self, "base_root", _primitive_root_of_unity(self.base_root_size, int(self.cv.curve.PRIME_FIELD)))
-            if self.pcs is KZG:
-                object.__setattr__(self, "pcs", BN254KZG)
+            raise ValueError("BabyJubJub ring proofs are not supported; use Tiny/Thin/Pedersen VRFs for that curve")
         radix_domain_size = self.radix_domain_size
         if radix_domain_size is None:
             radix_domain_size = self.domain_size * 4
@@ -191,6 +212,9 @@ class RingProofParams:
             object.__setattr__(self, "max_ring_size", max_supported)
         elif self.max_ring_size > max_supported:
             raise ValueError(f"max_ring_size {self.max_ring_size} exceeds supported size {max_supported}")
+        ensure_srs_size = getattr(self.pcs, "ensure_srs_size", None)
+        if ensure_srs_size is not None:
+            ensure_srs_size(self.required_srs_degree)
 
     @property
     def omega(self) -> int:
@@ -230,22 +254,29 @@ class RingProofParams:
         return self.domain_size - self.row_overhead
 
     @property
+    def required_srs_degree(self) -> int:
+        return max(self.domain_size - 1, self._radix_domain_size - self.domain_size)
+
+    @property
     def blinding_base(self) -> tuple[int, int]:
-        if self.cv.curve.BBx is None or self.cv.curve.BBy is None:
+        base = self.cv.curve.params.auxiliary_points.blinding_base
+        if base is None:
             raise ValueError(f"{self.cv.name} does not define a ring blinding base")
-        return self.affine_to_ring_point((int(self.cv.curve.BBx), int(self.cv.curve.BBy)))
+        return self.affine_to_ring_point((int(base[0]), int(base[1])))
 
     @property
     def seed_point(self) -> tuple[int, int]:
-        if self.cv.curve.ACCUMULATOR_BASE_X is None or self.cv.curve.ACCUMULATOR_BASE_Y is None:
+        base = self.cv.curve.params.auxiliary_points.accumulator_base
+        if base is None:
             raise ValueError(f"{self.cv.name} does not define a ring accumulator base")
-        return self.affine_to_ring_point((int(self.cv.curve.ACCUMULATOR_BASE_X), int(self.cv.curve.ACCUMULATOR_BASE_Y)))
+        return self.affine_to_ring_point((int(base[0]), int(base[1])))
 
     @property
     def padding_point(self) -> tuple[int, int]:
-        if self.cv.curve.PADDING_X is None or self.cv.curve.PADDING_Y is None:
+        point = self.cv.curve.params.auxiliary_points.padding_point
+        if point is None:
             raise ValueError(f"{self.cv.name} does not define a ring padding point")
-        return self.affine_to_ring_point((int(self.cv.curve.PADDING_X), int(self.cv.curve.PADDING_Y)))
+        return self.affine_to_ring_point((int(point[0]), int(point[1])))
 
     def affine_to_ring_point(self, point: tuple[int, int]) -> tuple[int, int]:
         if self.cv.name == "Bandersnatch_SW":
@@ -255,26 +286,34 @@ class RingProofParams:
     def point_to_ring_point(self, point: CurvePoint) -> tuple[int, int]:
         return self.affine_to_ring_point((int(point.x), int(point.y)))
 
-    @property
-    def ring_point_cls(self) -> type[CurvePoint]:
+    def ring_curve_variant(self) -> CurveVariant:
         if self.cv.name == "Bandersnatch_SW":
-            return cast(type[CurvePoint], Bandersnatch.point)
-        return cast(type[CurvePoint], self.cv.point)
+            return Bandersnatch
+        return self.cv
+
+    def ring_point(self, point: tuple[int, int]) -> CurvePoint:
+        return self.ring_curve_variant().point(point[0], point[1])
 
     @property
     def ring_edwards_a(self) -> int:
         if self.cv.name == "Bandersnatch_SW":
-            return int(Bandersnatch.curve.EdwardsA)
-        return int(self.cv.curve.EdwardsA)
+            return int(Bandersnatch.curve.params.a)
+        return int(self.cv.curve.params.a)
+
+    @property
+    def ring_edwards_d(self) -> int:
+        if self.cv.name == "Bandersnatch_SW":
+            return int(Bandersnatch.curve.params.d)
+        return int(self.cv.curve.params.d)
 
     def add_points(self, point1: tuple[int, int], point2: tuple[int, int]) -> tuple[int, int]:
-        p1 = self.ring_point_cls(point1[0], point1[1])
-        p2 = self.ring_point_cls(point2[0], point2[1])
+        p1 = self.ring_point(point1)
+        p2 = self.ring_point(point2)
         result = p1 + p2
         return int(result.x), int(result.y)
 
     def mul_point(self, scalar: int, point: tuple[int, int]) -> tuple[int, int]:
-        result = self.ring_point_cls(point[0], point[1]) * scalar
+        result = self.ring_point(point) * scalar
         return int(result.x), int(result.y)
 
     @classmethod
@@ -310,7 +349,7 @@ class RingProofParams:
             raise ValueError(f"ring_size must be positive, got {ring_size}")
 
         # Calculate minimum domain size needed:
-        scalar_bits = cv.curve.ORDER.bit_length()
+        scalar_bits = cv.curve.params.subgroup_order.bit_length()
         overhead = scalar_bits + padding_rows
         domain_size = _next_power_of_two(ring_size + overhead)
         max_ring_size = domain_size - overhead

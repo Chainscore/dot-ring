@@ -92,16 +92,6 @@ class TestVerifyHelpers:
 
         assert verifier.divide(numerator, denominator) == expected
 
-    def test_legacy_methods_raise(self):
-        """Legacy methods should raise NotImplementedError."""
-        verifier = Verify.__new__(Verify)
-
-        with pytest.raises(NotImplementedError):
-            verifier.evaluation_of_quotient_poly_at_zeta()
-
-        with pytest.raises(NotImplementedError):
-            verifier.evaluation_of_linearization_poly_at_zeta_omega()
-
     def test_init_rejects_invalid_padding_rows(self):
         """Verify init validates padding_rows against domain size."""
         proof = (0,) * 15

@@ -3,11 +3,10 @@ from __future__ import annotations
 import json
 import os
 import secrets
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from dot_ring.curve.point import CurvePoint
-from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, ZK_ROWS, SeedPoint
 from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
@@ -70,7 +69,7 @@ def require_commitment(column: Column) -> G1Commitment:
 
 @dataclass(slots=True)
 class WitnessColumnBuilder:
-    ring_pk: list[tuple[int, int]]
+    ring_pk: Sequence[tuple[int, int]]
     selector_vector: list[int]
     producer_index: int
     secret_t: int
@@ -81,13 +80,13 @@ class WitnessColumnBuilder:
     padding_rows: int = 4
     test_vectors: bool = False
     seed_point: tuple[int, int] = SeedPoint
-    point_cls: type[CurvePoint] = Bandersnatch.point
+    params: RingProofParams | None = None
     pcs: type[PCS] = KZG
 
     @classmethod
     def from_params(
         cls,
-        ring_pk: list[tuple[int, int]],
+        ring_pk: Sequence[tuple[int, int]],
         selector_vector: list[int],
         producer_index: int,
         secret_t: int,
@@ -105,17 +104,21 @@ class WitnessColumnBuilder:
             padding_rows=params.padding_rows,
             test_vectors=params.test_vectors,
             seed_point=params.seed_point,
-            point_cls=params.ring_point_cls,
+            params=params,
             pcs=params.pcs,
         )
 
     def _add(self, point1: tuple[int, int], point2: tuple[int, int]) -> tuple[int, int]:
-        result = self.point_cls(point1[0], point1[1]) + self.point_cls(point2[0], point2[1])
-        return int(result.x), int(result.y)
+        if self.params is None:
+            raise ValueError("Ring proof params are required for point arithmetic")
+        result = self.params.add_points(point1, point2)
+        return result
 
     def _mul(self, scalar: int, point: tuple[int, int]) -> tuple[int, int]:
-        result = self.point_cls(point[0], point[1]) * scalar
-        return int(result.x), int(result.y)
+        if self.params is None:
+            raise ValueError("Ring proof params are required for point arithmetic")
+        result = self.params.mul_point(scalar, point)
+        return result
 
     def _bits_vector(self) -> list[int]:
         bv = [1 if i == self.producer_index else 0 for i in range(self.max_ring_size)]
