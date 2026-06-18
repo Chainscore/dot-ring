@@ -40,27 +40,27 @@ from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2_NU, BLS12_381_G2_RO
 from dot_ring.curve.specs.curve448 import Curve448_NU, Curve448_RO
 from dot_ring.curve.specs.curve25519 import Curve25519_NU, Curve25519_RO
 from dot_ring.curve.specs.ed448 import Ed448_NU, Ed448_RO
-from dot_ring.curve.specs.ed25519 import Ed25519_NU, Ed25519_RO
+from dot_ring.curve.specs.ed25519 import Ed25519_NU, Ed25519_RO, Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
 
 # NIST curves
-from dot_ring.curve.specs.p256 import P256_NU, P256_RO
+from dot_ring.curve.specs.p256 import P256_NU, P256_RO, P256_TAI
 from dot_ring.curve.specs.p384 import P384_NU, P384_RO
 from dot_ring.curve.specs.p521 import P521_NU, P521_RO
 from dot_ring.curve.specs.secp256k1 import Secp256k1_NU, Secp256k1_RO
 from dot_ring.keygen import secret_from_seed
-from dot_ring.vrf.ietf import IETF_VRF, ThinBatchVerifier, ThinVRF, TinyVRF
+from dot_ring.vrf.ietf import ThinBatchVerifier, ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenBatchVerifier, PedersenVRF
-from dot_ring.vrf.ring import Ring, RingBatchVerifier, RingContext, RingRoot, RingSetup, RingVerifierKeyBuilder, RingVRF
+from dot_ring.vrf.ring import Ring, RingBatchContext, RingBatchVerifier, RingContext, RingRoot, RingSetup, RingVerifierKeyBuilder, RingVRF
 
 # =============================================================================
 # Convenience aliases
 # =============================================================================
-Ed25519 = Ed25519_NU
+Ed25519 = Ed25519_TAI
 Ed448 = Ed448_RO
 Curve25519 = Curve25519_RO
 Curve448 = Curve448_RO
-P256 = P256_NU
+P256 = P256_TAI
 P384 = P384_RO
 P521 = P521_RO
 Secp256k1 = Secp256k1_RO
@@ -77,21 +77,22 @@ __all__ = [
     "TinyVRF",
     "ThinVRF",
     "ThinBatchVerifier",
-    "IETF_VRF",
     "PedersenVRF",
     "PedersenBatchVerifier",
     "RingVRF",
     "RingSetup",
     "RingContext",
     "RingVerifierKeyBuilder",
+    "RingBatchContext",
     "RingBatchVerifier",
     # Primary curves
     "Bandersnatch",
     "Bandersnatch_SHAKE128",
     "Bandersnatch_SW",
     "Ed25519",
-    "Ed25519_RO",
     "Ed25519_NU",
+    "Ed25519_RO",
+    "Ed25519_TAI",
     "Ed448",
     "Ed448_RO",
     "Ed448_NU",
@@ -103,8 +104,9 @@ __all__ = [
     "Curve448_NU",
     # NIST curves
     "P256",
-    "P256_RO",
     "P256_NU",
+    "P256_RO",
+    "P256_TAI",
     "P384",
     "P384_RO",
     "P384_NU",

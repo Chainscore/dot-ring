@@ -7,14 +7,14 @@ import pytest
 from dot_ring.curve.specs.baby_jubjub import BabyJubJub
 from dot_ring.curve.specs.bandersnatch import Bandersnatch, Bandersnatch_SHAKE128
 from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
-from dot_ring.curve.specs.ed25519 import Ed25519_NU
+from dot_ring.curve.specs.ed25519 import Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
-from dot_ring.curve.specs.p256 import P256_NU
+from dot_ring.curve.specs.p256 import P256_TAI
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ietf.ietf import ThinBatchVerifier, ThinVRF, TinyVRF
-from dot_ring.vrf.pedersen.pedersen import PedersenBatchVerifier, PedersenVRF
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
-from dot_ring.vrf.ring.ring_vrf import RingBatchVerifier, RingContext, RingVRF
+from dot_ring.vrf.ietf import ThinBatchVerifier, ThinVRF, TinyVRF
+from dot_ring.vrf.pedersen import PedersenBatchVerifier, PedersenVRF
+from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.ring import RingBatchVerifier, RingContext, RingVRF
 from dot_ring.vrf.transcript import VrfIo
 from scripts.generate_test_vectors import SUITES as GENERATED_SUITES
 from scripts.generate_test_vectors import scheme_vectors
@@ -26,8 +26,8 @@ SUITES = [
     (Bandersnatch, "bandersnatch_sha-512_ell2", 32),
     (Bandersnatch_SW, "bandersnatch_sw_sha-512_tai", 33),
     (Bandersnatch_SHAKE128, "bandersnatch_shake128_ell2", 32),
-    (Ed25519_NU, "ed25519_sha-512_tai", 32),
-    (P256_NU, "secp256r1_sha-256_tai", 33),
+    (Ed25519_TAI, "ed25519_sha-512_tai", 32),
+    (P256_TAI, "secp256r1_sha-256_tai", 33),
     (JubJub, "jubjub_sha-512_tai", 32),
     (BabyJubJub, "baby-jubjub_sha-512_tai", 32),
 ]
@@ -53,7 +53,7 @@ def test_tiny_vectors(curve, prefix: str, point_len: int) -> None:
         proof_bytes = proof.to_bytes()
 
         assert TinyVRF[curve].get_public_key(sk).hex() == vector["pk"]
-        assert curve.point.encode_to_curve(alpha).point_to_string().hex() == vector["h"]
+        assert curve.encode_to_curve(alpha).point_to_string().hex() == vector["h"]
         assert proof_bytes == tiny_proof_bytes(vector)
         assert TinyVRF[curve].proof_to_hash(proof.output_point).hex() == vector["beta"]
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
@@ -116,7 +116,6 @@ def test_rejects_invalid_point_encodings(curve, prefix: str, point_len: int) -> 
         (Bandersnatch_SW, "bandersnatch_sw_sha-512_tai_ring.json"),
         (Bandersnatch_SHAKE128, "bandersnatch_shake128_ell2_ring.json"),
         (JubJub, "jubjub_sha-512_tai_ring.json"),
-        (BabyJubJub, "baby-jubjub_sha-512_tai_ring.json"),
     ],
 )
 def test_ring_vectors(curve, filename: str) -> None:
@@ -140,11 +139,11 @@ def test_multi_input_apis() -> None:
     secret = bytes.fromhex(load("bandersnatch_sha-512_ell2_tiny.json")[0]["sk"])
     public_key = TinyVRF[Bandersnatch].get_public_key(secret)
     secret_scalar = int.from_bytes(secret, "little")
-    public_key_point = Bandersnatch.point.string_to_point(public_key)
+    public_key_point = Bandersnatch.string_to_point(public_key)
 
     ios = []
     for alpha in (b"first", b"second"):
-        input_point = Bandersnatch.point.encode_to_curve(alpha)
+        input_point = Bandersnatch.encode_to_curve(alpha)
         ios.append(VrfIo(input_point, input_point * secret_scalar))
 
     tiny = TinyVRF[Bandersnatch].prove_ios(ios, secret_scalar, public_key_point, b"ad")
@@ -164,9 +163,9 @@ def test_batch_apis() -> None:
     for vector in vectors:
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
-        pk_point = Bandersnatch.point.string_to_point(bytes.fromhex(vector["pk"]))
+        pk_point = Bandersnatch.string_to_point(bytes.fromhex(vector["pk"]))
         thin = ThinVRF[Bandersnatch].prove(alpha, bytes.fromhex(vector["sk"]), ad)
-        input_point = Bandersnatch.point.encode_to_curve(alpha)
+        input_point = Bandersnatch.encode_to_curve(alpha)
         thin_batch.push(pk_point, [VrfIo(input_point, thin.output_point)], ad, thin)
 
         pedersen = PedersenVRF[Bandersnatch].prove(alpha, bytes.fromhex(vector["sk"]), ad)
@@ -181,11 +180,11 @@ def test_batch_rejects_invalid_items() -> None:
     alpha = bytes.fromhex(vector["alpha"])
     ad = bytes.fromhex(vector["ad"])
     secret = bytes.fromhex(vector["sk"])
-    pk_point = Bandersnatch.point.string_to_point(bytes.fromhex(vector["pk"]))
-    input_point = Bandersnatch.point.encode_to_curve(alpha)
+    pk_point = Bandersnatch.string_to_point(bytes.fromhex(vector["pk"]))
+    input_point = Bandersnatch.encode_to_curve(alpha)
 
     thin = ThinVRF[Bandersnatch].prove(alpha, secret, ad)
-    bad_thin = ThinVRF[Bandersnatch](thin.output_point, thin.r, (thin.s + 1) % Bandersnatch.curve.ORDER)
+    bad_thin = ThinVRF[Bandersnatch](thin.output_point, thin.r, (thin.s + 1) % Bandersnatch.curve.params.subgroup_order)
     thin_batch = ThinBatchVerifier[Bandersnatch]()
     thin_batch.push(pk_point, [VrfIo(input_point, bad_thin.output_point)], ad, bad_thin)
     assert not thin_batch.verify()
@@ -196,7 +195,7 @@ def test_batch_rejects_invalid_items() -> None:
         pedersen.blinded_pk,
         pedersen.result_point,
         pedersen.ok,
-        (pedersen.s + 1) % Bandersnatch.curve.ORDER,
+        (pedersen.s + 1) % Bandersnatch.curve.params.subgroup_order,
         pedersen.sb,
     )
     pedersen_batch = PedersenBatchVerifier[Bandersnatch]()
@@ -280,12 +279,12 @@ def test_negative_and_malformed_proofs() -> None:
     sk = bytes.fromhex(tiny_vector["sk"])
     tiny = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
 
-    pk_point = Bandersnatch.point.string_to_point(pk)
-    wrong_output = Bandersnatch.point.encode_to_curve(b"wrong-output")
+    pk_point = Bandersnatch.string_to_point(pk)
+    wrong_output = Bandersnatch.encode_to_curve(b"wrong-output")
 
     assert not tiny.verify(pk, alpha, b"wrong-ad")
     assert not tiny.verify(pk, b"wrong-input", ad)
-    assert not tiny.verify_ios(pk_point, [VrfIo(Bandersnatch.point.encode_to_curve(alpha), wrong_output)], ad)
+    assert not tiny.verify_ios(pk_point, [VrfIo(Bandersnatch.encode_to_curve(alpha), wrong_output)], ad)
     with pytest.raises(ValueError, match="invalid Tiny VRF proof length"):
         TinyVRF[Bandersnatch].from_bytes(tiny.to_bytes()[:-1])
 

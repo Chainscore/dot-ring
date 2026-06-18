@@ -5,10 +5,11 @@ from typing import Any
 
 import pytest
 
-from dot_ring import IETF_VRF, P256, Bandersnatch, Ed25519, PedersenVRF, RingVRF
+from dot_ring import P256, Bandersnatch, Ed25519, PedersenVRF, RingVRF, TinyVRF
 from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
+from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.transcript import point_len, scalar_len
 
 # Alias
 Secp256r1 = P256
@@ -58,27 +59,26 @@ class TestIETFVRF:
         expected_s = bytes.fromhex(vector["proof_s"])
 
         # Generate proof
-        proof = IETF_VRF[curve].prove(alpha, sk, ad, salt)
+        proof = TinyVRF[curve].prove(alpha, sk, ad, salt)
 
         # Verify output point matches
         gamma_bytes = proof.output_point.point_to_string()
         assert gamma_bytes == expected_gamma, f"gamma mismatch: expected {expected_gamma.hex()}, got {gamma_bytes.hex()}"
 
         # Verify proof challenge
-        challenge_len = curve.curve.CHALLENGE_LENGTH
-        c_bytes = Helpers.int_to_str(proof.c, curve.curve.ENDIAN, challenge_len)
+        challenge_len = curve.curve.params.encoding.challenge_len
+        c_bytes = Helpers.int_to_str(proof.c, curve.curve.encoding_endian(), challenge_len)
         assert c_bytes == expected_c, f"challenge mismatch: expected {expected_c.hex()}, got {c_bytes.hex()}"
 
         # Verify proof response
-        scalar_len = (curve.curve.PRIME_FIELD.bit_length() + 7) // 8
-        s_bytes = Helpers.int_to_str(proof.s, curve.curve.ENDIAN, scalar_len)
+        s_bytes = Helpers.int_to_str(proof.s, curve.curve.encoding_endian(), scalar_len(curve))
         assert s_bytes == expected_s, f"response mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
 
         # Verify the proof
         assert proof.verify(pk, alpha, ad, salt), "Proof verification failed"
 
         # Verify output hash
-        beta = IETF_VRF[curve].proof_to_hash(proof.output_point)
+        beta = TinyVRF[curve].proof_to_hash(proof.output_point)
         assert beta == expected_beta, f"beta mismatch: expected {expected_beta.hex()}, got {beta.hex()}"
 
 
@@ -175,11 +175,10 @@ class TestPedersenVRF:
 
         assert proof.ok.point_to_string() == expected_ok, "Ok mismatch"
 
-        scalar_len = (curve.curve.PRIME_FIELD.bit_length() + 7) // 8
-        s_bytes = Helpers.int_to_str(proof.s, curve.curve.ENDIAN, scalar_len)
+        s_bytes = Helpers.int_to_str(proof.s, curve.curve.encoding_endian(), scalar_len(curve))
         assert s_bytes == expected_s, f"s mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
 
-        sb_bytes = Helpers.int_to_str(proof.sb, curve.curve.ENDIAN, scalar_len)
+        sb_bytes = Helpers.int_to_str(proof.sb, curve.curve.encoding_endian(), scalar_len(curve))
         assert sb_bytes == expected_sb, f"sb mismatch: expected {expected_sb.hex()}, got {sb_bytes.hex()}"
 
         # Verify the proof
@@ -266,10 +265,10 @@ class TestRingVRF:
         ring_pks_bytes = bytes.fromhex(vector["ring_pks"])
 
         # Parse ring public keys
-        point_len = curve.curve.POINT_LEN
+        serialized_point_len = point_len(curve)
         ring_pks = []
-        for i in range(0, len(ring_pks_bytes), point_len):
-            ring_pks.append(ring_pks_bytes[i : i + point_len])
+        for i in range(0, len(ring_pks_bytes), serialized_point_len):
+            ring_pks.append(ring_pks_bytes[i : i + serialized_point_len])
 
         # Construct ring and ring root (test_vectors=True for deterministic proofs)
         params = RingProofParams(test_vectors=True)
@@ -330,14 +329,14 @@ class TestNegativeCases:
         sk1 = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         sk2 = bytes.fromhex("0202020202020202020202020202020202020202020202020202020202020202")
 
-        pk1 = IETF_VRF[Bandersnatch].get_public_key(sk1)
-        pk2 = IETF_VRF[Bandersnatch].get_public_key(sk2)
+        pk1 = TinyVRF[Bandersnatch].get_public_key(sk1)
+        pk2 = TinyVRF[Bandersnatch].get_public_key(sk2)
 
         alpha = b"test_input"
         ad = b"test_ad"
 
         # Generate proof with sk1
-        proof = IETF_VRF[Bandersnatch].prove(alpha, sk1, ad)
+        proof = TinyVRF[Bandersnatch].prove(alpha, sk1, ad)
 
         # Verify with correct key should pass
         assert proof.verify(pk1, alpha, ad)
@@ -348,14 +347,14 @@ class TestNegativeCases:
     def test_wrong_input_ietf(self):
         """IETF VRF verification should fail with wrong input."""
         sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
-        pk = IETF_VRF[Bandersnatch].get_public_key(sk)
+        pk = TinyVRF[Bandersnatch].get_public_key(sk)
 
         alpha1 = b"correct_input"
         alpha2 = b"wrong_input"
         ad = b"test_ad"
 
         # Generate proof with alpha1
-        proof = IETF_VRF[Bandersnatch].prove(alpha1, sk, ad)
+        proof = TinyVRF[Bandersnatch].prove(alpha1, sk, ad)
 
         # Verify with correct input should pass
         assert proof.verify(pk, alpha1, ad)
@@ -366,14 +365,14 @@ class TestNegativeCases:
     def test_wrong_ad_ietf(self):
         """IETF VRF verification should fail with wrong additional data."""
         sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
-        pk = IETF_VRF[Bandersnatch].get_public_key(sk)
+        pk = TinyVRF[Bandersnatch].get_public_key(sk)
 
         alpha = b"test_input"
         ad1 = b"correct_ad"
         ad2 = b"wrong_ad"
 
         # Generate proof with ad1
-        proof = IETF_VRF[Bandersnatch].prove(alpha, sk, ad1)
+        proof = TinyVRF[Bandersnatch].prove(alpha, sk, ad1)
 
         # Verify with correct ad should pass
         assert proof.verify(pk, alpha, ad1)
@@ -448,8 +447,8 @@ class TestDeterminism:
         alpha = b"deterministic_test"
         ad = b"test_ad"
 
-        proof1 = IETF_VRF[Bandersnatch].prove(alpha, sk, ad)
-        proof2 = IETF_VRF[Bandersnatch].prove(alpha, sk, ad)
+        proof1 = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
+        proof2 = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
 
         assert proof1.output_point.point_to_string() == proof2.output_point.point_to_string()
         assert proof1.c == proof2.c

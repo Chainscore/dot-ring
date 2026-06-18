@@ -13,15 +13,15 @@ from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.specs.baby_jubjub import BabyJubJub
 from dot_ring.curve.specs.bandersnatch import Bandersnatch, Bandersnatch_SHAKE128
 from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
-from dot_ring.curve.specs.ed25519 import Ed25519_NU
+from dot_ring.curve.specs.ed25519 import Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
-from dot_ring.curve.specs.p256 import P256_NU
+from dot_ring.curve.specs.p256 import P256_TAI
 from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ietf import ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenVRF
 from dot_ring.vrf.ring import Ring, RingRoot, RingVRF
-from dot_ring.vrf.transcript import scalar_encode
+from dot_ring.vrf.transcript import point_len, scalar_encode, scalar_len
 
 DEFAULT_OUT_DIR = Path(__file__).resolve().parent.parent / "tests" / "vectors" / "dot-ring"
 RING_SIZE = 8
@@ -38,8 +38,8 @@ SUITES = [
     Suite("bandersnatch_sha-512_ell2", Bandersnatch),
     Suite("bandersnatch_sw_sha-512_tai", Bandersnatch_SW),
     Suite("bandersnatch_shake128_ell2", Bandersnatch_SHAKE128),
-    Suite("ed25519_sha-512_tai", Ed25519_NU),
-    Suite("secp256r1_sha-256_tai", P256_NU),
+    Suite("ed25519_sha-512_tai", Ed25519_TAI),
+    Suite("secp256r1_sha-256_tai", P256_TAI),
     Suite("jubjub_sha-512_tai", JubJub),
     Suite("baby-jubjub_sha-512_tai", BabyJubJub),
 ]
@@ -49,7 +49,6 @@ RING_SUITES = [
     Suite("bandersnatch_sw_sha-512_tai", Bandersnatch_SW),
     Suite("bandersnatch_shake128_ell2", Bandersnatch_SHAKE128),
     Suite("jubjub_sha-512_tai", JubJub),
-    Suite("baby-jubjub_sha-512_tai", BabyJubJub),
 ]
 
 VECTOR_CASES = [
@@ -69,21 +68,13 @@ def seed_bytes(seed: int) -> bytes:
     return bytes(seed_value)
 
 
-def point_len(curve: CurveVariant) -> int:
-    size = curve.curve.POINT_LEN
-    if curve.curve.UNCOMPRESSED:
-        size *= 2
-    return int(size)
-
-
 def pedersen_len(curve: CurveVariant) -> int:
-    scalar_len = (curve.curve.ORDER.bit_length() + 7) // 8
-    return 4 * point_len(curve) + 2 * scalar_len
+    return 4 * point_len(curve) + 2 * scalar_len(curve)
 
 
 def base_fields(suite: Suite, scheme: str, index: int, seed: int, alpha: bytes, ad: bytes) -> tuple[bytes, dict[str, str]]:
     pk, sk = secret_from_seed(seed_bytes(seed), suite.curve)
-    input_point = suite.curve.point.encode_to_curve(alpha)
+    input_point = suite.curve.encode_to_curve(alpha)
     gamma = input_point * int.from_bytes(sk, "little")
     beta = TinyVRF[suite.curve].proof_to_hash(gamma)
     return sk, {

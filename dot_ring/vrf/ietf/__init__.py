@@ -1,3 +1,4 @@
-from .ietf import IETF_VRF, ThinBatchItem, ThinBatchVerifier, ThinVRF, TinyVRF
+from .thin import ThinBatchVerifier, ThinVRF
+from .tiny import TinyVRF
 
-__all__ = ["IETF_VRF", "ThinBatchItem", "ThinBatchVerifier", "ThinVRF", "TinyVRF"]
+__all__ = ["ThinBatchVerifier", "ThinVRF", "TinyVRF"]

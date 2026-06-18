@@ -6,10 +6,11 @@ from time import time
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ietf.ietf import IETF_VRF
-from dot_ring.vrf.pedersen.pedersen import PedersenVRF
-from dot_ring.vrf.ring.ring_root import Ring, RingRoot
-from dot_ring.vrf.ring.ring_vrf import RingVRF
+from dot_ring.vrf.ietf import TinyVRF
+from dot_ring.vrf.pedersen import PedersenVRF
+from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.ring import RingVRF
+from dot_ring.vrf.transcript import scalar_len
 
 HERE = os.path.dirname(__file__)
 
@@ -30,18 +31,18 @@ def test_ietf_ark_bandersnatch():
             )
 
             # Public Key check
-            pk_bytes = IETF_VRF[Bandersnatch].get_public_key(secret_scalar)
-            public_key = Bandersnatch.point.string_to_point(pk_bytes)
+            pk_bytes = TinyVRF[Bandersnatch].get_public_key(secret_scalar)
+            public_key = Bandersnatch.string_to_point(pk_bytes)
             assert public_key.point_to_string().hex() == vector["pk"]
 
             # Input Point check
-            input_point = Bandersnatch.point.encode_to_curve(vector["alpha"])
+            input_point = Bandersnatch.encode_to_curve(vector["alpha"])
             if "h" in vector:
                 assert input_point.point_to_string().hex() == vector["h"]
 
-            proof = IETF_VRF[Bandersnatch].prove(alpha, secret_scalar, additional_data)
+            proof = TinyVRF[Bandersnatch].prove(alpha, secret_scalar, additional_data)
             proof_bytes = proof.to_bytes()
-            proof_rt = IETF_VRF[Bandersnatch].from_bytes(proof_bytes)
+            proof_rt = TinyVRF[Bandersnatch].from_bytes(proof_bytes)
 
             # Proof components check
             gamma = proof_bytes[:gamma_len]
@@ -53,7 +54,7 @@ def test_ietf_ark_bandersnatch():
             assert proof_s.hex() == vector["proof_s"]
 
             if "beta" in vector:
-                assert IETF_VRF[Bandersnatch].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
+                assert TinyVRF[Bandersnatch].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
 
             assert proof.verify(pk_bytes, alpha, additional_data)
             assert proof_rt.to_bytes() == proof_bytes
@@ -77,7 +78,7 @@ def test_pedersen_ark_bandersnatch():
             pk_bytes = PedersenVRF[Bandersnatch].get_public_key(secret_scalar)
 
             # Input Point check
-            input_point = Bandersnatch.point.encode_to_curve(alpha)
+            input_point = Bandersnatch.encode_to_curve(alpha)
             if "h" in vector:
                 assert input_point.point_to_string().hex() == vector["h"]
 
@@ -91,12 +92,12 @@ def test_pedersen_ark_bandersnatch():
             assert proof.result_point.point_to_string().hex() == vector["proof_r"]
             assert proof.ok.point_to_string().hex() == vector["proof_ok"]
             assert proof.s.to_bytes(
-                (Bandersnatch.curve.PRIME_FIELD.bit_length() + 7) // 8,
-                Bandersnatch.curve.ENDIAN,
+                scalar_len(Bandersnatch),
+                Bandersnatch.curve.encoding_endian(),
             ) == bytes.fromhex(vector["proof_s"])
             assert proof.sb.to_bytes(
-                (Bandersnatch.curve.PRIME_FIELD.bit_length() + 7) // 8,
-                Bandersnatch.curve.ENDIAN,
+                scalar_len(Bandersnatch),
+                Bandersnatch.curve.encoding_endian(),
             ) == bytes.fromhex(vector["proof_sb"])
             assert PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
 
