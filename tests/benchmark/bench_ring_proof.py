@@ -172,10 +172,7 @@ def _build_batch_fixtures_parallel(ring_size: int, fixture_count: int, workers: 
     else:
         serialized = []
         with ProcessPoolExecutor(max_workers=workers) as executor:
-            futures = [
-                executor.submit(_prove_batch_fixture_range, ring_size, start, stop)
-                for start, stop in _chunk_ranges(fixture_count, workers)
-            ]
+            futures = [executor.submit(_prove_batch_fixture_range, ring_size, start, stop) for start, stop in _chunk_ranges(fixture_count, workers)]
             for future in futures:
                 serialized.extend(future.result())
 
@@ -210,11 +207,7 @@ def run(
     print("sample  ring_root_ms  prove_ms  verify_ms  total_ms")
     for timing in timings:
         print(
-            f"{timing.ring_id.hex()[:8]:>6}  "
-            f"{timing.ring_root_ms:>12.2f}  "
-            f"{timing.prove_ms:>8.2f}  "
-            f"{timing.verify_ms:>9.2f}  "
-            f"{timing.total_ms:>8.2f}"
+            f"{timing.ring_id.hex()[:8]:>6}  {timing.ring_root_ms:>12.2f}  {timing.prove_ms:>8.2f}  {timing.verify_ms:>9.2f}  {timing.total_ms:>8.2f}"
         )
 
     print()
@@ -223,7 +216,7 @@ def run(
     _print_stats("verify", [timing.verify_ms for timing in timings])
     _print_stats("total", [timing.total_ms for timing in timings])
     print(f"proof_size: {timings[-1].proof_size} bytes")
-    
+
     fixture_count, workers = batch_fixtures, batch_workers
     if max_batch_size <= 0:
         return
@@ -251,7 +244,6 @@ def run(
     print("batch_n  verify_ms  verify_ms_per_proof")
     for batch_size in _batch_sizes(max_batch_size):
         items = prepared_fixtures[:batch_size]
-        times: list[float] = []
         verifier = RingBatchVerifier(context)
         for item in items:
             verifier.push_prepared(item)
@@ -263,7 +255,6 @@ def run(
             raise AssertionError(f"batch verification failed for n={batch_size}")
 
         print(f"{batch_size:>7}  {elapsed_ms:>13.2f} {elapsed_ms / batch_size:>18.2f}")
-
 
 
 def main() -> None:

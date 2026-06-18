@@ -13,8 +13,7 @@ from dot_ring.curve.specs.p256 import P256_TAI
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ietf import ThinBatchVerifier, ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenBatchVerifier, PedersenVRF
-from dot_ring.vrf.ring import Ring, RingRoot
-from dot_ring.vrf.ring import RingBatchVerifier, RingContext, RingVRF
+from dot_ring.vrf.ring import Ring, RingBatchVerifier, RingContext, RingRoot, RingVRF
 from dot_ring.vrf.transcript import VrfIo
 from scripts.generate_test_vectors import SUITES as GENERATED_SUITES
 from scripts.generate_test_vectors import scheme_vectors

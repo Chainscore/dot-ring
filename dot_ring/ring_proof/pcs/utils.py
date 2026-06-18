@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, TypeAlias
+from typing import Any, NamedTuple
 
 import py_ecc.optimized_bls12_381 as bls
 from py_ecc.bls import point_compression
@@ -7,7 +7,7 @@ from dot_ring import blst
 
 Scalar = int
 CoeffVector = list[Scalar]
-G1Term: TypeAlias = tuple[Any, Scalar]
+G1Term = tuple[Any, Scalar]
 
 
 class PcsVerification(NamedTuple):

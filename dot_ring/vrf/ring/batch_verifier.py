@@ -10,8 +10,7 @@ from dot_ring.ring_proof.pcs.utils import (
 )
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 from dot_ring.ring_proof.verify import Verify, prepare_linear_pcs_verifications_fast
-from dot_ring.vrf.pedersen.batch_verifier import PedersenBatchItem
-from dot_ring.vrf.pedersen.batch_verifier import PedersenBatchVerifier
+from dot_ring.vrf.pedersen.batch_verifier import PedersenBatchItem, PedersenBatchVerifier
 from dot_ring.vrf.transcript import VrfIo
 
 from .members import Ring
@@ -275,9 +274,6 @@ class RingBatchVerifier:
             return False
 
         try:
-            return all(
-                _verify_pcs_batch(pcs, verifications)
-                for pcs, verifications in self.pcs_batches.values()
-            )
+            return all(_verify_pcs_batch(pcs, verifications) for pcs, verifications in self.pcs_batches.values())
         except (AssertionError, TypeError, ValueError):
             return False

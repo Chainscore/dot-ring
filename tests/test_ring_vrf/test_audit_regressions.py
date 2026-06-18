@@ -4,8 +4,7 @@ from dot_ring import Bandersnatch, RingVRF
 from dot_ring.ring_proof.constants import PaddingPoint
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.pedersen import PedersenVRF
-from dot_ring.vrf.ring import RingContext
-from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.ring import Ring, RingContext, RingRoot
 from dot_ring.vrf.transcript import point_len
 
 

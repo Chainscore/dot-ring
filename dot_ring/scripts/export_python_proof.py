@@ -21,8 +21,8 @@ from py_ecc.optimized_bls12_381 import normalize as nm
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.srs import srs
-from dot_ring.vrf.ring.proof_builder import RingProofBuilder
 from dot_ring.vrf.ring import Ring, RingRoot
+from dot_ring.vrf.ring.proof_builder import RingProofBuilder
 from tests.utils.python_to_rust_serde import (
     serialize_bls12_381_g1,
     serialize_bls12_381_g2,

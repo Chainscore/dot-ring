@@ -16,9 +16,8 @@ from dot_ring import Bandersnatch
 from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.vrf.ring import RingRoot, RingVRF
 from dot_ring.vrf.ring.members import Ring
-from dot_ring.vrf.ring import RingRoot
-from dot_ring.vrf.ring import RingVRF
 
 SIGNER_INDEX = 3
 RSS_EPSILON_MB = 0.1

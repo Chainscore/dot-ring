@@ -67,10 +67,7 @@ class Curve(Generic[CoordT]):
 
         if isinstance(generator_x, Fp2) or isinstance(generator_y, Fp2):
             if not (
-                isinstance(generator_x, Fp2)
-                and isinstance(generator_y, Fp2)
-                and generator_x.p == field_modulus
-                and generator_y.p == field_modulus
+                isinstance(generator_x, Fp2) and isinstance(generator_y, Fp2) and generator_x.p == field_modulus and generator_y.p == field_modulus
             ):
                 raise ValueError("Generator coordinates must be Fp2 elements with the correct field modulus")
             if not self.is_on_curve((generator_x, generator_y)):  # type: ignore[attr-defined]
@@ -154,10 +151,7 @@ class Curve(Generic[CoordT]):
 
         dst = self.hash_to_curve_dst()
         if ell > 255 or len_in_bytes > 65535 or len(dst) > 255:
-            raise ValueError(
-                "Invalid XMD input size parameters: "
-                f"ell={ell}, len_in_bytes={len_in_bytes}, dst_len={len(dst)}"
-            )
+            raise ValueError(f"Invalid XMD input size parameters: ell={ell}, len_in_bytes={len_in_bytes}, dst_len={len(dst)}")
 
         DST_prime = dst + self.I2OSP(len(dst), 1)
         Z_pad = self.I2OSP(0, cast(int, hash_to_curve.expand_len))

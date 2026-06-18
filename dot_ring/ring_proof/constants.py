@@ -3,11 +3,7 @@ from __future__ import annotations
 from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS
 
 _AUXILIARY_POINTS = BANDERSNATCH_PARAMS.auxiliary_points
-if (
-    _AUXILIARY_POINTS.blinding_base is None
-    or _AUXILIARY_POINTS.accumulator_base is None
-    or _AUXILIARY_POINTS.padding_point is None
-):
+if _AUXILIARY_POINTS.blinding_base is None or _AUXILIARY_POINTS.accumulator_base is None or _AUXILIARY_POINTS.padding_point is None:
     raise ValueError("Bandersnatch ring-proof auxiliary points are not configured")
 
 S_PRIME: int = BANDERSNATCH_PARAMS.field_modulus  # Finite‑field modulus p

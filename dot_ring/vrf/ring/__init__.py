@@ -1,6 +1,6 @@
-from .members import Ring
 from .batch_verifier import RingBatchContext, RingBatchItem, RingBatchVerifier
 from .context import RingContext, RingSetup, RingVerifierKeyBuilder
+from .members import Ring
 from .root import RingRoot
 from .vrf import RingVRF
 

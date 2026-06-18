@@ -12,9 +12,10 @@ from dot_ring.vrf.pedersen import PedersenVRF
 from dot_ring.vrf.vrf import PreparedSecretKey
 
 from ..vrf import VRF
-from .members import Ring, parse_concatenated_keys as _parse_concatenated_keys
 from .batch_verifier import RingBatchItem, RingBatchVerifier, _proof_relation_points, _proof_transcript_commitments
 from .context import RingContext, RingSetup, RingVerifierKeyBuilder
+from .members import Ring
+from .members import parse_concatenated_keys as _parse_concatenated_keys
 from .proof_builder import RingProofBuilder
 from .proof_payload import RingProofPayload, ring_proof_len
 from .root import RingRoot
@@ -295,6 +296,7 @@ class RingVRF(VRF[Any]):
     @classmethod
     def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
         return PedersenVRF[cls.cv].proof_to_hash(gamma, mul_cofactor)
+
 
 __all__ = [
     "RingBatchItem",

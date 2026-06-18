@@ -420,11 +420,7 @@ class Verify:
             else [self._transcript_g1(cmt) for cmt in proof_fields.witness_commitments]
         )
         # Add quotient and evaluations once we have their serialized form.
-        quotient_commitment = (
-            transcript_quotient_commitment
-            if transcript_quotient_commitment is not None
-            else self._transcript_g1(proof_fields.c_q)
-        )
+        quotient_commitment = transcript_quotient_commitment if transcript_quotient_commitment is not None else self._transcript_g1(proof_fields.c_q)
         if transcript_prefix is not None:
             self.t, self.alpha_list, self.zeta_p, self.V_list = derive_challenges_after_vk(
                 self.t,

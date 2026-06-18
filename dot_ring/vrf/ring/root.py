@@ -185,11 +185,7 @@ class RingRoot:
     def matches_ring(self, ring: Ring) -> bool:
         params = ring.params
         domain_size = params.domain_size
-        if (
-            len(self.px.evals) >= domain_size
-            and len(self.py.evals) >= domain_size
-            and len(self.s.evals) >= domain_size
-        ):
+        if len(self.px.evals) >= domain_size and len(self.py.evals) >= domain_size and len(self.s.evals) >= domain_size:
             return (
                 tuple(self.px.evals[:domain_size]) == tuple(point[0] for point in ring.nm_points)
                 and tuple(self.py.evals[:domain_size]) == tuple(point[1] for point in ring.nm_points)

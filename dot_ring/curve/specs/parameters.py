@@ -24,7 +24,6 @@ class Elligator2MontgomeryMap:
     b: int
 
 
-
 @dataclass(frozen=True, kw_only=True)
 class RationalIsogeny(Generic[Coord]):
     """Rational isogeny map from an auxiliary curve to the target curve."""

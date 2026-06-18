@@ -195,7 +195,6 @@ class PedersenBatchVerifier:
         blinding_scalar = 0
 
         for item, (io_weight, commitment_weight) in zip(self.items, coefficients, strict=True):
-
             for io, z in zip(item.ios, item.zs, strict=True):
                 points.extend([io.input, io.output])
                 scalars.extend(

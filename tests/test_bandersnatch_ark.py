@@ -8,8 +8,7 @@ from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ietf import TinyVRF
 from dot_ring.vrf.pedersen import PedersenVRF
-from dot_ring.vrf.ring import Ring, RingRoot
-from dot_ring.vrf.ring import RingVRF
+from dot_ring.vrf.ring import Ring, RingRoot, RingVRF
 from dot_ring.vrf.transcript import scalar_len
 
 HERE = os.path.dirname(__file__)
