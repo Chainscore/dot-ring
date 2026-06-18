@@ -11,7 +11,7 @@ from dot_ring.curve.specs.p256 import P256_RO
 from dot_ring.curve.specs.p384 import P384_RO
 from dot_ring.curve.specs.p521 import P521_RO
 from dot_ring.curve.specs.secp256k1 import Secp256k1_RO
-from dot_ring.vrf.pedersen.pedersen import PedersenVRF
+from dot_ring.vrf.pedersen import PedersenVRF
 
 HERE = os.path.dirname(__file__)
 
@@ -51,7 +51,7 @@ def test_pedersen_base(curve_variant, file_prefix, slice_end):
                 alpha = bytes.fromhex(vector["alpha"])
                 additional_data = bytes.fromhex(vector["ad"])
 
-                curve_variant.point.encode_to_curve(alpha)
+                curve_variant.encode_to_curve(alpha)
 
                 proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
                 proof_bytes = proof.to_bytes()
