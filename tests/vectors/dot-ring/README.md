@@ -19,4 +19,4 @@ Schemes:
 - Pedersen: `gamma || proof_pk_com || proof_r || proof_ok || proof_s || proof_sb`
 - Ring: Pedersen fields plus raw `ring_proof`
 
-Ring vectors are generated for Bandersnatch, Bandersnatch-SW, Bandersnatch-SHAKE128, JubJub, and Baby-JubJub. They include the concatenated ring public keys in `ring_pks`, the verifier key/root commitment in `ring_pks_com`, the fixed `ring_size`, and the deterministic `prover_idx`.
+Ring vectors are generated for Bandersnatch, Bandersnatch-SW, Bandersnatch-SHAKE128, and JubJub. They include the concatenated ring public keys in `ring_pks`, the verifier key/root commitment in `ring_pks_com`, the fixed `ring_size`, and the deterministic `prover_idx`.
