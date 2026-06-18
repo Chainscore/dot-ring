@@ -4,10 +4,10 @@ from abc import abstractmethod
 from typing import Protocol, TypeVar
 
 from ..curve.curve import CurveVariant
-from ..curve.point import Point
+from ..curve.point import CurvePoint
 
 C = TypeVar("C", bound=CurveVariant)
-P = TypeVar("P", bound=Point)
+P = TypeVar("P", bound=CurvePoint)
 
 
 class VRFProtocol(Protocol[C, P]):
