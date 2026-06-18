@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, cast
+from typing import Any
 
 from dot_ring.ring_proof.columns.columns import Column, require_commitment
-from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
+from dot_ring.ring_proof.transcript.phases import serialize_verifier_key
+from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 
 from .members import Ring
 
@@ -43,6 +44,10 @@ def _copy_commitment(commitment: Any) -> Any:
     return commitment.dup() if hasattr(commitment, "dup") else commitment
 
 
+def _transcript_g2_points(g2_points: Any) -> list[tuple[int, int]]:
+    return [(b, a) for pair in g2_points for point in pair for a, b in [point]]
+
+
 @dataclass
 class RingRoot:
     px: Column
@@ -54,9 +59,8 @@ class RingRoot:
     def from_ring(cls, ring: Ring, params: RingProofParams | None = None):
         if params is None:
             params = ring.params
-        # Px, Py, s points
-        px, py = H.unzip(ring.nm_points)
-        # Columns
+        px = [point[0] for point in ring.nm_points]
+        py = [point[1] for point in ring.nm_points]
         px_col = Column("Px", px, size=params.domain_size)
         py_col = Column("Py", py, size=params.domain_size)
         s_col = _selector_column(params)
@@ -65,25 +69,18 @@ class RingRoot:
             col.commit(params.pcs)
         return cls(px=px_col, py=py_col, s=s_col, params=params)
 
-    def verifier_key(self, params: RingProofParams | None = None) -> tuple[list[Any], dict[str, Any]]:
-        """Return fixed-column commitments and their transcript verifier key."""
+    def fixed_commitments(self, params: RingProofParams | None = None) -> list[Any]:
+        """Return fixed-column commitments for the ring root."""
         if params is None:
             params = self.params
         if params is None:
-            raise ValueError("Ring root verifier key requires ring proof parameters")
+            raise ValueError("Ring root commitments require ring proof parameters")
 
-        commitments = [
+        return [
             require_commitment(self.px),
             require_commitment(self.py),
             require_commitment(self.s),
         ]
-
-        verifier_key = {
-            "g1": params.pcs.srs.g1_points[0],
-            "g2": H.altered_points(params.pcs.srs.g2_points),
-            "commitments": [params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments],
-        }
-        return commitments, verifier_key
 
     def verifier_transcript_prefix(self, params: RingProofParams | None = None, transcript_challenge: bytes | None = None):
         """Return a transcript state after absorbing the fixed verifier key."""
@@ -92,37 +89,29 @@ class RingRoot:
         if params is None:
             raise ValueError("Ring root verifier transcript requires ring proof parameters")
 
-        _, verifier_key = self.verifier_key(params)
+        commitments = self.fixed_commitments(params)
+        commitment_bytes = [params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments]
+        verifier_key_bytes = serialize_verifier_key(
+            params.pcs.srs.g1_points[0],
+            _transcript_g2_points(params.pcs.srs.g2_points),
+            commitment_bytes,
+        )
         if transcript_challenge is None:
             transcript_challenge = params.cv.curve.params.suite_id
 
-        from dot_ring.ring_proof.transcript.serialize import serialize
-        from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
-
         transcript = FiatShamirTranscript(params.prime, transcript_challenge)
-        # Verifier-key transcript prefix is reused before proof-local data is absorbed.
-        transcript.add_serialized(b"vk", serialize(verifier_key))
+        transcript.absorb_labeled(b"vk", verifier_key_bytes)
         return transcript
 
     def to_bytes(self) -> bytes:
-        pcs = self.params.pcs if self.params is not None else None
-        if pcs is not None:
-            return b"".join(
-                (
-                    pcs.compress_g1(require_commitment(self.px)),
-                    pcs.compress_g1(require_commitment(self.py)),
-                    pcs.compress_g1(require_commitment(self.s)),
-                )
+        pcs = self.params.pcs if self.params is not None else KZG
+        return b"".join(
+            (
+                pcs.compress_g1(require_commitment(self.px)),
+                pcs.compress_g1(require_commitment(self.py)),
+                pcs.compress_g1(require_commitment(self.s)),
             )
-        for col in (self.px, self.py, self.s):
-            if col.commitment is None:
-                raise ValueError("Ring root is missing commitments")
-        comm_keys = (
-            H.bls_g1_compress(cast(Any, require_commitment(self.px))),
-            H.bls_g1_compress(cast(Any, require_commitment(self.py))),
-            H.bls_g1_compress(cast(Any, require_commitment(self.s))),
         )
-        return bytes.fromhex(comm_keys[0]) + bytes.fromhex(comm_keys[1]) + bytes.fromhex(comm_keys[2])
 
     @classmethod
     def from_bytes(cls, data: bytes, params: RingProofParams | None = None) -> "RingRoot":

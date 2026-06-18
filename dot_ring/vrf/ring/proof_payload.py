@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 from dot_ring.ring_proof.columns.columns import Column, require_commitment
-from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.opening import Opening
 from dot_ring.ring_proof.pcs.protocol import G1Commitment
@@ -78,15 +76,15 @@ class RingProofPayload:
                 params.pcs.compress_g1(require_commitment(self.c_accip)),
                 params.pcs.compress_g1(require_commitment(self.c_accx)),
                 params.pcs.compress_g1(require_commitment(self.c_accy)),
-                H.to_l_endian(self.px_zeta),
-                H.to_l_endian(self.py_zeta),
-                H.to_l_endian(self.s_zeta),
-                H.to_l_endian(self.b_zeta),
-                H.to_l_endian(self.accip_zeta),
-                H.to_l_endian(self.accx_zeta),
-                H.to_l_endian(self.accy_zeta),
+                _scalar_to_bytes(self.px_zeta),
+                _scalar_to_bytes(self.py_zeta),
+                _scalar_to_bytes(self.s_zeta),
+                _scalar_to_bytes(self.b_zeta),
+                _scalar_to_bytes(self.accip_zeta),
+                _scalar_to_bytes(self.accx_zeta),
+                _scalar_to_bytes(self.accy_zeta),
                 params.pcs.compress_g1(require_commitment(self.c_q)),
-                H.to_l_endian(self.l_zeta_omega),
+                _scalar_to_bytes(self.l_zeta_omega),
                 params.pcs.compress_g1(self.open_agg_zeta.proof),
                 params.pcs.compress_g1(self.open_l_zeta_omega.proof),
             )
@@ -133,6 +131,19 @@ class _PayloadReader:
 
     def scalar(self) -> int:
         end = self.offset + 32
-        value = H.canonical_scalar_from_bytes(self.data[self.offset : end], self.params.prime)
+        value = _scalar_from_bytes(self.data[self.offset : end], self.params.prime)
         self.offset = end
-        return cast(int, value)
+        return value
+
+
+def _scalar_to_bytes(value: int) -> bytes:
+    return value.to_bytes(RING_SCALAR_LEN, "little")
+
+
+def _scalar_from_bytes(data: bytes, modulus: int) -> int:
+    if len(data) != RING_SCALAR_LEN:
+        raise ValueError(f"scalar must be exactly {RING_SCALAR_LEN} bytes, got {len(data)}")
+    value = int.from_bytes(data, "little")
+    if value >= modulus:
+        raise ValueError("scalar is not canonical")
+    return value

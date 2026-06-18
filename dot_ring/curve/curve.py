@@ -248,17 +248,9 @@ class Curve(Generic[CoordT]):
         return int(_invert(_mpz(val), modulus))
 
     @staticmethod
-    def CMOV(a: int, b: int, cond: int) -> int:
-        """Constant-time conditional move: if cond is True, return b; else return a."""
-        return b if cond else a
-
-    @staticmethod
     def sgn0(x: int) -> int:
         """Return the sign of x: 1 if odd, 0 if even."""
         return x % 2
-
-    def find_z_ell2(self) -> int:
-        return 5  # 5 is only for bandersnatch
 
     def is_square(self, val: int) -> bool:
         """Check if val is a quadratic residue mod p using gmpy2 if available."""
@@ -329,9 +321,6 @@ class Curve(Generic[CoordT]):
         # modular inverse in GF(p)
         return pow(x, self.params.field_modulus - 2, self.params.field_modulus)
 
-    def legendre_symbol(self, x: int) -> int:
-        return pow(x, (self.params.field_modulus - 1) // 2, self.params.field_modulus)
-
     @staticmethod
     def sha512(data: bytes) -> bytes:
         """Calculate SHA-512 hash"""
@@ -342,10 +331,6 @@ class Curve(Generic[CoordT]):
         if value >= 256**length:
             raise ValueError("integer too large")
         return value.to_bytes(length, "big")
-
-    @staticmethod
-    def OS2IP(octets: bytearray) -> int:
-        return int.from_bytes(octets, "big")
 
     @staticmethod
     def strxor(s1: bytes, s2: bytes) -> bytes:

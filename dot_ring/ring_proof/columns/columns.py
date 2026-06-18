@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import cast
 
 from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, ZK_ROWS, SeedPoint
-from dot_ring.ring_proof.helpers import Helpers as H
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS, G1Commitment
@@ -139,7 +138,7 @@ class WitnessColumnBuilder:
         for i in range(1, acc_len):
             next_pt = acc[i - 1] if b_vector[i - 1] == 0 else self._add(acc[i - 1], self.ring_pk[i - 1])
             acc.append(next_pt)
-        return cast(tuple[list[int], list[int]], H.unzip(acc))
+        return [point[0] for point in acc], [point[1] for point in acc]
 
     def _inner_product_accumulator(self, b_vector: list[int]) -> list[int]:
         acc = [0]

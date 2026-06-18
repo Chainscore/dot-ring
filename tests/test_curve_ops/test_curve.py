@@ -12,7 +12,6 @@ from dot_ring.curve.specs.parameters import (
     TwistedEdwardsCurveParams,
 )
 from dot_ring.curve.twisted_edwards.te_affine_point import TEAffinePoint
-from dot_ring.ring_proof.transcript.serialize import serialize
 
 
 def _mock_hash_params(e2c: E2C_Variant = E2C_Variant.ELL2) -> HashToCurveParams[int]:
@@ -69,25 +68,6 @@ class TestCoverageCurve:
         # But we can mock or use a point that we know doubles to identity if any.
         # Alternatively, we can test the denominator check by mocking.
         pass
-
-    def test_serialize_large_int(self):
-        """Test serialize with integer too large."""
-        large_int = 1 << (48 * 8 + 1)
-        with pytest.raises(ValueError, match="Integer too large"):
-            serialize(large_int)
-
-    def test_serialize_bytes_bytearray(self):
-        """Test serialize with bytes and bytearray."""
-        b = b"test"
-        assert serialize(b) == b
-
-        ba = bytearray(b"test")
-        assert serialize(ba) == b
-
-    def test_serialize_invalid_type(self):
-        """Test serialize with invalid type."""
-        with pytest.raises(TypeError, match="Unsupported object type"):
-            serialize(1.5)  # type: ignore
 
     def test_te_affine_double_coverage(self):
         """Test TEAffinePoint.double with a valid point."""

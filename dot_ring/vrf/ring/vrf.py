@@ -169,7 +169,7 @@ class RingVRF(VRF[Any]):
         ring: Ring,
         ring_root: RingRoot,
     ) -> Verify:
-        fixed_cols_cmts, verifier_key = ring_root.verifier_key(ring.params)
+        fixed_cols_cmts = ring_root.fixed_commitments(ring.params)
         transcript_prefix = ring_root.verifier_transcript_prefix(ring.params)
 
         if isinstance(message, bytes):
@@ -183,19 +183,17 @@ class RingVRF(VRF[Any]):
 
         return Verify(
             self.ring_proof_tuple(),
-            verifier_key,
             fixed_cols_cmts,
             rltn,
             res_plus_seed,
             ring.params.seed_point,
             ring.params.domain,
-            transcript_challenge=self.cv.curve.params.suite_id,
+            transcript_prefix,
             padding_rows=ring.params.padding_rows,
             edwards_a=ring.params.ring_edwards_a,
             prime=ring.params.prime,
             omega=ring.params.omega,
             pcs=ring.params.pcs,
-            transcript_prefix=transcript_prefix,
             domain_size_inv=pow(ring.params.domain_size, -1, ring.params.prime),
             transcript_witness_commitments=witness_commitments,
             transcript_quotient_commitment=quotient_commitment,

@@ -8,9 +8,10 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dot_ring import Bandersnatch, blst
-from dot_ring.ring_proof.constants import EVAL_DOMAINS
+from dot_ring.ring_proof.constants import EVAL_DOMAINS, S_PRIME
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g2_to_blst
+from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 from dot_ring.ring_proof.verify import Verify
 from tests.utils.rust_serde import (
     compressed_g1_to_uncompressed_bytes,
@@ -150,22 +151,24 @@ def verify_vector(vector_path: Path) -> None:
             + compressed_g1_to_uncompressed_bytes(vk_bytes[288:336])
             + compressed_g1_to_uncompressed_bytes(vk_bytes[336:384])
         )
+        witness_uncompressed = b"".join(compressed_g1_to_uncompressed_bytes(commitment) for commitment in raw_bytes["col_commitments"])
 
         quotient_compressed = bytes.fromhex(proof_data["proof"]["quotient_commitment"])
         quotient_uncompressed = compressed_g1_to_uncompressed_bytes(quotient_compressed)
-        raw_bytes["quotient_commitment_uncompressed"] = quotient_uncompressed
+        transcript_prefix = FiatShamirTranscript(S_PRIME, b"w3f-ring-proof-test")
+        transcript_prefix.absorb_labeled(b"vk", vk_uncompressed)
 
         verifier = Verify(
             proof=proof_tuple,
-            vk=vk_uncompressed,
             fixed_cols=fixed_cols,
-            rl_to_proove=result_ark_bytes,
-            rps=result_plus_seed,
+            relation_to_prove=result_ark_bytes,
+            result_plus_seed=result_plus_seed,
             seed_point=seed_point,
-            Domain=domain,
-            raw_proof_bytes=raw_bytes,
-            transcript_challenge=b"w3f-ring-proof-test",
+            domain=domain,
+            transcript_prefix=transcript_prefix,
             padding_rows=padding_rows,
+            transcript_witness_commitments=witness_uncompressed,
+            transcript_quotient_commitment=quotient_uncompressed,
         )
 
         assert verifier.is_valid(), f"Verification failed for {vector_path.name}"

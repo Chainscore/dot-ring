@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -64,20 +64,6 @@ class RingConstraintBuilder:
         self._accy4 = _to_radix(self.acc_y, len(radix_domain), self.params.radix_omega, self.params.prime)
         self._accip4 = _to_radix(self.acc_ip, len(radix_domain), self.params.radix_omega, self.params.prime)
 
-    # convenient classmethod for Column builders
-    @classmethod
-    def from_columns(cls, columns: Mapping[str, Sequence[int]], Result_plus_Seed: Any) -> RingConstraintBuilder:
-        return cls(
-            Result_plus_Seed=Result_plus_Seed,
-            acc_ip=columns["accip"],
-            b=columns["b"],
-            s=columns["s"],
-            acc_x=columns["accx"],
-            acc_y=columns["accy"],
-            px=columns["Px"],
-            py=columns["Py"],
-        )
-
     def compute(self) -> dict[str, list[int]]:
         c2x, c3x = self._c2_c3()
         c5x, c6x = self._c5_c6()
@@ -90,8 +76,6 @@ class RingConstraintBuilder:
             "c6x": c6x,
             "c7x": self._c7(),
         }
-
-    compute_all = compute  # alias
 
     def _shifted_index(self, index: int) -> int:
         shifted = index + self._ctx["shift"]

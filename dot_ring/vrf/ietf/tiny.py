@@ -109,7 +109,7 @@ class TinyVRF(VRF[Any]):
             )
             z0 = scalars.next()
             z1 = scalars.next()
-            k = cls.generate_nonce(secret_scalar, transcript)
+            k = nonce(cls.cv, secret_scalar, transcript)
             generator = cls.cv.generator_point()
             order = cls.cv.curve.params.subgroup_order
             r = cls.cv.msm(
@@ -121,18 +121,12 @@ class TinyVRF(VRF[Any]):
             return cls(ios[0].output, c, s)
 
         transcript, merged = vrf_transcript(cls.cv, DomSep.TINY_VRF, schnorr_ios(cls.cv, public_key, ios), additional_data)
-        k = cls.generate_nonce(secret_scalar, transcript)
+        k = nonce(cls.cv, secret_scalar, transcript)
         r = merged.input * k
         c = challenge(cls.cv, [r], transcript)
         s = (k + c * secret_scalar) % cls.cv.curve.params.subgroup_order
         output_point = ios[0].output if len(ios) == 1 else merged.output
         return cls(output_point, c, s)
-
-    @classmethod
-    def generate_nonce(cls, secret_scalar: int, transcript: Any) -> int:
-        if not hasattr(transcript, "copy"):
-            return super().generate_nonce(secret_scalar, transcript)
-        return nonce(cls.cv, secret_scalar, transcript)
 
     def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
         input_point = self.cv.encode_to_curve(input, salt)
@@ -177,3 +171,31 @@ class TinyVRF(VRF[Any]):
         if mul_cofactor:
             gamma = gamma * cls.cv.curve.params.cofactor
         return point_to_hash(cls.cv, gamma)
+
+    @classmethod
+    def ecvrf_decode_proof(cls, proof: bytes | str) -> tuple[CurvePoint, int, int]:
+        if not isinstance(proof, bytes):
+            proof = bytes.fromhex(proof)
+
+        encoded_point_len = point_len(cls.cv)
+        scalar_size = scalar_len(cls.cv)
+        expected = encoded_point_len + CHALLENGE_LEN + scalar_size
+        if len(proof) != expected:
+            raise ValueError(f"invalid Tiny VRF proof length: expected {expected}, got {len(proof)}")
+
+        try:
+            output_point = cls.cv.string_to_point(proof[:encoded_point_len])
+        except ValueError as exc:
+            raise ValueError("Invalid gamma point") from exc
+
+        order = cls.cv.curve.params.subgroup_order
+        c = int.from_bytes(proof[encoded_point_len : encoded_point_len + CHALLENGE_LEN], "little") % order
+        s = scalar_decode(cls.cv, proof[encoded_point_len + CHALLENGE_LEN :])
+        if s >= order:
+            raise ValueError("Response scalar S is not less than the curve order")
+        return output_point, c, s
+
+    @classmethod
+    def ecvrf_proof_to_hash(cls, proof: bytes | str) -> bytes:
+        output_point, _, _ = cls.ecvrf_decode_proof(proof)
+        return cls.proof_to_hash(output_point)

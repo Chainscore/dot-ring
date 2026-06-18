@@ -8,11 +8,6 @@ from dot_ring.vrf.transcript import point_len, scalar_len
 
 
 class TestCoverageGaps:
-    def test_vrf_generate_nonce_invalid_input(self):
-        """Test generate_nonce raises ValueError for invalid input point type."""
-        with pytest.raises(ValueError, match="Input point must be a CurvePoint"):
-            TinyVRF[Bandersnatch].generate_nonce(123, 456)  # type: ignore
-
     def test_ecvrf_decode_proof_string_input(self):
         """Test ecvrf_decode_proof handles hex string input."""
         # Generate a valid proof first
@@ -30,10 +25,7 @@ class TestCoverageGaps:
 
     def test_ecvrf_decode_proof_invalid_gamma(self):
         """Test ecvrf_decode_proof raises ValueError for invalid gamma point."""
-        # Create a proof with invalid gamma point bytes (e.g. all zeros if not valid, or just garbage)
-        # Bandersnatch point length is 33.
-        invalid_gamma = b"\xff" * 33
-        # Valid C and S lengths
+        invalid_gamma = b"\xff" * point_len(Bandersnatch)
         c_len = Bandersnatch.curve.params.encoding.challenge_len
         s_len = scalar_len(Bandersnatch)
         dummy_c = b"\x00" * c_len
@@ -57,23 +49,13 @@ class TestCoverageGaps:
         invalid_s = order + 1
         s_len = (order.bit_length() + 7) // 8
 
-        # Reconstruct proof with invalid S
-        # Structure: gamma (33) + c (16 or 32) + s (32)
-        # Bandersnatch challenge length is 32.
-        gamma_len = 33
-        c_len = 32
+        gamma_len = point_len(Bandersnatch)
+        c_len = Bandersnatch.curve.params.encoding.challenge_len
 
         gamma_bytes = proof_bytes[:gamma_len]
         c_bytes = proof_bytes[gamma_len : gamma_len + c_len]
 
-        from dot_ring.ring_proof.helpers import Helpers
-
-        invalid_s_bytes = Helpers.int_to_str(invalid_s, "little", s_len)  # Bandersnatch is little endian
-
-        # Note: Helpers.int_to_str might mask the overflow if not careful, but here we want to inject bytes that decode to >= order.
-        # If s_len is fixed, we might not be able to fit order+1 if order is max for that length.
-        # Bandersnatch order is ~253 bits, fits in 32 bytes? 253/8 = 31.6. So 32 bytes.
-        # 2^253 fits in 32 bytes.
+        invalid_s_bytes = invalid_s.to_bytes(s_len, "little")
 
         invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
 
@@ -123,9 +105,7 @@ class TestCoverageGaps:
         gamma_bytes = proof_bytes[:gamma_len]
         c_bytes = proof_bytes[gamma_len : gamma_len + c_len]
 
-        from dot_ring.ring_proof.helpers import Helpers
-
-        invalid_s_bytes = Helpers.int_to_str(invalid_s, "little", s_len)
+        invalid_s_bytes = invalid_s.to_bytes(s_len, "little")
 
         invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
 

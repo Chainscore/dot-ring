@@ -33,7 +33,6 @@ class RingBatchContext:
     ring_root: RingRoot
     fixed_cols_cmts: list[Any]
     fixed_cols_blst: tuple[Any, Any, Any]
-    verifier_key: dict[str, Any]
     transcript_prefix: FiatShamirTranscript
     seed_point: tuple[int, int]
     domain: list[int]
@@ -46,7 +45,7 @@ class RingBatchContext:
     def from_ring(cls, ring: Ring, ring_root: RingRoot, *, validate_ring_root: bool = True) -> RingBatchContext:
         if validate_ring_root and not ring_root.matches_ring(ring):
             raise ValueError("ring root does not match ring")
-        fixed_cols_cmts, verifier_key = ring_root.verifier_key(ring.params)
+        fixed_cols_cmts = ring_root.fixed_commitments(ring.params)
         transcript_prefix = ring_root.verifier_transcript_prefix(ring.params)
         domain = ring.params.domain
         return cls(
@@ -54,7 +53,6 @@ class RingBatchContext:
             ring_root=ring_root,
             fixed_cols_cmts=fixed_cols_cmts,
             fixed_cols_blst=tuple(g1_to_blst(commitment) for commitment in fixed_cols_cmts),
-            verifier_key=verifier_key,
             transcript_prefix=transcript_prefix,
             seed_point=ring.params.seed_point,
             domain=domain,
@@ -85,19 +83,17 @@ class RingBatchContext:
 
         return Verify(
             proof.ring_proof_tuple(),
-            self.verifier_key,
             self.fixed_cols_cmts,
             rltn,
             res_plus_seed,
             self.seed_point,
             self.domain,
-            transcript_challenge=proof.cv.curve.params.suite_id,
+            self.transcript_prefix,
             padding_rows=self.padding_rows,
             edwards_a=self.ring_edwards_a,
             prime=ring.params.prime,
             omega=self.omega,
             pcs=ring.params.pcs,
-            transcript_prefix=self.transcript_prefix,
             domain_size_inv=self.domain_size_inv,
             transcript_witness_commitments=witness_commitments,
             transcript_quotient_commitment=quotient_commitment,

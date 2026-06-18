@@ -6,7 +6,6 @@ from typing import Any
 import pytest
 
 from dot_ring import P256, Bandersnatch, Ed25519, PedersenVRF, RingVRF, TinyVRF
-from dot_ring.ring_proof.helpers import Helpers
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ring import Ring, RingRoot
 from dot_ring.vrf.transcript import point_len, scalar_len
@@ -67,11 +66,11 @@ class TestIETFVRF:
 
         # Verify proof challenge
         challenge_len = curve.curve.params.encoding.challenge_len
-        c_bytes = Helpers.int_to_str(proof.c, curve.curve.encoding_endian(), challenge_len)
+        c_bytes = proof.c.to_bytes(challenge_len, curve.curve.encoding_endian())
         assert c_bytes == expected_c, f"challenge mismatch: expected {expected_c.hex()}, got {c_bytes.hex()}"
 
         # Verify proof response
-        s_bytes = Helpers.int_to_str(proof.s, curve.curve.encoding_endian(), scalar_len(curve))
+        s_bytes = proof.s.to_bytes(scalar_len(curve), curve.curve.encoding_endian())
         assert s_bytes == expected_s, f"response mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
 
         # Verify the proof
@@ -175,10 +174,10 @@ class TestPedersenVRF:
 
         assert proof.ok.point_to_string() == expected_ok, "Ok mismatch"
 
-        s_bytes = Helpers.int_to_str(proof.s, curve.curve.encoding_endian(), scalar_len(curve))
+        s_bytes = proof.s.to_bytes(scalar_len(curve), curve.curve.encoding_endian())
         assert s_bytes == expected_s, f"s mismatch: expected {expected_s.hex()}, got {s_bytes.hex()}"
 
-        sb_bytes = Helpers.int_to_str(proof.sb, curve.curve.encoding_endian(), scalar_len(curve))
+        sb_bytes = proof.sb.to_bytes(scalar_len(curve), curve.curve.encoding_endian())
         assert sb_bytes == expected_sb, f"sb mismatch: expected {expected_sb.hex()}, got {sb_bytes.hex()}"
 
         # Verify the proof
