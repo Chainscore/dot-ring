@@ -158,6 +158,8 @@ class KZG:
         Returns:
             G1Point: Commitment point
         """
+        if len(coeffs) > 0:
+            cls.ensure_srs_size(len(coeffs) - 1)
         srs = cls.srs
         if len(coeffs) > len(srs.g1):
             raise ValueError("polynomial degree exceeds SRS size")

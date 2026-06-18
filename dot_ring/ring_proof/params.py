@@ -212,9 +212,6 @@ class RingProofParams:
             object.__setattr__(self, "max_ring_size", max_supported)
         elif self.max_ring_size > max_supported:
             raise ValueError(f"max_ring_size {self.max_ring_size} exceeds supported size {max_supported}")
-        ensure_srs_size = getattr(self.pcs, "ensure_srs_size", None)
-        if ensure_srs_size is not None:
-            ensure_srs_size(self.required_srs_degree)
 
     @property
     def omega(self) -> int:

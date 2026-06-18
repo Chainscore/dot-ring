@@ -1,10 +1,7 @@
 """Tests for KZG module to improve coverage."""
 
-import pytest
-
 from dot_ring import blst
 from dot_ring.ring_proof.pcs.kzg import KZG, Opening
-from dot_ring.ring_proof.pcs.srs import srs
 
 
 class TestKZGCommit:
@@ -44,13 +41,17 @@ class TestKZGCommit:
 
         assert commitment is not None
 
-    def test_commit_exceeds_srs_raises(self):
-        """Test that committing to too large polynomial raises."""
-        # Create polynomial larger than SRS
-        coeffs = [1] * (len(srs.g1) + 100)
+    def test_commit_requests_srs_capacity(self, monkeypatch):
+        """Test that committing asks KZG to load enough SRS points."""
+        requested = []
 
-        with pytest.raises(ValueError, match="polynomial degree exceeds SRS size"):
-            KZG.commit(coeffs)
+        def ensure_srs_size(max_degree: int) -> None:
+            requested.append(max_degree)
+
+        monkeypatch.setattr(KZG, "ensure_srs_size", ensure_srs_size)
+        KZG.commit([1, 2, 3])
+
+        assert requested == [2]
 
 
 class TestKZGOpen:
