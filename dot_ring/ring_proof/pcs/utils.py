@@ -1,3 +1,5 @@
+from typing import Any, NamedTuple, TypeAlias
+
 import py_ecc.optimized_bls12_381 as bls
 from py_ecc.bls import point_compression
 
@@ -5,19 +7,52 @@ from dot_ring import blst
 
 Scalar = int
 CoeffVector = list[Scalar]
+G1Term: TypeAlias = tuple[Any, Scalar]
+
+
+class PcsVerification(NamedTuple):
+    commitment: Any
+    proof: Any
+    point: Scalar
+    value: Scalar
+
+
+class LinearPcsVerification(NamedTuple):
+    commitment_terms: tuple[G1Term, ...]
+    proof: Any
+    point: Scalar
+    value: Scalar
+
+
+def pcs_compress_g1(pcs: Any, point: Any) -> bytes:
+    return pcs.compress_g1(point)
+
+
+def pcs_decompress_g1(pcs: Any, data: bytes) -> Any:
+    return pcs.decompress_g1(data)
+
+
+def pcs_transcript_g1(pcs: Any, point: Any) -> Any:
+    return pcs.serialize_g1_uncompressed(point)
 
 
 def synthetic_div(poly: CoeffVector, x: Scalar, y: Scalar) -> CoeffVector:
     """Return q(X) such that f(X)−y = (X−x)·q(X).  Checks remainder."""
+    q, rem = synthetic_div_with_eval(poly, x)
+    if rem != y:
+        raise ValueError("point/value pair inconsistent with polynomial")
+    return q
+
+
+def synthetic_div_with_eval(poly: CoeffVector, x: Scalar) -> tuple[CoeffVector, Scalar]:
+    """Return quotient by ``X-x`` and ``f(x)`` in one Horner pass."""
     n = len(poly)
     q = [0] * (n - 1)
     rem = poly[-1]
     for i in range(n - 2, -1, -1):
         q[i] = rem
         rem = (rem * x + poly[i]) % bls.curve_order
-    if rem != y:
-        raise ValueError("point/value pair inconsistent with polynomial")
-    return q
+    return q, rem
 
 
 def g1_to_blst(p: tuple | blst.P1 | blst.P1_Affine) -> blst.P1:

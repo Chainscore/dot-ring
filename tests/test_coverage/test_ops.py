@@ -1,43 +1,27 @@
 """Tests for polynomial operations module to improve coverage."""
 
-import pytest
-from dot_ring.ring_proof.polynomial.poly_ops import poly_add, poly_evaluate_single, poly_mul_linear, poly_subtract
-from dot_ring.ring_proof.polynomial.poly_ops import poly_scalar_mul as poly_scalar
-
 from dot_ring.ring_proof.constants import D_512, D_2048, S_PRIME
 from dot_ring.ring_proof.polynomial.ops import (
     get_root_of_unity,
     lagrange_basis_polynomial,
-    mod_inverse,
-    poly_division_general,
-    poly_evaluate,
+    poly_add,
+    poly_divide_by_vanishing,
+    poly_evaluate_domain,
+    poly_evaluate_single,
+    poly_mul_linear,
     poly_multiply,
+    poly_scalar_mul,
+    poly_subtract,
     vect_scalar_mul,
 )
+
+poly_scalar = poly_scalar_mul
 
 
 class TestPolynomialOps:
     """Test cases for polynomial operations."""
 
     PRIME = 17  # Small prime for testing
-
-    def test_mod_inverse_basic(self):
-        """Test modular inverse computation."""
-        # 3 * 6 = 18 = 1 mod 17, so inv(3) = 6 mod 17
-        result = mod_inverse(3, 17)
-        assert (3 * result) % 17 == 1
-
-    def test_mod_inverse_raises_for_no_inverse(self):
-        """Test mod_inverse raises ValueError when no inverse exists."""
-        # 0 has no inverse
-        with pytest.raises(ValueError, match="No inverse exists"):
-            mod_inverse(0, 17)
-
-    def test_mod_inverse_various_values(self):
-        """Test mod_inverse for various values."""
-        for val in [1, 2, 5, 7, 11, 13]:
-            inv = mod_inverse(val, 17)
-            assert (val * inv) % 17 == 1
 
     def test_poly_add_same_length(self):
         """Test polynomial addition with same length."""
@@ -142,65 +126,57 @@ class TestPolynomialOps:
         # 1 + 2*2 + 3*4 = 1 + 4 + 12 = 17 mod 17 = 0
         assert result == 0
 
-    def test_poly_evaluate_single_point_integer(self):
-        """Test poly_evaluate with single integer point."""
-        poly = [1, 2, 3]
-        result = poly_evaluate(poly, 5, 17)
-        # Returns single value for single point
-        expected = poly_evaluate_single(poly, 5, 17)
-        assert result == expected
-
-    def test_poly_evaluate_multiple_points(self):
-        """Test poly_evaluate with multiple arbitrary points."""
+    def test_poly_evaluate_domain_arbitrary_points(self):
+        """Test domain evaluation with multiple arbitrary points."""
         poly = [1, 2]  # 1 + 2x
         points = [0, 1, 2, 3]
-        result = poly_evaluate(poly, points, 17)
+        result = poly_evaluate_domain(poly, points, 17)
         # At x=0: 1, x=1: 3, x=2: 5, x=3: 7
         assert result == [1, 3, 5, 7]
 
-    def test_poly_evaluate_d512_domain(self):
-        """Test poly_evaluate with D_512 domain uses FFT."""
+    def test_poly_evaluate_domain_d512(self):
+        """Test domain evaluation with D_512 uses FFT."""
         poly = [1, 2, 3, 4]
-        result = poly_evaluate(poly, D_512, S_PRIME)
+        result = poly_evaluate_domain(poly, D_512, S_PRIME)
         assert len(result) == 512
 
-    def test_poly_evaluate_d2048_domain(self):
-        """Test poly_evaluate with D_2048 domain uses FFT."""
+    def test_poly_evaluate_domain_d2048(self):
+        """Test domain evaluation with D_2048 uses FFT."""
         poly = [1, 2, 3, 4]
-        result = poly_evaluate(poly, D_2048, S_PRIME)
+        result = poly_evaluate_domain(poly, D_2048, S_PRIME)
         assert len(result) == 2048
 
-    def test_poly_division_general_quotient_zero(self):
+    def test_poly_divide_by_vanishing_quotient_zero(self):
         """Test division when deg(f) < domain_size (quotient is 0)."""
         coeffs = [1, 2, 3]  # degree 2
         domain_size = 8
-        result = poly_division_general(coeffs, domain_size)
+        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
         assert result == [0]
 
-    def test_poly_division_general_basic(self):
+    def test_poly_divide_by_vanishing_basic(self):
         """Test basic polynomial division by vanishing polynomial."""
         # f(x) = x^4 + 2x^3 + 3x^2 + 4x + 5
         coeffs = [5, 4, 3, 2, 1]  # degree 4
         domain_size = 4
         # Dividing by x^4 - 1
         # quotient is coefficient of x^4, which is 1
-        result = poly_division_general(coeffs, domain_size)
+        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
         assert result == [1]
 
-    def test_poly_division_general_larger(self):
+    def test_poly_divide_by_vanishing_larger(self):
         """Test polynomial division with larger polynomial."""
         # f(x) with degree 7, domain_size 4
         coeffs = [1, 2, 3, 4, 5, 6, 7, 8]  # coeffs[4:] = [5,6,7,8] is initial quotient
         domain_size = 4
-        result = poly_division_general(coeffs, domain_size)
+        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
         # quotient = coeffs[n:] = [5, 6, 7, 8]
         assert len(result) == 4
 
-    def test_poly_division_general_strips_zeros(self):
+    def test_poly_divide_by_vanishing_strips_zeros(self):
         """Test that division strips trailing zeros from quotient."""
         coeffs = [1, 2, 3, 4, 5, 0, 0, 0]  # trailing zeros in quotient part
         domain_size = 4
-        result = poly_division_general(coeffs, domain_size)
+        result = poly_divide_by_vanishing(coeffs, domain_size, 17)
         # quotient should have trailing zeros stripped
         assert result[-1] != 0 or result == [0]
 
@@ -252,6 +228,16 @@ class TestPolynomialOps:
         # Should use optimized path for D_2048
         basis = lagrange_basis_polynomial(D_2048, 0, S_PRIME)
         assert len(basis) == 2048
+
+    def test_lagrange_basis_polynomial_generic_root_domain(self):
+        """Test optimized Lagrange basis on generated roots-of-unity domains."""
+        omega = get_root_of_unity(8, S_PRIME)
+        domain = [pow(omega, i, S_PRIME) for i in range(8)]
+        basis = lagrange_basis_polynomial(domain, 3, S_PRIME)
+
+        for index, point in enumerate(domain):
+            expected = 1 if index == 3 else 0
+            assert poly_evaluate_single(basis, point, S_PRIME) == expected
 
     def test_get_root_of_unity_caching(self):
         """Test that root of unity computation is cached."""

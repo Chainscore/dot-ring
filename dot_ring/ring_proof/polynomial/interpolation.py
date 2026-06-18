@@ -1,4 +1,4 @@
-from dot_ring.ring_proof.polynomial.fft import _fft_in_place
+from dot_ring.ring_proof.polynomial.fft import _fft_in_place, _fft_in_place_scaled
 
 
 def is_power_of_two(n: int) -> bool:
@@ -26,9 +26,10 @@ def fft(a: list[int], omega: int, p: int) -> list[int]:  # coeffs to evaluation 
 def poly_interpolate_fft(a: list[int], omega: int, p: int) -> list[int]:  # funcs like inverse_fft from evals to poly coeffs
     n = len(a)
     omega_inv = modinv(omega, p)
-    y = fft(a, omega_inv, p)
     n_inv = modinv(n, p)
-    return [(val * n_inv) % p for val in y]
+    coeffs = list(a)
+    _fft_in_place_scaled(coeffs, omega_inv, p, n_inv)
+    return coeffs
 
 
 def next_power_of_two(n: int) -> int:

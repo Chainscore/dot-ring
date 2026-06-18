@@ -70,11 +70,11 @@ def compressed_bandersnatch_to_uncompressed_bytes(compressed: bytes) -> bytes:
     # Recover y from Twisted Edwards curve equation: a*x^2 + y^2 = 1 + d*x^2*y^2
     # Rearranged: y^2 = (1 - a*x^2) / (1 - d*x^2)
     # Bandersnatch parameters from the curve specification
-    from dot_ring.curve.specs.bandersnatch import BandersnatchParams
+    from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS, Bandersnatch_TE_Curve
 
-    a = BandersnatchParams.EDWARDS_A
-    d = BandersnatchParams.EDWARDS_D
-    p = BandersnatchParams.MODULUS
+    a = BANDERSNATCH_PARAMS.a
+    d = BANDERSNATCH_PARAMS.d
+    p = BANDERSNATCH_PARAMS.field_modulus
 
     x_squared = (x * x) % p
     numerator = (1 - a * x_squared) % p
@@ -82,14 +82,10 @@ def compressed_bandersnatch_to_uncompressed_bytes(compressed: bytes) -> bytes:
     denominator_inv = pow(denominator, p - 2, p)  # Fermat's little theorem
     y_squared = (numerator * denominator_inv) % p
 
-    # Compute square root using Tonelli-Shanks or p ≡ 3 mod 4 method
-    # For Bandersnatch, p ≡ 1 mod 4, so we need Tonelli-Shanks
-    # But for simplicity, we can use the fact that we know the sign
-    y = pow(y_squared, (p + 1) // 4, p)  # This might not always work
-
-    # Actually, let's check if p ≡ 3 mod 4
-    # Bandersnatch uses BLS12-381 scalar field, which is p ≡ 3 mod 4
-    y = pow(y_squared, (p + 1) // 4, p)
+    try:
+        y = Bandersnatch_TE_Curve.mod_sqrt(y_squared)
+    except ValueError as exc:
+        raise ValueError("Invalid compressed Bandersnatch point") from exc
 
     # Check which square root to use based on sign bit
     # The sign bit indicates whether y is positive or negative

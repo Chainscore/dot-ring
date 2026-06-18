@@ -7,9 +7,8 @@ the naive O(n * m) Horner evaluation.
 
 from functools import lru_cache
 
-# Cython-based FTT
 from dot_ring.ring_proof.constants import S_PRIME
-from dot_ring.ring_proof.polynomial.ntt import ntt_in_place
+from dot_ring.ring_proof.polynomial.ntt import BlsScalarNTTPlan
 
 
 @lru_cache(maxsize=1024)
@@ -69,6 +68,17 @@ def _get_roots(n: int, omega: int, prime: int) -> list[int]:
     return powers
 
 
+def _use_native_ntt(prime: int) -> bool:
+    return prime == S_PRIME
+
+
+@lru_cache(maxsize=1024)
+def _get_native_ntt_plan(n: int, omega: int, prime: int):
+    if not _use_native_ntt(prime):
+        raise ValueError("native NTT is only available for the BLS12-381 scalar field")
+    return BlsScalarNTTPlan(_get_twiddle_factors(n, omega, prime), _get_bit_reverse(n))
+
+
 def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     """In-place Cooley-Tukey.
 
@@ -81,7 +91,7 @@ def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     if n == 1:
         return
 
-    if prime != S_PRIME:
+    if not _use_native_ntt(prime):
         rev = _get_bit_reverse(n)
         for i, j in enumerate(rev):
             if i < j:
@@ -102,11 +112,27 @@ def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
             m <<= 1
         return
 
-    rev = _get_bit_reverse(n)
-    twiddles = _get_twiddle_factors(n, omega, prime)
+    _get_native_ntt_plan(n, omega, prime).transform(coeffs)
 
-    ntt_in_place(coeffs, twiddles, rev, prime)
-    return
+
+def _fft_in_place_scaled(coeffs: list[int], omega: int, prime: int, scale: int) -> None:
+    """In-place Cooley-Tukey followed by a scalar multiply on every output."""
+    if scale == 1:
+        _fft_in_place(coeffs, omega, prime)
+        return
+
+    n = len(coeffs)
+    if n == 1:
+        coeffs[0] = (coeffs[0] * scale) % prime
+        return
+
+    if not _use_native_ntt(prime):
+        _fft_in_place(coeffs, omega, prime)
+        for i, value in enumerate(coeffs):
+            coeffs[i] = (value * scale) % prime
+        return
+
+    _get_native_ntt_plan(n, omega, prime).transform_scaled(coeffs, scale)
 
 
 def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:
@@ -123,9 +149,9 @@ def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:
     n = len(values)
     inv_omega = pow(omega, -1, prime)
     coeffs = values[:]
-    _fft_in_place(coeffs, inv_omega, prime)
     inv_n = pow(n, -1, prime)
-    return [(c * inv_n) % prime for c in coeffs]
+    _fft_in_place_scaled(coeffs, inv_omega, prime, inv_n)
+    return coeffs
 
 
 def evaluate_poly_over_domain(poly: list[int], domain: list[int], omega: int, prime: int) -> list[int]:

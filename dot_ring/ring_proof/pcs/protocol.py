@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar, Protocol
 
-from .utils import CoeffVector, Scalar
+from .utils import CoeffVector, PcsVerification, Scalar
 
 G1Commitment = object
 
@@ -37,4 +37,4 @@ class PCS(Protocol):
     def verify(cls, commitment: G1Commitment, proof: G1Commitment, point: Scalar, value: Scalar) -> bool: ...
 
     @classmethod
-    def batch_verify(cls, verifications: list[tuple[G1Commitment, G1Commitment, Scalar, Scalar]]) -> bool: ...
+    def batch_verify(cls, verifications: list[PcsVerification]) -> bool: ...

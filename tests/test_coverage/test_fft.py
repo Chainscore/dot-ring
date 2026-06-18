@@ -77,9 +77,7 @@ class TestFFT:
         omega = 4
         prime = 17
 
-        # omega^4 mod 17 = 256 mod 17 = 1, but we need 8th root
-        # Let's find 8th root: need omega^8 = 1 mod 17
-        # 2^8 = 256 mod 17 = 1. Yes! 2 is 8th root
+        # 2 is an 8th root of unity mod 17.
         omega = 2
 
         roots = _get_roots(n, omega, prime)
