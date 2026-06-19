@@ -168,51 +168,6 @@ class TestCoverageGaps:
         except Exception as e:
             pytest.skip(f"Ed448 not fully supported or failed: {e}")
 
-    def test_ring_decode_skip_pedersen(self):
-        """Test RingVRF.decode with skip_pedersen=True."""
-        from dot_ring.vrf.ring import RingVRF
-
-        # Generate a valid proof
-        alpha = b"test"
-        ad = b"ad"
-        sk = b"secret"
-        pk = Bandersnatch.public_key_from_secret(sk)
-        keys = [pk]
-
-        params = RingProofParams()
-        ring = Ring(keys, params)
-        ring_root = RingRoot.from_ring(ring, params)
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
-        proof_bytes = proof.encode()
-
-        # skip_pedersen=True expects bytes that start at the ring proof payload.
-        ring_proof_bytes = proof_bytes[192:]
-        parsed = RingVRF[Bandersnatch].decode(ring_proof_bytes, skip_pedersen=True)
-        assert parsed.pedersen_proof is None
-
-    def test_ring_verify_missing_pedersen(self):
-        """Test RingVRF.verify raises ValueError if pedersen_proof is missing."""
-        from dot_ring.vrf.ring import RingVRF
-
-        # Create a dummy RingVRF with pedersen_proof=None
-        # We can use the one parsed above
-        alpha = b"test"
-        ad = b"ad"
-        sk = b"secret"
-        pk = Bandersnatch.public_key_from_secret(sk)
-        keys = [pk]
-
-        params = RingProofParams()
-        ring = Ring(keys, params)
-        ring_root = RingRoot.from_ring(ring, params)
-        proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
-        proof_bytes = proof.encode()
-        ring_proof_bytes = proof_bytes[192:]
-        parsed = RingVRF[Bandersnatch].decode(ring_proof_bytes, skip_pedersen=True)
-
-        with pytest.raises(ValueError, match="Pedersen proof is missing"):
-            parsed.verify(alpha, ad, ring, ring_root)
-
     def test_ring_handles_invalid_keys(self):
         """Test Ring construction with invalid keys."""
         # Invalid key string

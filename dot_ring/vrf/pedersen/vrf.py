@@ -1,6 +1,12 @@
+"""Pedersen VRF (section 4).
+
+The library proof envelope is `gamma || Y_bar || R || O_k || s || s_b`;
+the spec proof is `Y_bar || R || O_k || s || s_b`.
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from dot_ring.curve.curve import CurveVariant
@@ -30,20 +36,9 @@ def _blinding_base(curve: CurveVariant) -> CurvePoint:
     return curve.point(blinding_base[0], blinding_base[1])
 
 
-@dataclass
+@dataclass(frozen=True)
 class PedersenVRF(VRF[C]):
-    """
-    Pedersen VRF implementation.
-
-    This implementation provides Pedersen-style VRF operations with blinding
-    support.
-
-    Usage:
-    >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
-    >>> from dot_ring.vrf.pedersen import PedersenVRF
-    >>> proof = PedersenVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
-    >>> verified = PedersenVRF[Bandersnatch].verify(input_point, additional_data, proof)
-    """
+    """Pedersen VRF proof plus gamma envelope. `_blinding_factor` is prover-local for Ring VRF."""
 
     output_point: CurvePoint
     blinded_pk: CurvePoint
@@ -52,6 +47,7 @@ class PedersenVRF(VRF[C]):
     s: int
     sb: int
     _blinding_factor: int = 0
+    _points_validated: bool = field(default=False, repr=False, compare=False)
 
     @classmethod
     def proof_len(cls) -> int:
@@ -80,6 +76,8 @@ class PedersenVRF(VRF[C]):
             raise ValueError("Response scalar s is not canonical")
         if sb >= order:
             raise ValueError("Response scalar sb is not canonical")
+        if not all(cls._valid_point(point) for point in (output_point, public_key_cp, r, ok)):
+            raise ValueError("Invalid identity or subgroup point in proof")
 
         return cls(
             output_point=output_point,
@@ -88,6 +86,7 @@ class PedersenVRF(VRF[C]):
             ok=ok,
             s=s,
             sb=sb,
+            _points_validated=True,
         )
 
     def encode(self) -> bytes:
@@ -117,7 +116,7 @@ class PedersenVRF(VRF[C]):
         secret_scalar = scalar_decode(cls.cv, secret_key)
         public_key = cls.cv.generator_point() * secret_scalar
         io = cls._io_from_alpha(alpha, secret_scalar, salt)
-        return cls.prove_ios([io], secret_scalar, public_key, additional_data)
+        return cls._prove_ios([io], secret_scalar, public_key, additional_data, points_validated=True)
 
     @classmethod
     def prove_ios(
@@ -127,6 +126,19 @@ class PedersenVRF(VRF[C]):
         public_key: CurvePoint,
         additional_data: bytes,
     ) -> PedersenVRF:
+        return cls._prove_ios(ios, secret_scalar, public_key, additional_data, points_validated=False)
+
+    @classmethod
+    def _prove_ios(
+        cls,
+        ios: list[VrfIo],
+        secret_scalar: int,
+        public_key: CurvePoint,
+        additional_data: bytes,
+        *,
+        points_validated: bool,
+    ) -> PedersenVRF:
+        """Spec section 4.1 steps 1-10 over caller-supplied I/O pairs."""
         transcript, merged = vrf_transcript(cls.cv, DomSep.PEDERSEN_VRF, ios, additional_data)
         blinding_factor = cls.blinding_scalar(secret_scalar, transcript)
         blinding_base = _blinding_base(cls.cv)
@@ -153,13 +165,40 @@ class PedersenVRF(VRF[C]):
             s=s,
             sb=sb,
             _blinding_factor=blinding_factor,
+            _points_validated=points_validated,
         )
 
     def verify(self, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
+        if not self._valid_proof_points():
+            return False
         input_point = self.cv.encode_to_curve(input, salt)
-        return self.verify_ios([VrfIo(input_point, self.output_point)], additional_data)
+        return self._verify_ios([VrfIo(input_point, self.output_point)], additional_data)
 
     def verify_ios(self, ios: list[VrfIo], additional_data: bytes) -> bool:
+        """Spec section 4.2: validate points, rebuild `T`, then check VRF and commitment equations."""
+        if not self._valid_proof_points() or not self._valid_ios(ios):
+            return False
+        return self._verify_ios(ios, additional_data)
+
+    def _valid_proof_points(self) -> bool:
+        if self._points_validated:
+            return True
+        return all(self._valid_point(point) for point in (self.output_point, self.blinded_pk, self.result_point, self.ok))
+
+    @classmethod
+    def _valid_ios(cls, ios: list[VrfIo]) -> bool:
+        seen: set[int] = set()
+        for io in ios:
+            for point in (io.input, io.output):
+                point_id = id(point)
+                if point_id in seen:
+                    continue
+                seen.add(point_id)
+                if not cls._valid_point(point):
+                    return False
+        return True
+
+    def _verify_ios(self, ios: list[VrfIo], additional_data: bytes) -> bool:
         transcript, merged = vrf_transcript(self.cv, DomSep.PEDERSEN_VRF, ios, additional_data)
         transcript.absorb(self.blinded_pk.point_to_string())
         c = challenge(self.cv, [self.result_point, self.ok], transcript)
@@ -172,6 +211,21 @@ class PedersenVRF(VRF[C]):
 
         lhs2 = self.cv.msm([generator, blinding_base, self.blinded_pk], [self.s, self.sb, -c])
         return lhs2 == self.result_point
+
+    def verify_unblinding(self, public_key: bytes | str | CurvePoint, blinding_factor: int) -> bool:
+        """Spec section 4.3: check `Y_bar = Y + b*B` for a revealed blinding factor."""
+        order = self.cv.curve.params.subgroup_order
+        if not 0 <= blinding_factor < order:
+            return False
+        if isinstance(public_key, bytes | str):
+            try:
+                public_key = self.cv.string_to_point(public_key)
+            except ValueError as exc:
+                raise ValueError("Invalid public key") from exc
+        blinded_pk_valid = self._points_validated or self._valid_point(self.blinded_pk)
+        if not (self._valid_point(public_key) and blinded_pk_valid):
+            return False
+        return public_key + _blinding_base(self.cv) * blinding_factor == self.blinded_pk
 
     @classmethod
     def blinding_scalar(cls, secret_scalar: int, transcript: Any) -> int:

@@ -7,7 +7,7 @@ the naive O(n * m) Horner evaluation.
 
 from functools import lru_cache
 
-from dot_ring.ring_proof.constants import S_PRIME
+from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_FIELD_MODULUS
 from dot_ring.ring_proof.polynomial.ntt import BlsScalarNTTPlan
 
 
@@ -56,15 +56,6 @@ def _get_twiddle_factors(n: int, omega: int, prime: int) -> list[list[int]]:
     return twiddles
 
 
-def _use_native_ntt(prime: int) -> bool:
-    return prime == S_PRIME
-
-
-@lru_cache(maxsize=1024)
-def _get_native_ntt_plan(n: int, omega: int, prime: int):
-    if not _use_native_ntt(prime):
-        raise ValueError("native NTT is only available for the BLS12-381 scalar field")
-    return BlsScalarNTTPlan(_get_twiddle_factors(n, omega, prime), _get_bit_reverse(n))
 
 
 def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
@@ -78,29 +69,8 @@ def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     n = len(coeffs)
     if n == 1:
         return
-
-    if not _use_native_ntt(prime):
-        rev = _get_bit_reverse(n)
-        for i, j in enumerate(rev):
-            if i < j:
-                coeffs[i], coeffs[j] = coeffs[j], coeffs[i]
-
-        m = 2
-        while m <= n:
-            half_m = m >> 1
-            w_step = pow(omega, n // m, prime)
-            for start in range(0, n, m):
-                w = 1
-                for j in range(half_m):
-                    u = coeffs[start + j]
-                    v = coeffs[start + j + half_m] * w % prime
-                    coeffs[start + j] = (u + v) % prime
-                    coeffs[start + j + half_m] = (u - v) % prime
-                    w = w * w_step % prime
-            m <<= 1
-        return
-
-    _get_native_ntt_plan(n, omega, prime).transform(coeffs)
+    
+    BlsScalarNTTPlan(_get_twiddle_factors(n, omega, prime), _get_bit_reverse(n)).transform(coeffs)
 
 
 def _fft_in_place_scaled(coeffs: list[int], omega: int, prime: int, scale: int) -> None:
@@ -114,13 +84,7 @@ def _fft_in_place_scaled(coeffs: list[int], omega: int, prime: int, scale: int) 
         coeffs[0] = (coeffs[0] * scale) % prime
         return
 
-    if not _use_native_ntt(prime):
-        _fft_in_place(coeffs, omega, prime)
-        for i, value in enumerate(coeffs):
-            coeffs[i] = (value * scale) % prime
-        return
-
-    _get_native_ntt_plan(n, omega, prime).transform_scaled(coeffs, scale)
+    BlsScalarNTTPlan(_get_twiddle_factors(n, omega, prime), _get_bit_reverse(n)).transform_scaled(coeffs, scale)
 
 
 def inverse_fft(values: list[int], omega: int, prime: int) -> list[int]:

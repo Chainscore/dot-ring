@@ -5,8 +5,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from dot_ring.curve.point import CurvePoint
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, ZK_ROWS
-from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.ring_proof.params import (
+    DEFAULT_DOMAIN_SIZE,
+    DEFAULT_MAX_RING_SIZE,
+    ZK_ROWS,
+    RingProofParams,
+)
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS, G1Commitment
 from dot_ring.ring_proof.polynomial.fft import inverse_fft
@@ -20,12 +24,12 @@ class Column:
     evals: list[int]
     coeffs: list[int] | None = None
     commitment: G1Commitment | None = None
-    size: int = DEFAULT_SIZE
+    size: int = DEFAULT_DOMAIN_SIZE
 
     def interpolate(
         self,
-        domain_omega: int = OMEGAS[DEFAULT_SIZE],
-        prime: int = S_PRIME,
+        domain_omega: int,
+        prime: int,
         hidden: bool = False,
         test_vectors: bool = False,
     ) -> None:
@@ -68,12 +72,18 @@ class WitnessColumnBuilder:
     producer_index: int
     secret_t: int
     params: RingProofParams = field(default_factory=RingProofParams, repr=False)
-    size: int = DEFAULT_SIZE
-    omega: int = OMEGAS[DEFAULT_SIZE]
-    prime: int = S_PRIME
-    max_ring_size: int = MAX_RING_SIZE
+    size: int = DEFAULT_DOMAIN_SIZE
+    omega: int | None = None
+    prime: int | None = None
+    max_ring_size: int = DEFAULT_MAX_RING_SIZE
     padding_rows: int = 4
     test_vectors: bool = False
+
+    def __post_init__(self) -> None:
+        if self.omega is None:
+            self.omega = self.params.omega
+        if self.prime is None:
+            self.prime = self.params.prime
 
     @classmethod
     def from_params(

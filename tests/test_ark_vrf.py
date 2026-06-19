@@ -315,8 +315,6 @@ def test_negative_and_malformed_proofs() -> None:
     invalid_kzg_point = proof_bytes[:pedersen_len] + b"\xff" * 48 + proof_bytes[pedersen_len + 48 :]
     with pytest.raises(ValueError):
         RingVRF[Bandersnatch].decode(invalid_kzg_point)
-    with pytest.raises(ValueError, match="invalid Ring VRF proof length"):
-        RingVRF[Bandersnatch].decode(bytes.fromhex(ring_vector["ring_proof"])[:-1], skip_pedersen=True)
     with pytest.raises(ValueError, match="invalid ring root length"):
         RingRoot.decode(ring_root.encode()[:-1])
     with pytest.raises(ValueError):

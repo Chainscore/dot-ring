@@ -1,20 +1,25 @@
+"""VRF transcript primitives from Bandersnatch VRF spec sections 1.5-1.9.
+
+The public helpers intentionally keep spec names: `vrf_transcript`, `nonce`,
+`challenge`, and `point_to_hash`.
+"""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
 from dot_ring.vrf.domain import DomSep
 from dot_ring.vrf.io import VrfIo
 
-if TYPE_CHECKING:
-    from dot_ring.vrf.delinearize import DelinearizeScalars
-
 SECURITY_PARAMETER = 128
 CHALLENGE_LEN = SECURITY_PARAMETER // 8
 
 
 class VrfTranscript:
+    """Append-only transcript with counter-mode XOF squeezing; no absorb after squeeze."""
+
     def __init__(self, label: bytes, hash_fn: Any) -> None:
         self._hash_fn = hash_fn
         self._absorbed = bytearray(label)
@@ -81,6 +86,7 @@ def _challenge_scalar(curve: CurveVariant, transcript: VrfTranscript) -> int:
 
 
 def nonce(curve: CurveVariant, secret_scalar: int, transcript: VrfTranscript | None = None) -> int:
+    """Spec section 1.8: derive the nonce from `NonceExpand` then `Nonce`; abort on zero."""
     t = transcript.copy() if transcript is not None else _transcript_for(curve)
 
     t_exp = t.copy()
@@ -90,10 +96,14 @@ def nonce(curve: CurveVariant, secret_scalar: int, transcript: VrfTranscript | N
 
     t.absorb(bytes([DomSep.NONCE]))
     t.absorb(secret_hash)
-    return _nonce_scalar(curve, t)
+    nonce_scalar = _nonce_scalar(curve, t)
+    if nonce_scalar == 0:
+        raise ValueError("nonce scalar is zero")
+    return nonce_scalar
 
 
 def challenge(curve: CurveVariant, points: list[CurvePoint], transcript: VrfTranscript | None = None) -> int:
+    """Spec section 1.9: absorb `Challenge` and encoded points, then squeeze challenge_len."""
     t = transcript.copy() if transcript is not None else _transcript_for(curve)
     t.absorb(bytes([DomSep.CHALLENGE]))
     for point in points:
@@ -102,6 +112,7 @@ def challenge(curve: CurveVariant, points: list[CurvePoint], transcript: VrfTran
 
 
 def point_to_hash(curve: CurveVariant, point: CurvePoint, size: int = 32) -> bytes:
+    """Spec section 1.4: domain-separate `O` before producing the user-visible VRF hash."""
     t = _transcript_for(curve)
     t.absorb(bytes([DomSep.POINT_TO_HASH]))
     t.absorb(point.point_to_string())
@@ -114,14 +125,14 @@ def vrf_transcript(
     ios: list[VrfIo],
     ad: bytes,
 ) -> tuple[VrfTranscript, VrfIo]:
-    t, scalars = vrf_transcript_scalars(curve, scheme, ios, ad)
+    """Spec section 1.7: bind scheme/I/O/AD and return the delinearized merged pair."""
+    t, zs = vrf_transcript_scalars(curve, scheme, ios, ad)
     if not ios:
         zero = curve.identity()
         return t, VrfIo(zero, zero)
     if len(ios) == 1:
         return t, ios[0]
 
-    zs = [scalars.next() for _ in ios]
     input_acc = curve.msm([io.input for io in ios], zs)
     output_acc = curve.msm([io.output for io in ios], zs)
     return t, VrfIo(input_acc, output_acc)
@@ -132,9 +143,8 @@ def vrf_transcript_scalars(
     scheme: DomSep,
     ios: list[VrfIo],
     ad: bytes,
-) -> tuple[VrfTranscript, DelinearizeScalars]:
-    from dot_ring.vrf.delinearize import DelinearizeScalars
-
+) -> tuple[VrfTranscript, list[int]]:
+    """Spec section 1.7 plus section 1.6 delinearization scalars for these I/O pairs."""
     t = _transcript_for(curve)
     t.absorb(bytes([scheme]))
     t.absorb(len(ios).to_bytes(8, "little"))
@@ -142,7 +152,21 @@ def vrf_transcript_scalars(
         t.absorb(io.encode())
     t.absorb(len(ad).to_bytes(8, "little"))
     t.absorb(ad)
-    return t, DelinearizeScalars(curve, t)
+    return t, delinearization_scalars(curve, t, len(ios))
+
+
+def delinearization_scalars(curve: CurveVariant, transcript: VrfTranscript, count: int) -> list[int]:
+    """Spec section 1.6: fork, absorb `Delinearize`, return `z_0 = 1` then squeezed scalars."""
+    if count <= 0:
+        return []
+
+    t = transcript.copy()
+    t.absorb(bytes([DomSep.DELINEARIZE]))
+    order = curve.curve.params.subgroup_order
+    scalars = [1]
+    for _ in range(count - 1):
+        scalars.append(int.from_bytes(t.squeeze(CHALLENGE_LEN), "little") % order)
+    return scalars
 
 
 def schnorr_ios(curve: CurveVariant, public_key: CurvePoint, ios: list[VrfIo]) -> list[VrfIo]:

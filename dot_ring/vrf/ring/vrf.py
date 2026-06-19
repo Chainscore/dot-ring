@@ -1,3 +1,9 @@
+"""Ring VRF (section 5).
+
+The encoded proof is the Pedersen library envelope followed by the ring-proof
+payload; the spec writes this as `(pi_p, pi_r)`.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,22 +28,9 @@ from .root import RingRoot
 
 @dataclass
 class RingVRF(VRF[Any]):
-    """
-    Ring VRF implementation.
+    """Pedersen VRF proof plus ring proof that proves `Y_bar` belongs to the ring."""
 
-    This implementation provides Ring VRF operations combining
-    Pedersen VRF proofs with ring signatures.
-
-    Usage:
-    >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
-    >>> from dot_ring.vrf.ring import RingVRF
-    >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, producer_key, keys)
-    >>> verified = RingVRF[Bandersnatch].verify(ad, ring_root, proof)
-
-    Note: Ring VRF currently only supports Bandersnatch curve.
-    """
-
-    pedersen_proof: PedersenVRF | None
+    pedersen_proof: PedersenVRF
     c_b: Column
     c_accip: Column
     c_accx: Column
@@ -55,44 +48,25 @@ class RingVRF(VRF[Any]):
     open_l_zeta_omega: G1Commitment
 
     @classmethod
-    def proof_len(cls, skip_pedersen: bool = False) -> int:
+    def proof_len(cls) -> int:
         params = RingProofParams(cv=cls.cv)
-        proof_len = RingProofPayload.encoded_len(params)
-        if skip_pedersen:
-            return proof_len
-        return PedersenVRF[cls.cv].proof_len() + proof_len
+        return PedersenVRF[cls.cv].proof_len() + RingProofPayload.encoded_len(params)
 
     def encode(self) -> bytes:
-        """
-        Serialize the Ring VRF proof to bytes.
-
-        Returns:
-            bytes: Bytes representation of the Ring VRF proof
-        """
+        """Serialize Pedersen + RingProof"""
         params = RingProofParams(cv=self.cv)
-        return self.require_pedersen_proof().encode() + self._payload().encode(params)
+        return self.pedersen_proof.encode() + self._payload().encode(params)
 
     @classmethod
-    def decode(cls, proof: bytes, skip_pedersen: bool = False) -> RingVRF:
-        """
-        Deserialize the Ring VRF proof from bytes.
-
-        Args:
-            proof: Bytes representation of the Ring VRF proof
-        Returns:
-            RingVRF: Deserialized Ring VRF proof object
-        """
-        expected_len = cls.proof_len(skip_pedersen)
+    def decode(cls, proof: bytes) -> RingVRF:
+        """Decode the Pedersen and the fixed-order ring-proof payload."""
+        expected_len = cls.proof_len()
         if len(proof) != expected_len:
             raise ValueError(f"invalid Ring VRF proof length: Ring VRF proof must be exactly {expected_len} bytes, got {len(proof)}")
 
-        if not skip_pedersen:
-            pedersen_len = PedersenVRF[cls.cv].proof_len()
-            pedersen_proof = PedersenVRF[cls.cv].decode(proof[:pedersen_len])
-            offset = pedersen_len
-        else:
-            pedersen_proof = None
-            offset = 0
+        pedersen_len = PedersenVRF[cls.cv].proof_len()
+        pedersen_proof = PedersenVRF[cls.cv].decode(proof[:pedersen_len])
+        offset = pedersen_len
 
         params = RingProofParams(cv=cls.cv)
         expected = offset + RingProofPayload.encoded_len(params)
@@ -137,7 +111,7 @@ class RingVRF(VRF[Any]):
             open_l_zeta_omega=self.open_l_zeta_omega,
         )
 
-    def ring_proof_tuple(self) -> RingProofFields:
+    def as_ring_proof(self) -> RingProofFields:
         """Return the ring-proof fields in the order expected by the SNARK verifier."""
         return RingProofFields(
             self.c_b.commitment,
@@ -156,11 +130,6 @@ class RingVRF(VRF[Any]):
             self.open_agg_zeta,
             self.open_l_zeta_omega,
         )
-
-    def require_pedersen_proof(self) -> PedersenVRF:
-        if self.pedersen_proof is None:
-            raise ValueError("Pedersen proof is missing")
-        return self.pedersen_proof
 
     def _ring_proof_verifier(
         self,
@@ -181,7 +150,7 @@ class RingVRF(VRF[Any]):
         witness_commitments, quotient_commitment = _proof_transcript_commitments(self, ring.params)
 
         return Verify(
-            self.ring_proof_tuple(),
+            self.as_ring_proof(),
             fixed_cols_cmts,
             rltn,
             res_plus_seed,
@@ -204,9 +173,7 @@ class RingVRF(VRF[Any]):
         ring: Ring,
         ring_root: RingRoot,
     ) -> bool:
-        """
-        Verifies the Ring Proof
-        """
+        """Spec section 5.2 step 2: verify the ring proof against `Y_bar`."""
         if not ring_root.matches_ring(ring):
             return False
         return self._ring_proof_verifier(message, ring, ring_root).is_valid()
@@ -221,24 +188,7 @@ class RingVRF(VRF[Any]):
         ring: Ring,
         ring_root: RingRoot | None = None,
     ) -> RingVRF:
-        """
-        Generate ring VRF proof (pedersen vrf proof + ring_proof).
-
-        Args:
-            alpha: VRF input
-            ad: Additional data
-            secret_key: Prover's secret key
-            producer_key: Prover's public key
-            ring: Ring object containing member keys. Params are auto-constructed if not provided to Ring.
-            ring_root: Pre-computed ring root. If provided, skips expensive ring column construction (~335ms for 1023 members).
-
-        Returns:
-            RingVRF proof
-
-        Examples:
-            >>> ring = Ring(keys)  # Automatically determines optimal domain size
-            >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring)
-        """
+        """Spec section 5.1: run Pedersen prove, then prove `Y_bar = producer_key + b*B` is in the ring."""
         if producer_key != cls.cv.public_key_from_secret(secret_key):
             raise ValueError("producer_key does not match secret_key")
 
@@ -267,10 +217,8 @@ class RingVRF(VRF[Any]):
         return _parse_concatenated_keys(keys, cls.cv)
 
     def verify(self, input: bytes, ad_data: bytes, ring: Ring, ring_root: RingRoot) -> bool:
-        """
-        Verify ring VRF proof (pedersen_proof + ring_proof)
-        """
-        pedersen_proof = self.require_pedersen_proof()
+        """Spec section 5.2: Pedersen verify first, then ring-verify the blinded key."""
+        pedersen_proof = self.pedersen_proof
         p_proof_valid = pedersen_proof.verify(input, ad_data)
         ring_proof_valid = self.verify_ring_proof(pedersen_proof.blinded_pk, ring, ring_root)
 

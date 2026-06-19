@@ -2,15 +2,15 @@ import pytest
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, S_PRIME
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ring import Ring
 
 
 def test_column_interpolate_rejects_oversize_evals():
+    params = RingProofParams()
     col = Column("x", [1, 2, 3], size=2)
     with pytest.raises(ValueError, match="exceeds column size"):
-        col.interpolate(domain_omega=OMEGAS[DEFAULT_SIZE], prime=S_PRIME)
+        col.interpolate(domain_omega=params.omega, prime=params.prime)
 
 
 def test_column_commit_requires_coeffs():

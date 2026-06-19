@@ -1,12 +1,17 @@
+"""Thin VRF (section 3).
+
+The library proof envelope is `gamma || R || s`; the spec proof is `R || s`.
+"""
+
 from __future__ import annotations
 
-import secrets
 from dataclasses import dataclass
 from typing import Any
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
 from dot_ring.vrf.transcript import (
+    CHALLENGE_LEN,
     DomSep,
     VrfIo,
     challenge,
@@ -17,6 +22,8 @@ from dot_ring.vrf.transcript import (
     scalar_encode,
     scalar_len,
     schnorr_ios,
+    squeeze_transcript_bytes,
+    suite_id,
     vrf_transcript,
     vrf_transcript_scalars,
 )
@@ -35,7 +42,7 @@ class ThinBatchItem:
 
 @dataclass
 class ThinVRF(VRF[Any]):
-    """Batch-friendly VRF-AD proof storing the nonce commitment."""
+    """Batch-friendly VRF-AD proof. Fields after `output_point` are spec proof `(R, s)`."""
 
     output_point: CurvePoint
     r: CurvePoint
@@ -56,6 +63,8 @@ class ThinVRF(VRF[Any]):
         s = scalar_decode(cls.cv, proof_bytes[2 * encoded_point_len :])
         if s >= cls.cv.curve.params.subgroup_order:
             raise ValueError("Response scalar s is not less than the curve order")
+        if not (cls._valid_point(output_point) and cls._valid_point(r)):
+            raise ValueError("Invalid identity or subgroup point in proof")
         return cls(output_point, r, s)
 
     def encode(self) -> bytes:
@@ -83,6 +92,7 @@ class ThinVRF(VRF[Any]):
         public_key: CurvePoint,
         additional_data: bytes,
     ) -> ThinVRF:
+        """Spec section 3.1 steps 2-7 over caller-supplied I/O pairs."""
         transcript, merged = vrf_transcript(cls.cv, DomSep.THIN_VRF, schnorr_ios(cls.cv, public_key, ios), additional_data)
         k = nonce(cls.cv, secret_scalar, transcript)
         r = merged.input * k
@@ -100,6 +110,11 @@ class ThinVRF(VRF[Any]):
         return self.verify_ios(public_key_pt, [VrfIo(input_point, self.output_point)], additional_data)
 
     def verify_ios(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes) -> bool:
+        """Spec section 3.2: validate inputs, reconstruct `T`, derive `c`, check `s*I_m = R + c*O_m`."""
+        proof_points_valid = self._valid_point(public_key) and self._valid_point(self.r)
+        ios_valid = all(self._valid_point(io.input) and self._valid_point(io.output) for io in ios)
+        if not proof_points_valid or not ios_valid:
+            return False
         transcript, merged = vrf_transcript(self.cv, DomSep.THIN_VRF, schnorr_ios(self.cv, public_key, ios), additional_data)
         c = challenge(self.cv, [self.r], transcript)
         lhs = self.cv.msm([merged.input, merged.output], [self.s, -c])
@@ -112,22 +127,29 @@ class ThinVRF(VRF[Any]):
         return point_to_hash(cls.cv, gamma)
 
 
-def _batch_coefficients(count: int, order: int) -> list[int]:
-    if count == 0:
+def _batch_coefficients(items: list[ThinBatchItem], curve: CurveVariant) -> list[int]:
+    """Spec section 3.3.2: `suite_id || BatchVerify || enc_scalar(c_j) || enc_scalar(s_j)`."""
+    if not items:
         return []
-    coefficients = [1]
-    for _ in range(count - 1):
-        coefficient = 0
-        while coefficient == 0:
-            coefficient = secrets.randbelow(order)
-        coefficients.append(coefficient)
-    return coefficients
+
+    absorbed = bytearray(suite_id(curve))
+    absorbed.append(DomSep.BATCH_VERIFY)
+    for item in items:
+        absorbed.extend(scalar_encode(curve, item.c))
+        absorbed.extend(scalar_encode(curve, item.s))
+
+    order = curve.curve.params.subgroup_order
+    raw = squeeze_transcript_bytes(curve.curve.params.hash_fn, bytes(absorbed), CHALLENGE_LEN * len(items))
+    return [int.from_bytes(raw[CHALLENGE_LEN * index : CHALLENGE_LEN * (index + 1)], "little") % order for index in range(len(items))]
 
 
 class ThinBatchVerifier:
+    """Accumulates spec section 3.3 items and verifies the weighted Thin equation."""
+
     def __init__(self, curve: CurveVariant):
         self.cv = curve
         self.items: list[ThinBatchItem] = []
+        self._invalid = False
 
     @classmethod
     def __class_getitem__(cls, curve_variant: CurveVariant | Any) -> type[ThinBatchVerifier] | Any:
@@ -142,19 +164,25 @@ class ThinBatchVerifier:
         return _SpecializedThinBatchVerifier
 
     def push(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes, proof: ThinVRF) -> None:
+        proof_points_valid = VRF._valid_point(public_key) and VRF._valid_point(proof.r)
+        ios_valid = all(VRF._valid_point(io.input) and VRF._valid_point(io.output) for io in ios)
+        if not proof_points_valid or not ios_valid:
+            self._invalid = True
+            return
         chained_ios = schnorr_ios(self.cv, public_key, ios)
         transcript, scalar_stream = vrf_transcript_scalars(self.cv, DomSep.THIN_VRF, chained_ios, additional_data)
         c = challenge(self.cv, [proof.r], transcript)
-        self.items.append(ThinBatchItem(c, chained_ios, scalar_stream.take(len(chained_ios)), proof.r, proof.s))
+        self.items.append(ThinBatchItem(c, chained_ios, scalar_stream, proof.r, proof.s))
 
     def verify(self) -> bool:
+        if self._invalid:
+            return False
         if not self.items:
             return True
 
         points: list[CurvePoint] = []
         scalars: list[int] = []
-        order = self.cv.curve.params.subgroup_order
-        for coefficient, item in zip(_batch_coefficients(len(self.items), order), self.items, strict=False):
+        for coefficient, item in zip(_batch_coefficients(self.items, self.cv), self.items, strict=True):
             weighted_c = coefficient * item.c
             weighted_s = coefficient * item.s
 

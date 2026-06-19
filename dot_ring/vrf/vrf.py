@@ -1,26 +1,43 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, ClassVar, Generic, Self, TypeVar
 
 from ..curve.curve import CurveVariant
+from ..curve.point import CurvePoint
+from ..curve.twisted_edwards.te_affine_point import TEAffinePoint
 
 C = TypeVar("C", bound=CurveVariant)
 
 
+@lru_cache(maxsize=32)
+def _cofactor_inverse(cofactor: int, subgroup_order: int) -> int:
+    return pow(cofactor, -1, subgroup_order)
+
+
 class VRF(Generic[C]):
-    """
-    Base VRF (Verifiable Random Function) implementation.
-
-    This class provides the core functionality for VRF operations,
-    following the shared dot-ring VRF interface.
-
-    Usage with subscript syntax:
-        >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
-        >>> from dot_ring.vrf.ietf import TinyVRF
-        >>> proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
-    """
+    """Base VRF class that specializes implementations by curve variant."""
 
     cv: ClassVar[CurveVariant]
+
+    @staticmethod
+    def _valid_point(point: CurvePoint) -> bool:
+        """Verifier-side `dec_point`: nonidentity and in the prime-order subgroup."""
+        if point.is_identity():
+            return False
+
+        cofactor = point.curve.params.cofactor
+        if cofactor == 1:
+            return True
+
+        cofactor_inv = _cofactor_inverse(cofactor, point.curve.params.subgroup_order)
+        if isinstance(point, TEAffinePoint):
+            cleared = TEAffinePoint.__mul__(point, cofactor)
+        else:
+            cleared = point * cofactor
+        if cleared.is_identity():
+            return False
+        return cleared * cofactor_inv == point
 
     def __class_getitem__(cls, curve_variant: CurveVariant | Any) -> type[Self] | Any:
         """

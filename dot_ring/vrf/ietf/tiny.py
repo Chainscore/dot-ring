@@ -1,3 +1,8 @@
+"""Tiny VRF (section 2).
+
+The library proof envelope is `gamma || c || s`; the spec proof is `c || s`.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,18 +30,7 @@ from ..vrf import VRF
 
 @dataclass
 class TinyVRF(VRF[Any]):
-    """
-    Tiny VRF proof.
-
-    Compact VRF-AD proof using transcript-derived challenges and nonces,
-    additional data, and multi-input delinearization.
-
-    Usage:
-    >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
-    >>> from dot_ring.vrf.ietf import TinyVRF
-    >>> proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
-    >>> verified = proof.verify(public_key, input_point, additional_data)
-    """
+    """Compact VRF-AD proof. Fields after `output_point` are spec proof `(c, s)`."""
 
     output_point: CurvePoint
     c: int
@@ -58,6 +52,8 @@ class TinyVRF(VRF[Any]):
         s = scalar_decode(cls.cv, proof_bytes[encoded_point_len + CHALLENGE_LEN :])
         if s >= order:
             raise ValueError("Response scalar s is not less than the curve order")
+        if not cls._valid_point(output_point):
+            raise ValueError("Invalid identity or subgroup point in proof")
         return cls(output_point, c, s)
 
     def encode(self) -> bytes:
@@ -90,6 +86,7 @@ class TinyVRF(VRF[Any]):
         public_key: CurvePoint,
         additional_data: bytes,
     ) -> TinyVRF:
+        """Spec section 2.1 steps 2-7 over caller-supplied I/O pairs."""
         if len(ios) == 1:
             transcript, scalars = vrf_transcript_scalars(
                 cls.cv,
@@ -97,8 +94,7 @@ class TinyVRF(VRF[Any]):
                 schnorr_ios(cls.cv, public_key, ios),
                 additional_data,
             )
-            z0 = scalars.next()
-            z1 = scalars.next()
+            z0, z1 = scalars
             k = nonce(cls.cv, secret_scalar, transcript)
             generator = cls.cv.generator_point()
             order = cls.cv.curve.params.subgroup_order
@@ -128,6 +124,10 @@ class TinyVRF(VRF[Any]):
         return self.verify_ios(public_key_pt, [io], additional_data)
 
     def verify_ios(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes) -> bool:
+        """Spec section 2.2: validate inputs, reconstruct `R = s*I_m - c*O_m`, then compare challenges."""
+        ios_valid = all(self._valid_point(io.input) and self._valid_point(io.output) for io in ios)
+        if not self._valid_point(public_key) or not ios_valid:
+            return False
         if len(ios) == 1:
             transcript, scalars = vrf_transcript_scalars(
                 self.cv,
@@ -135,8 +135,7 @@ class TinyVRF(VRF[Any]):
                 schnorr_ios(self.cv, public_key, ios),
                 additional_data,
             )
-            z0 = scalars.next()
-            z1 = scalars.next()
+            z0, z1 = scalars
             generator = self.cv.generator_point()
             order = self.cv.curve.params.subgroup_order
             r = self.cv.msm(
@@ -183,6 +182,8 @@ class TinyVRF(VRF[Any]):
         s = scalar_decode(cls.cv, proof[encoded_point_len + CHALLENGE_LEN :])
         if s >= order:
             raise ValueError("Response scalar S is not less than the curve order")
+        if not cls._valid_point(output_point):
+            raise ValueError("Invalid identity or subgroup point in proof")
         return output_point, c, s
 
     @classmethod

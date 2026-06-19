@@ -107,7 +107,7 @@ class _RingBatchContext:
         rltn, res_plus_seed = _proof_relation_points(proof, message, ring.params)
         witness_commitments, quotient_commitment = _proof_transcript_commitments(proof, ring.params)
         return linear_pcs_verifications(
-            proof.ring_proof_tuple(),
+            proof.as_ring_proof(),
             self.fixed_cols_blst,
             rltn,
             res_plus_seed,
@@ -117,6 +117,7 @@ class _RingBatchContext:
             self.domain_size_inv,
             self.edwards_a,
             self.omega,
+            ring.params.prime,
             self.transcript_prefix,
             witness_commitments,
             quotient_commitment,
@@ -126,15 +127,29 @@ class _RingBatchContext:
         return _ring_batch_item(proof, ios, ad, self)
 
     def _item(self, proof: RingVRF, input: bytes, ad: bytes) -> _RingBatchItem:
-        pedersen_proof = proof.require_pedersen_proof()
+        pedersen_proof = proof.pedersen_proof
         input_point = proof.cv.encode_to_curve(input)
-        return self._item_from_ios(proof, [VrfIo(input_point, pedersen_proof.output_point)], ad)
+        return _ring_batch_item_from_trusted_ios(proof, [VrfIo(input_point, pedersen_proof.output_point)], ad, self)
 
     def _pedersen_item(self, proof: RingVRF, ios: list[VrfIo], ad: bytes) -> Any:
-        pedersen_proof = proof.require_pedersen_proof()
+        pedersen_proof = proof.pedersen_proof
         if self.ring.params.cv.name != proof.cv.name:
             raise ValueError("proof curve does not match ring curve")
-        return PedersenBatchVerifier(proof.cv)._item(ios, ad, pedersen_proof)
+        verifier = PedersenBatchVerifier(proof.cv)
+        item = verifier._item(ios, ad, pedersen_proof)
+        if verifier._invalid:
+            raise ValueError("invalid Pedersen VRF point")
+        return item
+
+    def _pedersen_item_from_trusted_ios(self, proof: RingVRF, ios: list[VrfIo], ad: bytes) -> Any:
+        pedersen_proof = proof.pedersen_proof
+        if self.ring.params.cv.name != proof.cv.name:
+            raise ValueError("proof curve does not match ring curve")
+        verifier = PedersenBatchVerifier(proof.cv)
+        item = verifier._item_from_trusted_ios(ios, ad, pedersen_proof)
+        if verifier._invalid:
+            raise ValueError("invalid Pedersen VRF point")
+        return item
 
     def _pcs_item(self, proof: RingVRF, message: Any) -> tuple[Any, tuple[LinearPcsVerification, LinearPcsVerification]]:
         pcs = self.ring.params.pcs
@@ -144,7 +159,13 @@ class _RingBatchContext:
 
 def _ring_batch_item(proof: RingVRF, ios: list[VrfIo], ad: bytes, context: _RingBatchContext) -> _RingBatchItem:
     pedersen_item = context._pedersen_item(proof, ios, ad)
-    pcs, verifications = context._pcs_item(proof, proof.require_pedersen_proof().blinded_pk)
+    pcs, verifications = context._pcs_item(proof, proof.pedersen_proof.blinded_pk)
+    return _RingBatchItem(proof.cv, pedersen_item, pcs, verifications)
+
+
+def _ring_batch_item_from_trusted_ios(proof: RingVRF, ios: list[VrfIo], ad: bytes, context: _RingBatchContext) -> _RingBatchItem:
+    pedersen_item = context._pedersen_item_from_trusted_ios(proof, ios, ad)
+    pcs, verifications = context._pcs_item(proof, proof.pedersen_proof.blinded_pk)
     return _RingBatchItem(proof.cv, pedersen_item, pcs, verifications)
 
 

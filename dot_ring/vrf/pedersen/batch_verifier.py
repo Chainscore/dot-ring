@@ -1,3 +1,5 @@
+"""Pedersen VRF batch verification from Bandersnatch VRF spec section 4.4."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -65,20 +67,21 @@ def _fold_duplicate_points_by_identity(points: list[CurvePoint], scalars: list[i
 
 
 def _batch_coefficient_pairs_from_bytes(item_count: int, item_bytes: bytes | bytearray, curve: CurveVariant) -> list[tuple[int, int]]:
+    """Spec section 4.4.2: transcript weights from scalar triples only, in item order."""
     if item_count == 0:
         return []
 
     absorbed = bytearray(suite_id(curve))
     absorbed.append(DomSep.BATCH_VERIFY)
-    absorbed.extend(item_count.to_bytes(8, "little"))
     absorbed.extend(item_bytes)
 
+    order = curve.curve.params.subgroup_order
     raw = squeeze_transcript_bytes(curve.curve.params.hash_fn, bytes(absorbed), 2 * CHALLENGE_LEN * item_count)
     pairs = []
     for index in range(item_count):
         offset = 2 * CHALLENGE_LEN * index
-        io_weight = int.from_bytes(raw[offset : offset + CHALLENGE_LEN], "little") or 1
-        commitment_weight = int.from_bytes(raw[offset + CHALLENGE_LEN : offset + 2 * CHALLENGE_LEN], "little") or 1
+        io_weight = int.from_bytes(raw[offset : offset + CHALLENGE_LEN], "little") % order
+        commitment_weight = int.from_bytes(raw[offset + CHALLENGE_LEN : offset + 2 * CHALLENGE_LEN], "little") % order
         pairs.append((io_weight, commitment_weight))
     return pairs
 
@@ -101,6 +104,8 @@ def _batch_coefficient_pairs(items: list[_PedersenBatchItem], curve: CurveVarian
 
 
 class PedersenBatchVerifier:
+    """Accumulates spec section 4.4 items and verifies the two weighted equations together."""
+
     def __init__(self, curve: CurveVariant):
         self.cv = curve
         self.items: list[_PedersenBatchItem] = []
@@ -108,6 +113,7 @@ class PedersenBatchVerifier:
         self._scalar_size = (self._order.bit_length() + 7) // 8
         self._coefficient_item_bytes = bytearray()
         self._single_io_items = True
+        self._invalid = False
 
     @classmethod
     def __class_getitem__(cls, curve_variant: CurveVariant | Any) -> type[PedersenBatchVerifier] | Any:
@@ -121,23 +127,44 @@ class PedersenBatchVerifier:
         _SpecializedPedersenBatchVerifier.__name__ = f"{cls.__name__}[{curve_variant.name}]"
         return _SpecializedPedersenBatchVerifier
 
-    def _item(self, ios: list[VrfIo], additional_data: bytes, proof: PedersenVRF) -> _PedersenBatchItem:
+    def _item(
+        self,
+        ios: list[VrfIo],
+        additional_data: bytes,
+        proof: PedersenVRF,
+    ) -> _PedersenBatchItem:
+        if not PedersenVRF._valid_ios(ios):
+            return self._invalid_item(proof)
+        return self._item_from_trusted_ios(ios, additional_data, proof)
+
+    def _item_from_trusted_ios(
+        self,
+        ios: list[VrfIo],
+        additional_data: bytes,
+        proof: PedersenVRF,
+    ) -> _PedersenBatchItem:
+        if not proof._valid_proof_points():
+            return self._invalid_item(proof)
         if len(ios) == 1:
             return self._single_io_item(ios[0], additional_data, proof)
 
-        transcript, scalar_stream = vrf_transcript_scalars(self.cv, DomSep.PEDERSEN_VRF, ios, additional_data)
+        transcript, zs = vrf_transcript_scalars(self.cv, DomSep.PEDERSEN_VRF, ios, additional_data)
         transcript.absorb(proof.blinded_pk.point_to_string())
         c = challenge(self.cv, [proof.result_point, proof.ok], transcript)
         return _PedersenBatchItem(
             c=c,
             ios=list(ios),
-            zs=scalar_stream.take(len(ios)),
+            zs=zs,
             pk_com=proof.blinded_pk,
             r=proof.result_point,
             ok=proof.ok,
             s=proof.s,
             sb=proof.sb,
         )
+
+    def _invalid_item(self, proof: PedersenVRF) -> _PedersenBatchItem:
+        self._invalid = True
+        return _PedersenBatchItem(0, [], [], proof.blinded_pk, proof.result_point, proof.ok, proof.s, proof.sb)
 
     def _single_io_item(self, io: VrfIo, additional_data: bytes, proof: PedersenVRF) -> _PedersenBatchItem:
         absorbed = bytearray(suite_id(self.cv))
@@ -164,6 +191,8 @@ class PedersenBatchVerifier:
         )
 
     def _push_item(self, item: _PedersenBatchItem) -> None:
+        if self._invalid:
+            return
         self.items.append(item)
         self._single_io_items = self._single_io_items and len(item.ios) == 1 and len(item.zs) == 1 and item.zs[0] == 1
         self._coefficient_item_bytes.extend(_batch_coefficient_item_bytes(item, self._scalar_size, self._order))
@@ -172,6 +201,8 @@ class PedersenBatchVerifier:
         self._push_item(self._item(ios, additional_data, proof))
 
     def verify(self) -> bool:
+        if self._invalid:
+            return False
         if not self.items:
             return True
 

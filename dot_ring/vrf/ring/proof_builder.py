@@ -1,3 +1,5 @@
+"""Ring-proof prover pipeline from ring-proof spec sections 3.1-3.3."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -17,6 +19,8 @@ from .root import RingRoot
 
 
 class RingProofBuilder:
+    """Build the SNARK payload that proves `producer_key + b*B` is in the committed ring."""
+
     def __init__(
         self,
         curve: CurveVariant,
@@ -34,10 +38,12 @@ class RingProofBuilder:
         self.transcript_challenge = transcript_challenge or curve.curve.params.suite_id
 
     def build(self) -> RingProofPayload:
+        """Spec sections 3.1-3.3 in order: witness, constraints, quotient, linearization, openings."""
         params = self.ring.params
         ring_root = self.ring_root or RingRoot.from_ring(self.ring, params)
         producer_index = self.ring.index_of(self.producer_key)
 
+        # Section 3.1: witness bit column and accumulators for R = PK_k + bB.
         witness_builder = WitnessColumnBuilder.from_params(
             self.ring.nm_points,
             ring_root.s.evals,
@@ -51,6 +57,7 @@ class RingProofBuilder:
         relation_plus_seed_point = relation_point + params.cv.point(seed_point)
         relation_plus_seed = int(relation_plus_seed_point.x), int(relation_plus_seed_point.y)
 
+        # Section 3.2: c1-c7 constraints over fixed and witness columns.
         constraints = RingConstraintBuilder(
             result_plus_seed=relation_plus_seed,
             px=self._coeffs(ring_root.px),
@@ -66,6 +73,7 @@ class RingProofBuilder:
         constraint_polys = list(constraints.compute().values())
         c_agg = self._aggregate_constraints(constraint_polys, alpha)
 
+        # Section 3.3.2: quotient commitment.
         q_poly = poly_divide_by_vanishing(c_agg, params.domain_size)
         c_q = params.pcs.commit(q_poly)
         c_q_column = Column(name="C_q", evals=[], commitment=c_q)
@@ -103,6 +111,7 @@ class RingProofBuilder:
         ) = relation_evals.values()
         c_b, c_accx, c_accy, c_accip = witness_columns
 
+        # Section 3.3.8: fixed payload order used by verifier.
         return RingProofPayload(
             c_b=c_b,
             c_accip=c_accip,
@@ -147,6 +156,7 @@ class RingProofBuilder:
         constraint_evals: Sequence[Sequence[int]],
         alphas: Sequence[int],
     ) -> list[int]:
+        """Spec section 3.3.1: alpha-combine constraint evaluations and hide final ZK rows."""
         params = self.ring.params
         if not constraint_evals:
             return []
@@ -181,6 +191,7 @@ class RingProofBuilder:
         witness_columns: tuple[Column, Column, Column, Column],
         alphas: Sequence[int],
     ) -> tuple[FiatShamirTranscript, int, dict[str, int], list[int], int, int]:
+        """Spec sections 3.3.3-3.3.5: choose zeta, evaluate relation columns, build L(X)."""
         params = self.ring.params
         current_transcript, zeta = phase2_eval_point(
             transcript,
@@ -270,6 +281,7 @@ class RingProofBuilder:
         q_poly: list[int],
         opening_challenges: Sequence[int],
     ) -> list[int]:
+        """Spec section 3.3.6: aggregate all zeta openings with the nu challenge vector."""
         params = self.ring.params
         c_b, c_accx, c_accy, c_accip = witness_columns
         polynomials = [

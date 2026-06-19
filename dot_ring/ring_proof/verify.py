@@ -1,7 +1,7 @@
 from typing import Any, NamedTuple
 
 from dot_ring.curve.point import CurvePoint
-from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
+from dot_ring.ring_proof.params import ROOT_OF_UNITY_2048
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS
 from dot_ring.ring_proof.pcs.utils import (
@@ -48,12 +48,6 @@ class RingProofFields(NamedTuple):
         return (self.c_b, self.c_accip, self.c_accx, self.c_accy)
 
 
-def _ring_proof_fields(proof: RingProofFields | tuple[Any, ...]) -> RingProofFields:
-    if isinstance(proof, RingProofFields):
-        return proof
-    return RingProofFields(*proof)
-
-
 def _point_coords(point: CurvePoint) -> tuple[int, int]:
     x, y = point.x, point.y
     if x is None or y is None:
@@ -73,10 +67,8 @@ def _compute_quotient_and_linearization_terms(
     accx_value: int,
     accy_value: int,
     l_zeta_omega_value: int,
-    seed_x_value: int,
-    seed_y_value: int,
-    result_seed_x_value: int,
-    result_seed_y_value: int,
+    seed: tuple[int, int],
+    result_seed: tuple[int, int],
     domain_last_value: int,
     domain_neg1_value: int,
     domain_neg2_value: int,
@@ -85,11 +77,12 @@ def _compute_quotient_and_linearization_terms(
     domain_size_inv_value: int,
     edwards_a_value: int,
     omega_value: int,
+    prime_value: int,
 ) -> tuple[int, int, int, int, int, int]:
     if len(alpha_list) < 7 or len(v_list) < 8:
         raise ValueError("expected at least 7 alpha values and 8 aggregation values")
 
-    prime = S_PRIME
+    prime = int(prime_value)
     alphas = [int(value) % prime for value in alpha_list[:7]]
     v_values = [int(value) % prime for value in v_list[:8]]
     zeta = int(zeta_value) % prime
@@ -101,10 +94,10 @@ def _compute_quotient_and_linearization_terms(
     accx = int(accx_value) % prime
     accy = int(accy_value) % prime
     l_zeta_omega = int(l_zeta_omega_value) % prime
-    seed_x = int(seed_x_value) % prime
-    seed_y = int(seed_y_value) % prime
-    result_seed_x = int(result_seed_x_value) % prime
-    result_seed_y = int(result_seed_y_value) % prime
+    seed_x = int(seed[0]) % prime
+    seed_y = int(seed[1]) % prime
+    result_seed_x = int(result_seed[0]) % prime
+    result_seed_y = int(result_seed[1]) % prime
     domain_last = int(domain_last_value) % prime
     domain_neg1 = int(domain_neg1_value) % prime
     domain_neg2 = int(domain_neg2_value) % prime
@@ -185,7 +178,7 @@ def _compute_quotient_and_linearization_terms(
 
 
 def linear_pcs_verifications(
-    proof: RingProofFields | tuple[Any, ...],
+    proof: RingProofFields,
     fixed_cols_blst: tuple[Any, Any, Any],
     relation_to_prove: CurvePoint,
     result_plus_seed: CurvePoint,
@@ -195,11 +188,11 @@ def linear_pcs_verifications(
     domain_size_inv: int,
     edwards_a: int,
     omega: int,
+    prime: int,
     transcript_prefix: FiatShamirTranscript,
     witness_commitments: bytes,
     quotient_commitment: bytes,
 ) -> tuple[LinearPcsVerification, LinearPcsVerification]:
-    proof_fields = _ring_proof_fields(proof)
     result_plus_seed_coords = _point_coords(result_plus_seed)
     seed_coords = _point_coords(seed_point)
 
@@ -208,8 +201,8 @@ def linear_pcs_verifications(
         relation_to_prove,
         witness_commitments,
         quotient_commitment,
-        proof_fields.evaluations,
-        proof_fields.l_zeta_omega,
+        proof.evaluations,
+        proof.l_zeta_omega,
     )
 
     last_index = len(domain) - padding_rows
@@ -217,18 +210,16 @@ def linear_pcs_verifications(
         alpha_list,
         v_list,
         zeta_p,
-        proof_fields.px_zeta,
-        proof_fields.py_zeta,
-        proof_fields.s_zeta,
-        proof_fields.b_zeta,
-        proof_fields.accip_zeta,
-        proof_fields.accx_zeta,
-        proof_fields.accy_zeta,
-        proof_fields.l_zeta_omega,
-        seed_coords[0],
-        seed_coords[1],
-        result_plus_seed_coords[0],
-        result_plus_seed_coords[1],
+        proof.px_zeta,
+        proof.py_zeta,
+        proof.s_zeta,
+        proof.b_zeta,
+        proof.accip_zeta,
+        proof.accx_zeta,
+        proof.accy_zeta,
+        proof.l_zeta_omega,
+        seed_coords,
+        result_plus_seed_coords,
         domain[last_index],
         domain[-1],
         domain[-2],
@@ -237,17 +228,18 @@ def linear_pcs_verifications(
         domain_size_inv,
         edwards_a,
         omega,
+        prime,
     )
     agg_zeta, scalar_accip, scalar_accx, scalar_accy, zeta_omega, l_zeta_omega_out = linear_eval_bundle
 
     Cpx_blst, Cpy_blst, Cs_blst = fixed_cols_blst
-    Cb_blst = g1_to_blst(proof_fields.c_b)
-    Caccip_blst = g1_to_blst(proof_fields.c_accip)
-    Caccx_blst = g1_to_blst(proof_fields.c_accx)
-    Caccy_blst = g1_to_blst(proof_fields.c_accy)
-    Cq_blst = g1_to_blst(proof_fields.c_q)
-    Phi_zeta_blst = g1_to_blst(proof_fields.phi_zeta)
-    Phi_zeta_omega_blst = g1_to_blst(proof_fields.phi_zeta_omega)
+    Cb_blst = g1_to_blst(proof.c_b)
+    Caccip_blst = g1_to_blst(proof.c_accip)
+    Caccx_blst = g1_to_blst(proof.c_accx)
+    Caccy_blst = g1_to_blst(proof.c_accy)
+    Cq_blst = g1_to_blst(proof.c_q)
+    Phi_zeta_blst = g1_to_blst(proof.phi_zeta)
+    Phi_zeta_omega_blst = g1_to_blst(proof.phi_zeta_omega)
 
     quotient_terms = (
         (Cpx_blst, v_list[0]),
@@ -271,14 +263,9 @@ def linear_pcs_verifications(
 
 
 class Verify:
-    prime = S_PRIME
-    pcs: type[PCS] = KZG
-    omega: int | None = None
-    edwards_a = -5
-
     def __init__(
         self,
-        proof: RingProofFields | tuple[Any, ...],
+        proof: RingProofFields,
         fixed_cols: list,
         relation_to_prove: CurvePoint,
         result_plus_seed: CurvePoint,
@@ -287,29 +274,28 @@ class Verify:
         transcript_prefix: FiatShamirTranscript,
         padding_rows: int = 4,
         edwards_a: int = -5,
-        prime: int = S_PRIME,
+        prime: int | None = None,
         omega: int | None = None,
         pcs: type[PCS] = KZG,
         domain_size_inv: int | None = None,
         transcript_witness_commitments: tuple[Any, ...] | bytes | None = None,
         transcript_quotient_commitment: Any | None = None,
     ) -> None:
-        proof_fields = _ring_proof_fields(proof)
-        self.Cb = proof_fields.c_b
-        self.Caccip = proof_fields.c_accip
-        self.Caccx = proof_fields.c_accx
-        self.Caccy = proof_fields.c_accy
-        self.px_zeta = proof_fields.px_zeta
-        self.py_zeta = proof_fields.py_zeta
-        self.s_zeta = proof_fields.s_zeta
-        self.b_zeta = proof_fields.b_zeta
-        self.accip_zeta = proof_fields.accip_zeta
-        self.accx_zeta = proof_fields.accx_zeta
-        self.accy_zeta = proof_fields.accy_zeta
-        self.Cq = proof_fields.c_q
-        self.l_zeta_omega = proof_fields.l_zeta_omega
-        self.Phi_zeta = proof_fields.phi_zeta
-        self.Phi_zeta_omega = proof_fields.phi_zeta_omega
+        self.Cb = proof.c_b
+        self.Caccip = proof.c_accip
+        self.Caccx = proof.c_accx
+        self.Caccy = proof.c_accy
+        self.px_zeta = proof.px_zeta
+        self.py_zeta = proof.py_zeta
+        self.s_zeta = proof.s_zeta
+        self.b_zeta = proof.b_zeta
+        self.accip_zeta = proof.accip_zeta
+        self.accx_zeta = proof.accx_zeta
+        self.accy_zeta = proof.accy_zeta
+        self.Cq = proof.c_q
+        self.l_zeta_omega = proof.l_zeta_omega
+        self.Phi_zeta = proof.phi_zeta
+        self.Phi_zeta_omega = proof.phi_zeta_omega
 
         self.Cpx, self.Cpy, self.Cs = fixed_cols
         self.relation_to_prove = relation_to_prove
@@ -317,7 +303,7 @@ class Verify:
         self.sp = _point_coords(seed_point)
         self.D = domain
         self.padding_rows = padding_rows
-        self.prime = prime
+        self.prime = prime if prime is not None else relation_to_prove.curve.params.field_modulus
         self.omega = omega
         self.pcs = pcs
         self.domain_size_inv = domain_size_inv if domain_size_inv is not None else pow(len(self.D), -1, self.prime)
@@ -343,19 +329,19 @@ class Verify:
         witness_commitments = (
             transcript_witness_commitments
             if transcript_witness_commitments is not None
-            else [self.pcs.serialize_g1_uncompressed(cmt) for cmt in proof_fields.witness_commitments]
+            else [self.pcs.serialize_g1_uncompressed(cmt) for cmt in proof.witness_commitments]
         )
         # Add quotient and evaluations once we have their serialized form.
         quotient_commitment = (
-            transcript_quotient_commitment if transcript_quotient_commitment is not None else self.pcs.serialize_g1_uncompressed(proof_fields.c_q)
+            transcript_quotient_commitment if transcript_quotient_commitment is not None else self.pcs.serialize_g1_uncompressed(proof.c_q)
         )
         self.t, self.alpha_list, self.zeta_p, self.V_list = derive_challenges_after_vk(
             self.t,
             self.relation_to_prove,
             witness_commitments,
             quotient_commitment,
-            proof_fields.evaluations,
-            proof_fields.l_zeta_omega,
+            proof.evaluations,
+            proof.l_zeta_omega,
         )
 
     def _domain_omega(self) -> int:
@@ -364,7 +350,7 @@ class Verify:
         domain_size = len(self.D)
         if 2048 % domain_size != 0:
             raise ValueError(f"omega must be supplied for domain size {domain_size}")
-        return pow(OMEGA_2048, 2048 // domain_size, self.prime)
+        return pow(ROOT_OF_UNITY_2048, 2048 // domain_size, self.prime)
 
     def is_valid(self) -> bool:
         """If both the verifications are true then sign is valid"""
@@ -409,10 +395,8 @@ class Verify:
             self.accx_zeta,
             self.accy_zeta,
             self.l_zeta_omega,
-            self.sp[0],
-            self.sp[1],
-            self.Result_plus_Seed[0],
-            self.Result_plus_Seed[1],
+            self.sp,
+            self.Result_plus_Seed,
             self.D[self.last_index],
             self.D[-1],
             self.D[-2],
@@ -421,5 +405,6 @@ class Verify:
             self.domain_size_inv,
             self.edwards_a,
             omega,
+            self.prime,
         )
         return bundle

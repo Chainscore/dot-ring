@@ -1,3 +1,9 @@
+"""Ring member preprocessing for the ring-proof public columns (section 3.1).
+
+Invalid or identity keys are normalized to the configured padding point before
+fixed columns are built; producer-key lookup remains strict.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -19,13 +25,7 @@ class Ring:
     params: RingProofParams
 
     def __init__(self, keys: Sequence[bytes | str], params: RingProofParams | None = None) -> None:
-        """
-        Initialize a Ring from a list of public keys.
-
-        Args:
-            keys: List of public keys (as bytes) for ring members
-            params: Ring proof parameters. If None, automatically constructed based on ring size.
-        """
+        """Build spec public vector `PK || B powers || zero padding` from encoded keys."""
         if params is None:
             params = RingProofParams.from_ring_size(len(keys))
 

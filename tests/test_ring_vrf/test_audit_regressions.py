@@ -1,7 +1,6 @@
 import pytest
 
 from dot_ring import Bandersnatch, RingVRF
-from dot_ring.ring_proof.constants import PaddingPoint
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.pedersen import PedersenVRF
 from dot_ring.vrf.ring import Ring, RingContext, RingRoot
@@ -49,11 +48,14 @@ def test_ring_root_match_rejects_mismatched_ring():
 def test_ring_keys_pad_decode_failures_in_place():
     pk1, pk2 = _keys(2)
     identity = (1).to_bytes(32, "little")
-    ring = Ring([pk1, b"", identity, pk2], RingProofParams(test_vectors=True))
+    params = RingProofParams(test_vectors=True)
+    ring = Ring([pk1, b"", identity, pk2], params)
+    padding_point = params.cv.curve.params.auxiliary_points.padding_point
+    assert padding_point is not None
 
     assert ring.nm_points[0] == _point_tuple(pk1)
-    assert ring.nm_points[1] == PaddingPoint
-    assert ring.nm_points[2] == PaddingPoint
+    assert ring.nm_points[1] == padding_point
+    assert ring.nm_points[2] == padding_point
     assert ring.nm_points[3] == _point_tuple(pk2)
 
 
