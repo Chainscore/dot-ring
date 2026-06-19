@@ -10,5 +10,5 @@ class VrfIo:
     input: CurvePoint
     output: CurvePoint
 
-    def to_bytes(self) -> bytes:
+    def encode(self) -> bytes:
         return self.input.point_to_string() + self.output.point_to_string()

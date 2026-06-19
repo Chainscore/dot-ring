@@ -18,7 +18,7 @@ from dot_ring.vrf.transcript import (
     vrf_transcript,
 )
 
-from ..vrf import VRF, PreparedSecretKey
+from ..vrf import VRF
 
 C = TypeVar("C", bound=CurveVariant)
 
@@ -59,7 +59,7 @@ class PedersenVRF(VRF[C]):
         return 4 * point_length + 2 * scalar_len(cls.cv)
 
     @classmethod
-    def from_bytes(cls, proof: bytes) -> PedersenVRF:
+    def decode(cls, proof: bytes) -> PedersenVRF:
         point_length = point_len(cls.cv)
         scalar_size = scalar_len(cls.cv)
         expected = cls.proof_len()
@@ -90,7 +90,7 @@ class PedersenVRF(VRF[C]):
             sb=sb,
         )
 
-    def to_bytes(self) -> bytes:
+    def encode(self) -> bytes:
         return (
             self.output_point.point_to_string()
             + self.blinded_pk.point_to_string()
@@ -114,20 +114,10 @@ class PedersenVRF(VRF[C]):
         additional_data: bytes,
         salt: bytes = b"",
     ) -> PedersenVRF:
-        return cls.prove_prepared(alpha, cls.prepare_secret_key(secret_key), additional_data, salt)
-
-    @classmethod
-    def prove_prepared(
-        cls,
-        alpha: bytes,
-        secret_key: PreparedSecretKey[Any],
-        additional_data: bytes,
-        salt: bytes = b"",
-    ) -> PedersenVRF:
-        if secret_key.curve is not cls.cv:
-            raise ValueError("prepared secret key uses a different curve")
-        io = cls._io_from_alpha(alpha, secret_key.secret_scalar, salt)
-        return cls.prove_ios([io], secret_key.secret_scalar, secret_key.public_key, additional_data)
+        secret_scalar = scalar_decode(cls.cv, secret_key)
+        public_key = cls.cv.generator_point() * secret_scalar
+        io = cls._io_from_alpha(alpha, secret_scalar, salt)
+        return cls.prove_ios([io], secret_scalar, public_key, additional_data)
 
     @classmethod
     def prove_ios(

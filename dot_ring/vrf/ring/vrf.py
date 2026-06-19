@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.columns.columns import Column
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.ring_proof.pcs.opening import Opening
+from dot_ring.ring_proof.pcs.protocol import G1Commitment
 from dot_ring.ring_proof.verify import RingProofFields, Verify
 from dot_ring.vrf.pedersen import PedersenVRF
-from dot_ring.vrf.vrf import PreparedSecretKey
 
 from ..vrf import VRF
-from .batch_verifier import RingBatchItem, RingBatchVerifier, _proof_relation_points, _proof_transcript_commitments
+from .batch_verifier import RingBatchVerifier, _proof_relation_points, _proof_transcript_commitments
 from .context import RingContext, RingRootBuilder
 from .members import Ring
 from .members import parse_concatenated_keys as _parse_concatenated_keys
 from .proof_builder import RingProofBuilder
-from .proof_payload import RingProofPayload, ring_proof_len
+from .proof_payload import RingProofPayload
 from .root import RingRoot
 
 
@@ -52,18 +51,18 @@ class RingVRF(VRF[Any]):
     accy_zeta: int
     c_q: Column
     l_zeta_omega: int
-    open_agg_zeta: Opening
-    open_l_zeta_omega: Opening
+    open_agg_zeta: G1Commitment
+    open_l_zeta_omega: G1Commitment
 
     @classmethod
     def proof_len(cls, skip_pedersen: bool = False) -> int:
         params = RingProofParams(cv=cls.cv)
-        proof_len = ring_proof_len(params)
+        proof_len = RingProofPayload.encoded_len(params)
         if skip_pedersen:
             return proof_len
-        return PedersenVRF[cast(Any, cls).cv].proof_len() + proof_len  # type: ignore[misc]
+        return PedersenVRF[cls.cv].proof_len() + proof_len
 
-    def to_bytes(self) -> bytes:
+    def encode(self) -> bytes:
         """
         Serialize the Ring VRF proof to bytes.
 
@@ -71,10 +70,10 @@ class RingVRF(VRF[Any]):
             bytes: Bytes representation of the Ring VRF proof
         """
         params = RingProofParams(cv=self.cv)
-        return cast(bytes, self.require_pedersen_proof().to_bytes()) + self._payload().to_bytes(params)
+        return self.require_pedersen_proof().encode() + self._payload().encode(params)
 
     @classmethod
-    def from_bytes(cls, proof: bytes, skip_pedersen: bool = False) -> RingVRF:
+    def decode(cls, proof: bytes, skip_pedersen: bool = False) -> RingVRF:
         """
         Deserialize the Ring VRF proof from bytes.
 
@@ -88,18 +87,18 @@ class RingVRF(VRF[Any]):
             raise ValueError(f"invalid Ring VRF proof length: Ring VRF proof must be exactly {expected_len} bytes, got {len(proof)}")
 
         if not skip_pedersen:
-            pedersen_len = PedersenVRF[cast(Any, cls).cv].proof_len()  # type: ignore[misc]
-            pedersen_proof = PedersenVRF[cast(Any, cls).cv].from_bytes(proof[:pedersen_len])  # type: ignore[misc]
+            pedersen_len = PedersenVRF[cls.cv].proof_len()
+            pedersen_proof = PedersenVRF[cls.cv].decode(proof[:pedersen_len])
             offset = pedersen_len
         else:
             pedersen_proof = None
             offset = 0
 
         params = RingProofParams(cv=cls.cv)
-        expected = offset + ring_proof_len(params)
+        expected = offset + RingProofPayload.encoded_len(params)
         if len(proof) != expected:
             raise ValueError(f"invalid Ring VRF proof length: expected {expected}, got {len(proof)}")
-        payload = RingProofPayload.from_bytes(proof[offset:], params)
+        payload = RingProofPayload.decode(proof[offset:], params)
         return cls(
             pedersen_proof=pedersen_proof,
             c_b=payload.c_b,
@@ -154,8 +153,8 @@ class RingVRF(VRF[Any]):
             self.accy_zeta,
             self.c_q.commitment,
             self.l_zeta_omega,
-            self.open_agg_zeta.proof,
-            self.open_l_zeta_omega.proof,
+            self.open_agg_zeta,
+            self.open_l_zeta_omega,
         )
 
     def require_pedersen_proof(self) -> PedersenVRF:
@@ -186,11 +185,11 @@ class RingVRF(VRF[Any]):
             fixed_cols_cmts,
             rltn,
             res_plus_seed,
-            ring.params.seed_point,
+            ring.params.cv.point(ring.params.cv.curve.params.auxiliary_points.accumulator_base),
             ring.params.domain,
             transcript_prefix,
             padding_rows=ring.params.padding_rows,
-            edwards_a=ring.params.ring_edwards_a,
+            edwards_a=ring.params.cv.curve.params.a,
             prime=ring.params.prime,
             omega=ring.params.omega,
             pcs=ring.params.pcs,
@@ -210,7 +209,7 @@ class RingVRF(VRF[Any]):
         """
         if not ring_root.matches_ring(ring):
             return False
-        return cast(bool, self._ring_proof_verifier(message, ring, ring_root).is_valid())
+        return self._ring_proof_verifier(message, ring, ring_root).is_valid()
 
     @classmethod
     def prove(
@@ -240,24 +239,10 @@ class RingVRF(VRF[Any]):
             >>> ring = Ring(keys)  # Automatically determines optimal domain size
             >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring)
         """
-        return cls.prove_prepared(alpha, ad, cls.prepare_secret_key(secret_key), producer_key, ring, ring_root)
-
-    @classmethod
-    def prove_prepared(
-        cls,
-        alpha: bytes,
-        ad: bytes,
-        secret_key: PreparedSecretKey[Any],
-        producer_key: bytes,
-        ring: Ring,
-        ring_root: RingRoot | None = None,
-    ) -> RingVRF:
-        if secret_key.curve is not cls.cv:
-            raise ValueError("prepared secret key uses a different curve")
-        if producer_key != secret_key.public_key_bytes:
+        if producer_key != cls.cv.public_key_from_secret(secret_key):
             raise ValueError("producer_key does not match secret_key")
 
-        pedersen_proof = PedersenVRF[cast(Any, cls).cv].prove_prepared(alpha, secret_key, ad)  # type: ignore[misc]
+        pedersen_proof = PedersenVRF[cls.cv].prove(alpha, secret_key, ad)
 
         ring_proof = RingProofBuilder(
             cls.cv,
@@ -279,7 +264,7 @@ class RingVRF(VRF[Any]):
         Returns:
             List[bytes]: A list of individual keys extracted from the input bytes object.
         """
-        return cast(list[bytes], _parse_concatenated_keys(keys, cls.cv))
+        return _parse_concatenated_keys(keys, cls.cv)
 
     def verify(self, input: bytes, ad_data: bytes, ring: Ring, ring_root: RingRoot) -> bool:
         """
@@ -297,7 +282,6 @@ class RingVRF(VRF[Any]):
 
 
 __all__ = [
-    "RingBatchItem",
     "RingBatchVerifier",
     "RingContext",
     "RingVRF",

@@ -54,13 +54,13 @@ def test_pedersen_base(curve_variant, file_prefix, slice_end):
                 curve_variant.encode_to_curve(alpha)
 
                 proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
-                proof_bytes = proof.to_bytes()
-                proof_rt = PedersenVRF[curve_variant].from_bytes(proof_bytes)
+                proof_bytes = proof.encode()
+                proof_rt = PedersenVRF[curve_variant].decode(proof_bytes)
 
                 verified = proof.verify(alpha, additional_data)
                 assert verified, f"Proof Verification Failed for {file} vector {j}"
 
-                assert proof_rt.to_bytes() == proof_bytes
+                assert proof_rt.encode() == proof_bytes
                 assert proof_rt.verify(alpha, additional_data)
 
     if not found:

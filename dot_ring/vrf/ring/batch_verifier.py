@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
+from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.pcs.utils import (
     LinearPcsVerification,
     g1_to_blst,
 )
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
-from dot_ring.ring_proof.verify import Verify, prepare_linear_pcs_verifications_fast
-from dot_ring.vrf.pedersen.batch_verifier import PedersenBatchItem, PedersenBatchVerifier
+from dot_ring.ring_proof.verify import Verify, linear_pcs_verifications
+from dot_ring.vrf.pedersen.batch_verifier import PedersenBatchVerifier, _PedersenBatchItem
 from dot_ring.vrf.transcript import VrfIo
 
 from .members import Ring
@@ -20,29 +21,29 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class RingBatchItem:
+class _RingBatchItem:
     curve: Any
-    pedersen: PedersenBatchItem
+    pedersen: _PedersenBatchItem
     pcs: Any
     verifications: tuple[Any, Any]
 
 
 @dataclass(frozen=True)
-class RingBatchContext:
+class _RingBatchContext:
     ring: Ring
     ring_root: RingRoot
     fixed_cols_cmts: list[Any]
     fixed_cols_blst: tuple[Any, Any, Any]
     transcript_prefix: FiatShamirTranscript
-    seed_point: tuple[int, int]
+    seed_point: CurvePoint
     domain: list[int]
     padding_rows: int
     omega: int
-    ring_edwards_a: int
+    edwards_a: int
     domain_size_inv: int
 
     @classmethod
-    def from_ring(cls, ring: Ring, ring_root: RingRoot, *, validate_ring_root: bool = True) -> RingBatchContext:
+    def from_ring(cls, ring: Ring, ring_root: RingRoot, *, validate_ring_root: bool = True) -> _RingBatchContext:
         if validate_ring_root and not ring_root.matches_ring(ring):
             raise ValueError("ring root does not match ring")
         fixed_cols_cmts = ring_root.fixed_commitments(ring.params)
@@ -54,11 +55,11 @@ class RingBatchContext:
             fixed_cols_cmts=fixed_cols_cmts,
             fixed_cols_blst=tuple(g1_to_blst(commitment) for commitment in fixed_cols_cmts),
             transcript_prefix=transcript_prefix,
-            seed_point=ring.params.seed_point,
+            seed_point=ring.params.cv.point(ring.params.cv.curve.params.auxiliary_points.accumulator_base),
             domain=domain,
             padding_rows=ring.params.padding_rows,
             omega=ring.params.omega,
-            ring_edwards_a=ring.params.ring_edwards_a,
+            edwards_a=ring.params.cv.curve.params.a,
             domain_size_inv=pow(ring.params.domain_size, -1, ring.params.prime),
         )
 
@@ -90,7 +91,7 @@ class RingBatchContext:
             self.domain,
             self.transcript_prefix,
             padding_rows=self.padding_rows,
-            edwards_a=self.ring_edwards_a,
+            edwards_a=self.edwards_a,
             prime=ring.params.prime,
             omega=self.omega,
             pcs=ring.params.pcs,
@@ -105,7 +106,7 @@ class RingBatchContext:
 
         rltn, res_plus_seed = _proof_relation_points(proof, message, ring.params)
         witness_commitments, quotient_commitment = _proof_transcript_commitments(proof, ring.params)
-        return prepare_linear_pcs_verifications_fast(
+        return linear_pcs_verifications(
             proof.ring_proof_tuple(),
             self.fixed_cols_blst,
             rltn,
@@ -114,37 +115,37 @@ class RingBatchContext:
             self.domain,
             self.padding_rows,
             self.domain_size_inv,
-            self.ring_edwards_a,
+            self.edwards_a,
             self.omega,
             self.transcript_prefix,
             witness_commitments,
             quotient_commitment,
         )
 
-    def prepare_ios(self, proof: RingVRF, ios: list[VrfIo], ad: bytes) -> RingBatchItem:
-        return _prepare_ios_with_context(proof, ios, ad, self)
+    def _item_from_ios(self, proof: RingVRF, ios: list[VrfIo], ad: bytes) -> _RingBatchItem:
+        return _ring_batch_item(proof, ios, ad, self)
 
-    def prepare(self, proof: RingVRF, input: bytes, ad: bytes) -> RingBatchItem:
+    def _item(self, proof: RingVRF, input: bytes, ad: bytes) -> _RingBatchItem:
         pedersen_proof = proof.require_pedersen_proof()
         input_point = proof.cv.encode_to_curve(input)
-        return self.prepare_ios(proof, [VrfIo(input_point, pedersen_proof.output_point)], ad)
+        return self._item_from_ios(proof, [VrfIo(input_point, pedersen_proof.output_point)], ad)
 
-    def _prepare_pedersen_item(self, proof: RingVRF, ios: list[VrfIo], ad: bytes) -> Any:
+    def _pedersen_item(self, proof: RingVRF, ios: list[VrfIo], ad: bytes) -> Any:
         pedersen_proof = proof.require_pedersen_proof()
         if self.ring.params.cv.name != proof.cv.name:
             raise ValueError("proof curve does not match ring curve")
-        return PedersenBatchVerifier(proof.cv).prepare(ios, ad, pedersen_proof)
+        return PedersenBatchVerifier(proof.cv)._item(ios, ad, pedersen_proof)
 
-    def _prepare_pcs_item(self, proof: RingVRF, message: Any) -> tuple[Any, tuple[LinearPcsVerification, LinearPcsVerification]]:
+    def _pcs_item(self, proof: RingVRF, message: Any) -> tuple[Any, tuple[LinearPcsVerification, LinearPcsVerification]]:
         pcs = self.ring.params.pcs
         # Deferred linear KZG verification avoids materializing small commitments before batching.
         return pcs, self.ring_pcs_verifications(proof, message)
 
 
-def _prepare_ios_with_context(proof: RingVRF, ios: list[VrfIo], ad: bytes, context: RingBatchContext) -> RingBatchItem:
-    pedersen_item = context._prepare_pedersen_item(proof, ios, ad)
-    pcs, verifications = context._prepare_pcs_item(proof, proof.require_pedersen_proof().blinded_pk)
-    return RingBatchItem(proof.cv, pedersen_item, pcs, verifications)
+def _ring_batch_item(proof: RingVRF, ios: list[VrfIo], ad: bytes, context: _RingBatchContext) -> _RingBatchItem:
+    pedersen_item = context._pedersen_item(proof, ios, ad)
+    pcs, verifications = context._pcs_item(proof, proof.require_pedersen_proof().blinded_pk)
+    return _RingBatchItem(proof.cv, pedersen_item, pcs, verifications)
 
 
 def _proof_transcript_commitments(proof: RingVRF, params: Any) -> tuple[bytes, Any]:
@@ -161,57 +162,24 @@ def _proof_transcript_commitments(proof: RingVRF, params: Any) -> tuple[bytes, A
     return witness_commitments, quotient_commitment
 
 
-def _proof_relation_points(proof: RingVRF, message: Any, params: Any) -> tuple[tuple[int, int], tuple[int, int]]:
-    relation = params.point_to_ring_point(message)
-    result_plus_seed = params.add_points(params.seed_point, relation)
-    return relation, result_plus_seed
+def _proof_relation_points(proof: RingVRF, message: Any, params: Any) -> tuple[CurvePoint, CurvePoint]:
+    relation = params.cv.point(message)
+    seed = params.cv.point(params.cv.curve.params.auxiliary_points.accumulator_base)
+    return relation, seed + relation
 
 
 class RingBatchVerifier:
-    def __init__(self, context: RingBatchContext | None = None) -> None:
-        self.items: list[RingBatchItem] = []
+    def __init__(self) -> None:
+        self.items: list[_RingBatchItem] = []
         self.pedersen_batches: dict[str, PedersenBatchVerifier] = {}
         self.pcs_batches: dict[int, tuple[Any, list[Any]]] = {}
-        self._contexts: dict[tuple[int, int], RingBatchContext] = {}
-        if context is not None:
-            self._contexts[context.key] = context
+        self._contexts: dict[tuple[int, int], _RingBatchContext] = {}
         self._invalid = False
 
-    @staticmethod
-    def prepare_context(ring: Ring, ring_root: RingRoot, *, validate_ring_root: bool = True) -> RingBatchContext:
-        return RingBatchContext.from_ring(ring, ring_root, validate_ring_root=validate_ring_root)
-
-    @staticmethod
-    def prepare_ios(
-        proof: RingVRF,
-        ios: list[VrfIo],
-        ad: bytes,
-        ring: Ring,
-        ring_root: RingRoot,
-        *,
-        validate_ring_root: bool = True,
-    ) -> RingBatchItem:
-        context = RingBatchContext.from_ring(ring, ring_root, validate_ring_root=validate_ring_root)
-        return context.prepare_ios(proof, ios, ad)
-
-    @staticmethod
-    def prepare(proof: RingVRF, input: bytes, ad: bytes, ring: Ring, ring_root: RingRoot, *, validate_ring_root: bool = True) -> RingBatchItem:
-        pedersen_proof = proof.require_pedersen_proof()
-        curve = proof.cv
-        input_point = curve.encode_to_curve(input)
-        return RingBatchVerifier.prepare_ios(
-            proof,
-            [VrfIo(input_point, pedersen_proof.output_point)],
-            ad,
-            ring,
-            ring_root,
-            validate_ring_root=validate_ring_root,
-        )
-
-    def push_prepared(self, item: RingBatchItem) -> None:
+    def _push_item(self, item: _RingBatchItem) -> None:
         self.items.append(item)
         pedersen_batch = self.pedersen_batches.setdefault(item.curve.name, PedersenBatchVerifier(item.curve))
-        pedersen_batch.push_prepared(item.pedersen)
+        pedersen_batch._push_item(item.pedersen)
         _, verifications = self.pcs_batches.setdefault(id(item.pcs), (item.pcs, []))
         verifications.extend(item.verifications)
 
@@ -229,9 +197,9 @@ class RingBatchVerifier:
             root_key = (id(ring), id(ring_root))
             context = self._contexts.get(root_key)
             if context is None:
-                context = RingBatchContext.from_ring(ring, ring_root, validate_ring_root=validate_ring_root)
+                context = _RingBatchContext.from_ring(ring, ring_root, validate_ring_root=validate_ring_root)
                 self._contexts[root_key] = context
-            self.push_prepared(context.prepare_ios(proof, ios, ad))
+            self._push_item(context._item_from_ios(proof, ios, ad))
         except (AssertionError, TypeError, ValueError):
             self._invalid = True
 
@@ -249,9 +217,9 @@ class RingBatchVerifier:
             root_key = (id(ring), id(ring_root))
             context = self._contexts.get(root_key)
             if context is None:
-                context = RingBatchContext.from_ring(ring, ring_root, validate_ring_root=validate_ring_root)
+                context = _RingBatchContext.from_ring(ring, ring_root, validate_ring_root=validate_ring_root)
                 self._contexts[root_key] = context
-            self.push_prepared(context.prepare(proof, input, ad))
+            self._push_item(context._item(proof, input, ad))
         except (AssertionError, TypeError, ValueError):
             self._invalid = True
 
@@ -266,7 +234,7 @@ class RingBatchVerifier:
 
         try:
             return all(
-                pcs.batch_verify_linear_preconverted(cast(list[LinearPcsVerification], verifications))
+                pcs.batch_verify_linear_preconverted(verifications)
                 for pcs, verifications in self.pcs_batches.values()
             )
         except (AssertionError, TypeError, ValueError):

@@ -4,7 +4,7 @@ from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
 from dot_ring.ring_proof.constants import DEFAULT_SIZE, OMEGAS, S_PRIME
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ring import Ring, RingVRF
+from dot_ring.vrf.ring import Ring
 
 
 def test_column_interpolate_rejects_oversize_evals():
@@ -33,7 +33,7 @@ def test_ring_from_params():
 def test_ring_rejects_oversize_ring():
     """Test Ring rejects rings that are too large"""
     params = RingProofParams(domain_size=512, max_ring_size=2, padding_rows=4)
-    keys = [RingVRF[Bandersnatch].get_public_key(i.to_bytes(32, "little")) for i in range(1, 4)]
+    keys = [Bandersnatch.public_key_from_secret(i.to_bytes(32, "little")) for i in range(1, 4)]
 
     with pytest.raises(ValueError, match="exceeds max supported size"):
         Ring(keys, params)

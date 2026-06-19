@@ -11,7 +11,7 @@ from .vrf import PedersenVRF, _blinding_base
 
 
 @dataclass
-class PedersenBatchItem:
+class _PedersenBatchItem:
     c: int
     ios: list[VrfIo]
     zs: list[int]
@@ -83,7 +83,7 @@ def _batch_coefficient_pairs_from_bytes(item_count: int, item_bytes: bytes | byt
     return pairs
 
 
-def _batch_coefficient_item_bytes(item: PedersenBatchItem, scalar_size: int, order: int) -> bytes:
+def _batch_coefficient_item_bytes(item: _PedersenBatchItem, scalar_size: int, order: int) -> bytes:
     return (
         int(item.c % order).to_bytes(scalar_size, "little")
         + int(item.s % order).to_bytes(scalar_size, "little")
@@ -91,7 +91,7 @@ def _batch_coefficient_item_bytes(item: PedersenBatchItem, scalar_size: int, ord
     )
 
 
-def _batch_coefficient_pairs(items: list[PedersenBatchItem], curve: CurveVariant) -> list[tuple[int, int]]:
+def _batch_coefficient_pairs(items: list[_PedersenBatchItem], curve: CurveVariant) -> list[tuple[int, int]]:
     order = curve.curve.params.subgroup_order
     scalar_size = (order.bit_length() + 7) // 8
     item_bytes = bytearray()
@@ -103,7 +103,7 @@ def _batch_coefficient_pairs(items: list[PedersenBatchItem], curve: CurveVariant
 class PedersenBatchVerifier:
     def __init__(self, curve: CurveVariant):
         self.cv = curve
-        self.items: list[PedersenBatchItem] = []
+        self.items: list[_PedersenBatchItem] = []
         self._order = curve.curve.params.subgroup_order
         self._scalar_size = (self._order.bit_length() + 7) // 8
         self._coefficient_item_bytes = bytearray()
@@ -121,14 +121,14 @@ class PedersenBatchVerifier:
         _SpecializedPedersenBatchVerifier.__name__ = f"{cls.__name__}[{curve_variant.name}]"
         return _SpecializedPedersenBatchVerifier
 
-    def prepare(self, ios: list[VrfIo], additional_data: bytes, proof: PedersenVRF) -> PedersenBatchItem:
+    def _item(self, ios: list[VrfIo], additional_data: bytes, proof: PedersenVRF) -> _PedersenBatchItem:
         if len(ios) == 1:
-            return self._prepare_single(ios[0], additional_data, proof)
+            return self._single_io_item(ios[0], additional_data, proof)
 
         transcript, scalar_stream = vrf_transcript_scalars(self.cv, DomSep.PEDERSEN_VRF, ios, additional_data)
         transcript.absorb(proof.blinded_pk.point_to_string())
         c = challenge(self.cv, [proof.result_point, proof.ok], transcript)
-        return PedersenBatchItem(
+        return _PedersenBatchItem(
             c=c,
             ios=list(ios),
             zs=scalar_stream.take(len(ios)),
@@ -139,7 +139,7 @@ class PedersenBatchVerifier:
             sb=proof.sb,
         )
 
-    def _prepare_single(self, io: VrfIo, additional_data: bytes, proof: PedersenVRF) -> PedersenBatchItem:
+    def _single_io_item(self, io: VrfIo, additional_data: bytes, proof: PedersenVRF) -> _PedersenBatchItem:
         absorbed = bytearray(suite_id(self.cv))
         absorbed.append(DomSep.PEDERSEN_VRF)
         absorbed.extend((1).to_bytes(8, "little"))
@@ -152,7 +152,7 @@ class PedersenBatchVerifier:
         absorbed.extend(proof.result_point.point_to_string())
         absorbed.extend(proof.ok.point_to_string())
         c = _challenge_scalar_from_absorbed(self.cv, bytes(absorbed))
-        return PedersenBatchItem(
+        return _PedersenBatchItem(
             c=c,
             ios=[io],
             zs=[1],
@@ -163,13 +163,13 @@ class PedersenBatchVerifier:
             sb=proof.sb,
         )
 
-    def push_prepared(self, item: PedersenBatchItem) -> None:
+    def _push_item(self, item: _PedersenBatchItem) -> None:
         self.items.append(item)
         self._single_io_items = self._single_io_items and len(item.ios) == 1 and len(item.zs) == 1 and item.zs[0] == 1
         self._coefficient_item_bytes.extend(_batch_coefficient_item_bytes(item, self._scalar_size, self._order))
 
     def push(self, ios: list[VrfIo], additional_data: bytes, proof: PedersenVRF) -> None:
-        self.push_prepared(self.prepare(ios, additional_data, proof))
+        self._push_item(self._item(ios, additional_data, proof))
 
     def verify(self) -> bool:
         if not self.items:

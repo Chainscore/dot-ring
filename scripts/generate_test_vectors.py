@@ -16,7 +16,6 @@ from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
 from dot_ring.curve.specs.ed25519 import Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
 from dot_ring.curve.specs.p256 import P256_TAI
-from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.vrf.ietf import ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenVRF
@@ -46,7 +45,6 @@ SUITES = [
 
 RING_SUITES = [
     Suite("bandersnatch_sha-512_ell2", Bandersnatch),
-    Suite("bandersnatch_sw_sha-512_tai", Bandersnatch_SW),
     Suite("bandersnatch_shake128_ell2", Bandersnatch_SHAKE128),
     Suite("jubjub_sha-512_tai", JubJub),
 ]
@@ -73,7 +71,7 @@ def pedersen_len(curve: CurveVariant) -> int:
 
 
 def base_fields(suite: Suite, scheme: str, index: int, seed: int, alpha: bytes, ad: bytes) -> tuple[bytes, dict[str, str]]:
-    pk, sk = secret_from_seed(seed_bytes(seed), suite.curve)
+    pk, sk = suite.curve.secret_from_seed(seed_bytes(seed))
     input_point = suite.curve.encode_to_curve(alpha)
     gamma = input_point * int.from_bytes(sk, "little")
     beta = TinyVRF[suite.curve].proof_to_hash(gamma)
@@ -141,7 +139,7 @@ def ring_keys(
         if idx == prover_index:
             keys.append(prover_pk)
         else:
-            other_pk, _ = secret_from_seed(seed_bytes(0x11 + idx * 0x10 + seed), suite.curve)
+            other_pk, _ = suite.curve.secret_from_seed(seed_bytes(0x11 + idx * 0x10 + seed))
             keys.append(other_pk)
     return keys
 
@@ -158,7 +156,7 @@ def ring_vector(suite: Suite, index: int, seed: int, alpha: bytes, ad: bytes) ->
     if pedersen is None:
         raise RuntimeError("ring proof did not include a Pedersen proof")
 
-    proof_bytes = proof.to_bytes()
+    proof_bytes = proof.encode()
     vector.update(
         {
             "blinding": scalar_encode(suite.curve, pedersen._blinding_factor).hex(),
@@ -168,7 +166,7 @@ def ring_vector(suite: Suite, index: int, seed: int, alpha: bytes, ad: bytes) ->
             "proof_s": scalar_encode(suite.curve, pedersen.s).hex(),
             "proof_sb": scalar_encode(suite.curve, pedersen.sb).hex(),
             "ring_pks": b"".join(keys).hex(),
-            "ring_pks_com": ring_root.to_bytes().hex(),
+            "ring_pks_com": ring_root.encode().hex(),
             "ring_proof": proof_bytes[pedersen_len(suite.curve) :].hex(),
             "ring_size": RING_SIZE,
             "prover_idx": PROVER_INDEX,

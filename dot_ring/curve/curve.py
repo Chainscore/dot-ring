@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, Literal, TypeVar, cast
+from typing import Generic, Literal, TypeVar, cast, overload
 
 from gmpy2 import invert as _invert
 from gmpy2 import mpz as _mpz
@@ -11,10 +11,8 @@ from gmpy2 import powmod as _powmod
 
 from dot_ring.curve.e2c import E2C_Variant
 from dot_ring.curve.fp2 import Fp2
+from dot_ring.curve.point import CurvePoint
 from dot_ring.curve.specs.parameters import CurveParams, HashConstructor
-
-if TYPE_CHECKING:
-    from dot_ring.curve.point import CurvePoint
 
 CoordT = TypeVar("CoordT", int, Fp2)
 
@@ -350,7 +348,24 @@ class CurveVariant(Generic[CoordT]):
     curve: Curve[CoordT]
     point_type: type[CurvePoint[Curve[CoordT], CoordT]]
 
-    def point(self, x: CoordT, y: CoordT) -> CurvePoint[Curve[CoordT], CoordT]:
+    @overload
+    def point(self, x: CoordT, y: CoordT) -> CurvePoint[Curve[CoordT], CoordT]: ...
+
+    @overload
+    def point(self, x: tuple[CoordT, CoordT]) -> CurvePoint[Curve[CoordT], CoordT]: ...
+
+    @overload
+    def point(self, x: CurvePoint[Curve[CoordT], CoordT]) -> CurvePoint[Curve[CoordT], CoordT]: ...
+
+    def point(
+        self,
+        x: CoordT | tuple[CoordT, CoordT] | CurvePoint[Curve[CoordT], CoordT],
+        y: CoordT | None = None,
+    ) -> CurvePoint[Curve[CoordT], CoordT]:
+        if isinstance(x, CurvePoint):
+            return x
+        if y is None:
+            x, y = x
         return self.point_type(x, y, self.curve)
 
     def identity(self) -> CurvePoint[Curve[CoordT], CoordT]:
@@ -358,6 +373,21 @@ class CurveVariant(Generic[CoordT]):
 
     def generator_point(self) -> CurvePoint[Curve[CoordT], CoordT]:
         return self.point_type.generator_point(self.curve)
+
+    def public_key_from_secret(self, secret_key: bytes) -> bytes:
+        if not isinstance(secret_key, bytes | bytearray):
+            raise TypeError("secret_key must be bytes")
+        secret_scalar = int.from_bytes(secret_key, "little")
+        return (self.generator_point() * secret_scalar).point_to_string()
+
+    def secret_from_seed(self, seed: bytes) -> tuple[bytes, bytes]:
+        if not isinstance(seed, bytes | bytearray):
+            raise TypeError("seed must be bytes")
+        from dot_ring.vrf.transcript import scalar_encode, secret_from_seed_scalar
+
+        secret_scalar = secret_from_seed_scalar(self, bytes(seed))
+        secret_key = scalar_encode(self, secret_scalar)
+        return self.public_key_from_secret(secret_key), secret_key
 
     def string_to_point(self, data: str | bytes) -> CurvePoint[Curve[CoordT], CoordT]:
         return self.point_type.string_to_point(data, self.curve)

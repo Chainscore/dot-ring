@@ -50,17 +50,17 @@ def test_ietf_base(curve_variant, file_prefix):
                 additional_data = bytes.fromhex(vector["ad"])
 
                 # Public Key
-                pk_bytes = TinyVRF[curve_variant].get_public_key(secret_scalar)
+                pk_bytes = curve_variant.public_key_from_secret(secret_scalar)
 
                 proof = TinyVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
-                proof_bytes = proof.to_bytes()
-                proof_rt = TinyVRF[curve_variant].from_bytes(proof_bytes)
+                proof_bytes = proof.encode()
+                proof_rt = TinyVRF[curve_variant].decode(proof_bytes)
 
                 # Verify
                 verified = proof.verify(pk_bytes, alpha, additional_data)
                 assert verified, f"Proof Verification Failed for {file} vector {j}"
 
-                assert proof_rt.to_bytes() == proof_bytes
+                assert proof_rt.encode() == proof_bytes
                 assert proof_rt.verify(pk_bytes, alpha, additional_data)
 
     if not found:

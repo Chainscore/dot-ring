@@ -76,7 +76,7 @@ def test_ring_proof_params_defaults():
 
 
 def test_baby_jubjub_ring_proof_params_are_unsupported():
-    with pytest.raises(ValueError, match="BabyJubJub ring proofs are not supported"):
+    with pytest.raises(ValueError, match="BabyJubJub ring proofs require field modulus"):
         RingProofParams(cv=BabyJubJub)
 
 

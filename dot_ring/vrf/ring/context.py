@@ -33,10 +33,10 @@ class RingContext:
             ring = self.ring(ring)
         return RingRoot.from_ring(ring, self.params)
 
-    def ring_root_from_bytes(self, commitment: RingRoot | bytes) -> RingRoot:
+    def decode_ring_root(self, commitment: RingRoot | bytes) -> RingRoot:
         if isinstance(commitment, RingRoot):
             return commitment
-        return RingRoot.from_bytes(commitment, self.params)
+        return RingRoot.decode(commitment, self.params)
 
     def ring_root_builder(self) -> RingRootBuilder:
         return RingRootBuilder(self)

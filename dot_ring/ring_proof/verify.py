@@ -1,5 +1,6 @@
 from typing import Any, NamedTuple
 
+from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.constants import OMEGA_2048, S_PRIME
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS
@@ -51,6 +52,13 @@ def _ring_proof_fields(proof: RingProofFields | tuple[Any, ...]) -> RingProofFie
     if isinstance(proof, RingProofFields):
         return proof
     return RingProofFields(*proof)
+
+
+def _point_coords(point: CurvePoint) -> tuple[int, int]:
+    x, y = point.x, point.y
+    if x is None or y is None:
+        raise ValueError("identity point is not a valid ring proof instance")
+    return int(x), int(y)
 
 
 def _compute_quotient_and_linearization_terms(
@@ -176,12 +184,12 @@ def _compute_quotient_and_linearization_terms(
     return agg_zeta, scalar_accip, scalar_accx, scalar_accy, zeta_omega, l_zeta_omega
 
 
-def prepare_linear_pcs_verifications_fast(
+def linear_pcs_verifications(
     proof: RingProofFields | tuple[Any, ...],
     fixed_cols_blst: tuple[Any, Any, Any],
-    relation_to_prove: tuple[int, int],
-    result_plus_seed: tuple[int, int],
-    seed_point: tuple[int, int],
+    relation_to_prove: CurvePoint,
+    result_plus_seed: CurvePoint,
+    seed_point: CurvePoint,
     domain: list[int],
     padding_rows: int,
     domain_size_inv: int,
@@ -192,6 +200,8 @@ def prepare_linear_pcs_verifications_fast(
     quotient_commitment: bytes,
 ) -> tuple[LinearPcsVerification, LinearPcsVerification]:
     proof_fields = _ring_proof_fields(proof)
+    result_plus_seed_coords = _point_coords(result_plus_seed)
+    seed_coords = _point_coords(seed_point)
 
     _, alpha_list, zeta_p, v_list = derive_challenges_after_vk(
         transcript_prefix,
@@ -215,10 +225,10 @@ def prepare_linear_pcs_verifications_fast(
         proof_fields.accx_zeta,
         proof_fields.accy_zeta,
         proof_fields.l_zeta_omega,
-        seed_point[0],
-        seed_point[1],
-        result_plus_seed[0],
-        result_plus_seed[1],
+        seed_coords[0],
+        seed_coords[1],
+        result_plus_seed_coords[0],
+        result_plus_seed_coords[1],
         domain[last_index],
         domain[-1],
         domain[-2],
@@ -270,9 +280,9 @@ class Verify:
         self,
         proof: RingProofFields | tuple[Any, ...],
         fixed_cols: list,
-        relation_to_prove: tuple | bytes,
-        result_plus_seed: tuple,
-        seed_point: tuple,
+        relation_to_prove: CurvePoint,
+        result_plus_seed: CurvePoint,
+        seed_point: CurvePoint,
         domain: list,
         transcript_prefix: FiatShamirTranscript,
         padding_rows: int = 4,
@@ -303,7 +313,9 @@ class Verify:
 
         self.Cpx, self.Cpy, self.Cs = fixed_cols
         self.relation_to_prove = relation_to_prove
-        self.Result_plus_Seed, self.sp, self.D = result_plus_seed, seed_point, domain
+        self.Result_plus_Seed = _point_coords(result_plus_seed)
+        self.sp = _point_coords(seed_point)
+        self.D = domain
         self.padding_rows = padding_rows
         self.prime = prime
         self.omega = omega
@@ -356,9 +368,9 @@ class Verify:
 
     def is_valid(self) -> bool:
         """If both the verifications are true then sign is valid"""
-        return bool(self.pcs.batch_verify_linear_preconverted(list(self._prepare_linear_pcs_verifications())))
+        return bool(self.pcs.batch_verify_linear_preconverted(list(self._linear_pcs_verifications())))
 
-    def _prepare_linear_pcs_verifications(
+    def _linear_pcs_verifications(
         self,
     ) -> tuple[LinearPcsVerification, LinearPcsVerification]:
         """Prepare deferred linear KZG equations from one native scalar pass."""

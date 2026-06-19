@@ -42,7 +42,7 @@ class ThinVRF(VRF[Any]):
     s: int
 
     @classmethod
-    def from_bytes(cls, proof_bytes: bytes) -> ThinVRF:
+    def decode(cls, proof_bytes: bytes) -> ThinVRF:
         encoded_point_len = point_len(cls.cv)
         scalar_size = scalar_len(cls.cv)
         expected = 2 * encoded_point_len + scalar_size
@@ -58,7 +58,7 @@ class ThinVRF(VRF[Any]):
             raise ValueError("Response scalar s is not less than the curve order")
         return cls(output_point, r, s)
 
-    def to_bytes(self) -> bytes:
+    def encode(self) -> bytes:
         return self.output_point.point_to_string() + self.r.point_to_string() + scalar_encode(self.cv, self.s)
 
     @classmethod

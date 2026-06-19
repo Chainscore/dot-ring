@@ -48,7 +48,7 @@ def test_ietf_ark(curve_variant, file_prefix, subdir, gamma_len):
                 salt = bytes.fromhex(vector.get("salt", ""))
 
                 # Public Key check
-                pk_bytes = TinyVRF[curve_variant].get_public_key(secret_scalar)
+                pk_bytes = curve_variant.public_key_from_secret(secret_scalar)
                 public_key = curve_variant.string_to_point(pk_bytes)
                 assert public_key.point_to_string().hex() == vector["pk"]
 
@@ -58,8 +58,8 @@ def test_ietf_ark(curve_variant, file_prefix, subdir, gamma_len):
                     assert input_point.point_to_string().hex() == vector["h"]
 
                 proof = TinyVRF[curve_variant].prove(alpha, secret_scalar, additional_data, salt)
-                proof_bytes = proof.to_bytes()
-                proof_rt = TinyVRF[curve_variant].from_bytes(proof_bytes)
+                proof_bytes = proof.encode()
+                proof_rt = TinyVRF[curve_variant].decode(proof_bytes)
 
                 # Proof components check
                 gamma = proof_bytes[:gamma_len]
@@ -76,7 +76,7 @@ def test_ietf_ark(curve_variant, file_prefix, subdir, gamma_len):
                     assert TinyVRF[curve_variant].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
 
                 assert proof.verify(pk_bytes, alpha, additional_data, salt)
-                assert proof_rt.to_bytes() == proof_bytes
+                assert proof_rt.encode() == proof_bytes
                 assert proof_rt.verify(pk_bytes, alpha, additional_data, salt)
 
     if not found:

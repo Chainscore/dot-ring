@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import lru_cache
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.params import RingProofParams
@@ -13,36 +12,6 @@ def parse_concatenated_keys(keys: bytes, cv: CurveVariant) -> list[bytes]:
     if len(keys) % encoded_point_len != 0:
         raise ValueError(f"invalid concatenated key length: expected multiple of {encoded_point_len}, got {len(keys)}")
     return [keys[encoded_point_len * i : encoded_point_len * (i + 1)] for i in range(len(keys) // encoded_point_len)]
-
-
-def blinding_base_powers(params: RingProofParams, count: int) -> tuple[tuple[int, int], ...]:
-    def _bb_cache_key(params: RingProofParams) -> tuple[str, int, int, int, tuple[int, int]]:
-        return (
-            params.ring_curve_variant().name,
-            params.prime,
-            params.ring_edwards_a,
-            params.ring_edwards_d,
-            params.blinding_base,
-        )
-
-    return _blinding_base_powers(params, _bb_cache_key(params), count)
-
-
-@lru_cache(maxsize=16)
-def _blinding_base_powers(
-    params: RingProofParams,
-    _cache_key: tuple[str, int, int, int, tuple[int, int]],
-    count: int,
-) -> tuple[tuple[int, int], ...]:
-    """Return `[2^0 * H, 2^1 * H, ...]` in ring coordinates."""
-    point = params.blinding_base
-    points = []
-    for _ in range(count):
-        points.append(point)
-        point_obj = params.ring_point(point)
-        result = point_obj + point_obj
-        point = int(result.x), int(result.y)
-    return tuple(points)
 
 
 class Ring:
@@ -61,20 +30,21 @@ class Ring:
             params = RingProofParams.from_ring_size(len(keys))
 
         self.params = params
+        padding_point = params.cv.curve.params.auxiliary_points.padding_point
 
         if len(keys) > params.max_ring_size:
             raise ValueError(f"ring size {len(keys)} exceeds max supported size {params.max_ring_size}")
 
         nm_points: list[tuple[int, int]] = []
         for key in keys:
-            point = self._decode_key(key)
+            point = self._decode_key(key, padding_point)
             if point is None:
-                nm_points.append(params.padding_point)
+                nm_points.append(padding_point)
                 continue
             nm_points.append(point)
 
         while len(nm_points) < params.max_ring_size:
-            nm_points.append(params.padding_point)
+            nm_points.append(padding_point)
 
         fill_count = params.domain_size - params.padding_rows - len(nm_points)
         if fill_count > 0:
@@ -84,7 +54,7 @@ class Ring:
 
         self.nm_points = tuple(nm_points)
 
-    def _decode_key(self, key: object) -> tuple[int, int] | None:
+    def _decode_key(self, key: object, padding_point: tuple[int, int]) -> tuple[int, int] | None:
         if not isinstance(key, (bytes, str)):
             return None
         try:
@@ -92,16 +62,27 @@ class Ring:
         except ValueError:
             return None
         if point.is_identity():
-            return self.params.padding_point
-        return self.params.point_to_ring_point(point)
+            return padding_point
+        return int(point.x), int(point.y)
 
     def index_of(self, key: bytes | str) -> int:
-        point = self._decode_key(key)
+        padding_point = self.params.cv.curve.params.auxiliary_points.padding_point
+        point = self._decode_key(key, padding_point)
         if point is None:
             raise ValueError("invalid ring key")
-        if point == self.params.padding_point:
+        if point == padding_point:
             raise ValueError("producer key is not in ring")
         try:
             return self.nm_points[: self.params.max_ring_size].index(point)
         except ValueError as exc:
             raise ValueError("producer key is not in ring") from exc
+
+
+def blinding_base_powers(params: RingProofParams, count: int) -> tuple[tuple[int, int], ...]:
+    point = params.cv.curve.params.auxiliary_points.blinding_base
+    points = []
+    for _ in range(count):
+        points.append(point)
+        doubled = params.cv.point(point) + params.cv.point(point)
+        point = int(doubled.x), int(doubled.y)
+    return tuple(points)

@@ -4,7 +4,7 @@ dot-ring: A Python library for Verifiable Random Functions with Additional Data 
 Supports 10+ elliptic curves including Tiny, Thin, Pedersen, and Ring VRF schemes.
 
 Example usage:
-    >>> from dot_ring import Bandersnatch, TinyVRF, PedersenVRF, RingVRF
+    >>> from dot_ring import Bandersnatch, RingContext, TinyVRF, PedersenVRF, RingVRF
     >>>
     >>> # Tiny VRF
     >>> proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
@@ -15,9 +15,11 @@ Example usage:
     >>> is_valid = proof.verify(alpha, additional_data)
     >>>
     >>> # Ring VRF
-    >>> ring_root = RingVRF[Bandersnatch].construct_ring_root(keys_list)
-    >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, producer_key, keys)
-    >>> is_valid = proof.verify(alpha, ad, ring_root)
+    >>> context = RingContext.from_ring_size(len(keys), cv=Bandersnatch)
+    >>> ring = context.ring(keys)
+    >>> ring_root = context.ring_root(ring)
+    >>> proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, producer_key, ring, ring_root)
+    >>> is_valid = proof.verify(alpha, ad, ring, ring_root)
 """
 
 __version__ = "0.1.0"
@@ -48,10 +50,9 @@ from dot_ring.curve.specs.p256 import P256_NU, P256_RO, P256_TAI
 from dot_ring.curve.specs.p384 import P384_NU, P384_RO
 from dot_ring.curve.specs.p521 import P521_NU, P521_RO
 from dot_ring.curve.specs.secp256k1 import Secp256k1_NU, Secp256k1_RO
-from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.ietf import ThinBatchVerifier, ThinVRF, TinyVRF
 from dot_ring.vrf.pedersen import PedersenBatchVerifier, PedersenVRF
-from dot_ring.vrf.ring import Ring, RingBatchContext, RingBatchVerifier, RingContext, RingRoot, RingRootBuilder, RingVRF
+from dot_ring.vrf.ring import Ring, RingBatchVerifier, RingContext, RingRoot, RingRootBuilder, RingVRF
 
 # =============================================================================
 # Convenience aliases
@@ -82,7 +83,6 @@ __all__ = [
     "RingVRF",
     "RingContext",
     "RingRootBuilder",
-    "RingBatchContext",
     "RingBatchVerifier",
     # Primary curves
     "Bandersnatch",
@@ -125,7 +125,6 @@ __all__ = [
     "BLS12_381_G2",
     "BLS12_381_G2_RO",
     "BLS12_381_G2_NU",
-    "secret_from_seed",
     "Ring",
     "RingRoot",
 ]

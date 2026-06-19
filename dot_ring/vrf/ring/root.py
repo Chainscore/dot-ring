@@ -44,6 +44,10 @@ def _copy_commitment(commitment: Any) -> Any:
     return commitment.dup() if hasattr(commitment, "dup") else commitment
 
 
+def _commitment_column(name: str, commitment: Any) -> Column:
+    return Column(name=name, evals=[], commitment=_copy_commitment(commitment))
+
+
 def _transcript_g2_points(g2_points: Any) -> list[tuple[int, int]]:
     return [(b, a) for pair in g2_points for point in pair for a, b in [point]]
 
@@ -103,7 +107,12 @@ class RingRoot:
         transcript.absorb_labeled(b"vk", verifier_key_bytes)
         return transcript
 
-    def to_bytes(self) -> bytes:
+    @staticmethod
+    def encoded_len(params: RingProofParams | None = None) -> int:
+        commitment_size = params.pcs.commitment_size if params is not None else KZG.commitment_size
+        return 3 * commitment_size
+
+    def encode(self) -> bytes:
         pcs = self.params.pcs if self.params is not None else KZG
         return b"".join(
             (
@@ -114,25 +123,22 @@ class RingRoot:
         )
 
     @classmethod
-    def from_bytes(cls, data: bytes, params: RingProofParams | None = None) -> "RingRoot":
-        if params is not None:
-            commitment_size = params.pcs.commitment_size
-        else:
-            commitment_size = KZG.commitment_size
-        expected = 3 * commitment_size
+    def decode(cls, data: bytes, params: RingProofParams | None = None) -> "RingRoot":
+        commitment_size = params.pcs.commitment_size if params is not None else KZG.commitment_size
+        expected = cls.encoded_len(params)
         if len(data) != expected:
             raise ValueError(f"invalid ring root length: ring root must be exactly {expected} bytes, got {len(data)}")
 
         pcs = params.pcs if params is not None else KZG
-        px_commitment, py_commitment, s_commitment = (
-            pcs.decompress_g1(data[0:commitment_size]),
-            pcs.decompress_g1(data[commitment_size : commitment_size * 2]),
-            pcs.decompress_g1(data[commitment_size * 2 : expected]),
-        )
+        reader = _RingRootReader(data, commitment_size)
+        px_commitment = reader.g1(pcs)
+        py_commitment = reader.g1(pcs)
+        s_commitment = reader.g1(pcs)
+        reader.finish()
 
-        px = Column(name="px", evals=[], commitment=_copy_commitment(px_commitment))
-        py = Column(name="py", evals=[], commitment=_copy_commitment(py_commitment))
-        s = Column(name="s", evals=[], commitment=_copy_commitment(s_commitment))
+        px = _commitment_column("px", px_commitment)
+        py = _commitment_column("py", py_commitment)
+        s = _commitment_column("s", s_commitment)
 
         return cls(px=px, py=py, s=s, params=params)
 
@@ -145,4 +151,21 @@ class RingRoot:
                 and tuple(self.py.evals[:domain_size]) == tuple(point[1] for point in ring.nm_points)
                 and tuple(self.s.evals[:domain_size]) == tuple(1 if i < params.max_ring_size else 0 for i in range(domain_size))
             )
-        return RingRoot.from_ring(ring, params).to_bytes() == self.to_bytes()
+        return RingRoot.from_ring(ring, params).encode() == self.encode()
+
+
+class _RingRootReader:
+    def __init__(self, data: bytes, commitment_size: int) -> None:
+        self.data = data
+        self.commitment_size = commitment_size
+        self.offset = 0
+
+    def g1(self, pcs: Any) -> Any:
+        end = self.offset + self.commitment_size
+        commitment = pcs.decompress_g1(self.data[self.offset : end])
+        self.offset = end
+        return commitment
+
+    def finish(self) -> None:
+        if self.offset != len(self.data):
+            raise ValueError(f"trailing bytes in ring root: {len(self.data) - self.offset}")

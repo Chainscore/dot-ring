@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
 
 from dot_ring.curve.curve import CurveVariant
+from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, require_commitment
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.polynomial.fft import inverse_fft
@@ -46,20 +46,21 @@ class RingProofBuilder:
             params,
         )
         witness_columns = witness_builder.build()
-        relation_point = witness_builder.result(params.blinding_base)
-        relation_plus_seed = witness_builder.result_p_seed(relation_point)
+        relation_point = witness_builder.result(params.cv.curve.params.auxiliary_points.blinding_base)
+        seed_point = params.cv.curve.params.auxiliary_points.accumulator_base
+        relation_plus_seed_point = relation_point + params.cv.point(seed_point)
+        relation_plus_seed = int(relation_plus_seed_point.x), int(relation_plus_seed_point.y)
 
         constraints = RingConstraintBuilder(
-            Result_plus_Seed=relation_plus_seed,
-            px=cast(list[int], ring_root.px.coeffs),
-            py=cast(list[int], ring_root.py.coeffs),
-            s=cast(list[int], ring_root.s.coeffs),
-            b=cast(list[int], witness_columns[0].coeffs),
-            acc_x=cast(list[int], witness_columns[1].coeffs),
-            acc_y=cast(list[int], witness_columns[2].coeffs),
-            acc_ip=cast(list[int], witness_columns[3].coeffs),
+            result_plus_seed=relation_plus_seed,
+            px=self._coeffs(ring_root.px),
+            py=self._coeffs(ring_root.py),
+            s=self._coeffs(ring_root.s),
+            b=self._coeffs(witness_columns[0]),
+            acc_x=self._coeffs(witness_columns[1]),
+            acc_y=self._coeffs(witness_columns[2]),
+            acc_ip=self._coeffs(witness_columns[3]),
             params=params,
-            seed_point=params.seed_point,
         )
         transcript, alpha = self._phase1_transcript(ring_root, relation_point, witness_columns)
         constraint_polys = list(constraints.compute().values())
@@ -116,14 +117,14 @@ class RingProofBuilder:
             accy_zeta=accy_zeta,
             c_q=c_q_column,
             l_zeta_omega=l_zeta_omega,
-            open_agg_zeta=phi_zeta,
-            open_l_zeta_omega=phi_zeta_omega,
+            open_agg_zeta=phi_zeta.proof,
+            open_l_zeta_omega=phi_zeta_omega.proof,
         )
 
     def _phase1_transcript(
         self,
         ring_root: RingRoot,
-        relation_point: tuple[int, int],
+        relation_point: CurvePoint,
         witness_columns: tuple[Column, Column, Column, Column],
     ) -> tuple[FiatShamirTranscript, list[int]]:
         params = self.ring.params
@@ -135,13 +136,10 @@ class RingProofBuilder:
             params.pcs.serialize_g1_uncompressed(require_commitment(c_accy)),
         ]
         transcript = ring_root.verifier_transcript_prefix(params, self.transcript_challenge).copy()
-        return cast(
-            tuple[FiatShamirTranscript, list[int]],
-            phase1_alphas_after_vk(
-                transcript,
-                relation_point,
-                witness_commitments,
-            ),
+        return phase1_alphas_after_vk(
+            transcript,
+            relation_point,
+            witness_commitments,
         )
 
     def _aggregate_constraints(
@@ -235,7 +233,7 @@ class RingProofBuilder:
         b = evals["b_zeta"]
         x1, y1 = evals["acc_x_zeta"], evals["acc_y_zeta"]
         x2, y2 = evals["P_x_zeta"], evals["P_y_zeta"]
-        point_relation = y1 * y2 + params.ring_edwards_a * x1 * x2
+        point_relation = y1 * y2 + params.cv.curve.params.a * x1 * x2
         return (b * point_relation + (1 - b)) * scalar_term % params.prime
 
     def _acc_y_constraint_factor(self, evals: dict[str, int], scalar_term: int) -> int:

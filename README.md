@@ -57,10 +57,10 @@ ad = b"additional data"
 Deterministic key generation from a seed:
 
 ```python
-from dot_ring import Bandersnatch, secret_from_seed
+from dot_ring import Bandersnatch
 
 seed = (0).to_bytes(32, "little")
-public_key, secret_scalar = secret_from_seed(seed, Bandersnatch)
+public_key, secret_key = Bandersnatch.secret_from_seed(seed)
 ```
 
 ### Tiny VRF / IETF
@@ -72,12 +72,12 @@ from dot_ring import Bandersnatch, TinyVRF
 proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, ad)
 
 # Verify
-public_key = TinyVRF[Bandersnatch].get_public_key(secret_key)
+public_key = Bandersnatch.public_key_from_secret(secret_key)
 is_valid = proof.verify(public_key, alpha, ad)
 
 # Serialize
-proof_bytes = proof.to_bytes()
-proof = TinyVRF[Bandersnatch].from_bytes(proof_bytes)
+proof_bytes = proof.encode()
+proof = TinyVRF[Bandersnatch].decode(proof_bytes)
 ```
 
 ### Pedersen VRF
@@ -95,18 +95,25 @@ is_valid = proof.verify(alpha, ad)
 ### Ring VRF
 
 ```python
-from dot_ring import Bandersnatch, RingVRF
+from dot_ring import Bandersnatch, RingContext, RingVRF
 
 # Setup ring
-ring_pks = [pk1, pk2, pk3, ...]  # list of public keys
-ring_root = RingVRF[Bandersnatch].construct_ring_root(ring_pks)
+my_pk = Bandersnatch.public_key_from_secret(secret_key)
+other_pks = [
+    Bandersnatch.public_key_from_secret(i.to_bytes(32, "little"))
+    for i in range(1, 4)
+]
+ring_pks = [my_pk, *other_pks]
+
+context = RingContext.from_ring_size(len(ring_pks), cv=Bandersnatch)
+ring = context.ring(ring_pks)
+ring_root = context.ring_root(ring)
 
 # Generate proof
-my_pk = RingVRF[Bandersnatch].get_public_key(secret_key)
-proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, my_pk, ring_pks)
+proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, my_pk, ring, ring_root)
 
 # Verify (proves membership without revealing which key)
-is_valid = proof.verify(alpha, ad, ring_root)
+is_valid = proof.verify(alpha, ad, ring, ring_root)
 ```
 
 ---

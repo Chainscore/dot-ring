@@ -1,4 +1,4 @@
-from .batch_verifier import PedersenBatchItem, PedersenBatchVerifier
+from .batch_verifier import PedersenBatchVerifier
 from .vrf import PedersenVRF
 
-__all__ = ["PedersenBatchItem", "PedersenBatchVerifier", "PedersenVRF"]
+__all__ = ["PedersenBatchVerifier", "PedersenVRF"]

@@ -46,7 +46,7 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 additional_data = bytes.fromhex(vector["ad"])
 
                 # Public Key check
-                pk_bytes = PedersenVRF[curve_variant].get_public_key(secret_scalar)
+                pk_bytes = curve_variant.public_key_from_secret(secret_scalar)
 
                 # Input Point check
                 input_point = curve_variant.encode_to_curve(alpha)
@@ -54,8 +54,8 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                     assert input_point.point_to_string().hex() == vector["h"]
 
                 proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
-                proof_bytes = proof.to_bytes()
-                proof_rt = PedersenVRF[curve_variant].from_bytes(proof_bytes)
+                proof_bytes = proof.encode()
+                proof_rt = PedersenVRF[curve_variant].decode(proof_bytes)
 
                 assert pk_bytes.hex() == vector["pk"], "Invalid Public Key"
                 assert proof.output_point.point_to_string().hex() == vector["gamma"]
@@ -76,7 +76,7 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                     assert PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
 
                 assert proof.verify(alpha, additional_data)
-                assert proof_rt.to_bytes() == proof_bytes
+                assert proof_rt.encode() == proof_bytes
                 assert proof_rt.verify(alpha, additional_data)
 
     if not found:

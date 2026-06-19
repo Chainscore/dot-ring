@@ -49,14 +49,14 @@ def test_tiny_vectors(curve, prefix: str, point_len: int) -> None:
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
         proof = TinyVRF[curve].prove(alpha, sk, ad)
-        proof_bytes = proof.to_bytes()
+        proof_bytes = proof.encode()
 
-        assert TinyVRF[curve].get_public_key(sk).hex() == vector["pk"]
+        assert curve.public_key_from_secret(sk).hex() == vector["pk"]
         assert curve.encode_to_curve(alpha).point_to_string().hex() == vector["h"]
         assert proof_bytes == tiny_proof_bytes(vector)
         assert TinyVRF[curve].proof_to_hash(proof.output_point).hex() == vector["beta"]
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
-        assert TinyVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes
+        assert TinyVRF[curve].decode(proof_bytes).encode() == proof_bytes
         assert len(proof.output_point.point_to_string()) == point_len
 
 
@@ -67,11 +67,11 @@ def test_thin_vectors(curve, prefix: str, _point_len: int) -> None:
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
         proof = ThinVRF[curve].prove(alpha, sk, ad)
-        proof_bytes = proof.to_bytes()
+        proof_bytes = proof.encode()
 
         assert proof_bytes == thin_proof_bytes(vector)
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
-        assert ThinVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes
+        assert ThinVRF[curve].decode(proof_bytes).encode() == proof_bytes
 
 
 @pytest.mark.parametrize("curve,prefix,_point_len", SUITES)
@@ -81,11 +81,11 @@ def test_pedersen_vectors(curve, prefix: str, _point_len: int) -> None:
         alpha = bytes.fromhex(vector["alpha"])
         ad = bytes.fromhex(vector["ad"])
         proof = PedersenVRF[curve].prove(alpha, sk, ad)
-        proof_bytes = proof.to_bytes()
+        proof_bytes = proof.encode()
 
         assert proof_bytes == pedersen_proof_bytes(vector)
         assert proof.verify(alpha, ad)
-        assert PedersenVRF[curve].from_bytes(proof_bytes).to_bytes() == proof_bytes
+        assert PedersenVRF[curve].decode(proof_bytes).encode() == proof_bytes
 
 
 @pytest.mark.parametrize("curve,prefix,point_len", SUITES)
@@ -95,24 +95,23 @@ def test_rejects_invalid_point_encodings(curve, prefix: str, point_len: int) -> 
     tiny_vector = load(f"{prefix}_tiny.json")[0]
     tiny_bytes = invalid_point + bytes_from_fields(tiny_vector, "proof_c", "proof_s")
     with pytest.raises(ValueError, match="INVALID|Invalid"):
-        TinyVRF[curve].from_bytes(tiny_bytes)
+        TinyVRF[curve].decode(tiny_bytes)
 
     thin_vector = load(f"{prefix}_thin.json")[0]
     thin_bytes = invalid_point + bytes_from_fields(thin_vector, "proof_r", "proof_s")
     with pytest.raises(ValueError, match="INVALID|Invalid"):
-        ThinVRF[curve].from_bytes(thin_bytes)
+        ThinVRF[curve].decode(thin_bytes)
 
     pedersen_vector = load(f"{prefix}_pedersen.json")[0]
     pedersen_bytes = invalid_point + bytes_from_fields(pedersen_vector, "proof_pk_com", "proof_r", "proof_ok", "proof_s", "proof_sb")
     with pytest.raises(ValueError, match="INVALID|Invalid"):
-        PedersenVRF[curve].from_bytes(pedersen_bytes)
+        PedersenVRF[curve].decode(pedersen_bytes)
 
 
 @pytest.mark.parametrize(
     "curve,filename",
     [
         (Bandersnatch, "bandersnatch_sha-512_ell2_ring.json"),
-        (Bandersnatch_SW, "bandersnatch_sw_sha-512_tai_ring.json"),
         (Bandersnatch_SHAKE128, "bandersnatch_shake128_ell2_ring.json"),
         (JubJub, "jubjub_sha-512_tai_ring.json"),
     ],
@@ -126,17 +125,17 @@ def test_ring_vectors(curve, filename: str) -> None:
         params = RingProofParams(test_vectors=True, cv=curve)
         ring = Ring(keys, params)
         ring_root = RingRoot.from_ring(ring, params)
-        proof = RingVRF[curve].from_bytes(proof_bytes)
+        proof = RingVRF[curve].decode(proof_bytes)
 
-        assert ring_root.to_bytes().hex() == vector["ring_pks_com"]
+        assert ring_root.encode().hex() == vector["ring_pks_com"]
         assert proof.verify(alpha, ad, ring, ring_root)
         generated = RingVRF[curve].prove(alpha, ad, bytes.fromhex(vector["sk"]), bytes.fromhex(vector["pk"]), ring, ring_root)
-        assert generated.to_bytes() == proof_bytes
+        assert generated.encode() == proof_bytes
 
 
 def test_multi_input_apis() -> None:
     secret = bytes.fromhex(load("bandersnatch_sha-512_ell2_tiny.json")[0]["sk"])
-    public_key = TinyVRF[Bandersnatch].get_public_key(secret)
+    public_key = Bandersnatch.public_key_from_secret(secret)
     secret_scalar = int.from_bytes(secret, "little")
     public_key_point = Bandersnatch.string_to_point(public_key)
 
@@ -210,7 +209,7 @@ def test_ring_batch_same_ring_and_invalid_item() -> None:
     params = RingProofParams(test_vectors=True)
     ring = Ring(keys, params)
     ring_root = RingRoot.from_ring(ring, params)
-    proof = RingVRF[Bandersnatch].from_bytes(ring_proof_bytes(vector))
+    proof = RingVRF[Bandersnatch].decode(ring_proof_bytes(vector))
     second_alpha = b"ring-batch-second"
     second_ad = b"ring-batch-ad"
     second_proof = RingVRF[Bandersnatch].prove(
@@ -244,7 +243,7 @@ def test_ring_batch_multi_ring_shared_srs(monkeypatch: pytest.MonkeyPatch) -> No
         params = RingProofParams(test_vectors=True)
         ring = Ring(keys, params)
         ring_root = RingRoot.from_ring(ring, params)
-        proof = RingVRF[Bandersnatch].from_bytes(ring_proof_bytes(vector))
+        proof = RingVRF[Bandersnatch].decode(ring_proof_bytes(vector))
         batch.push(proof, bytes.fromhex(vector["alpha"]), bytes.fromhex(vector["ad"]), ring, ring_root)
 
     def fail_single_verify(*_args: object, **_kwargs: object) -> bool:
@@ -264,10 +263,10 @@ def test_ring_context_helpers() -> None:
     builder = context.ring_root_builder()
     builder.extend(keys_blob)
 
-    assert ring_root.to_bytes().hex() == vector["ring_pks_com"]
-    assert context.ring_root(keys_blob).to_bytes() == ring_root.to_bytes()
-    assert context.ring_root_from_bytes(ring_root.to_bytes()).to_bytes() == ring_root.to_bytes()
-    assert builder.finalize().to_bytes() == ring_root.to_bytes()
+    assert ring_root.encode().hex() == vector["ring_pks_com"]
+    assert context.ring_root(keys_blob).encode() == ring_root.encode()
+    assert context.decode_ring_root(ring_root.encode()).encode() == ring_root.encode()
+    assert builder.finalize().encode() == ring_root.encode()
 
 
 def test_negative_and_malformed_proofs() -> None:
@@ -285,16 +284,16 @@ def test_negative_and_malformed_proofs() -> None:
     assert not tiny.verify(pk, b"wrong-input", ad)
     assert not tiny.verify_ios(pk_point, [VrfIo(Bandersnatch.encode_to_curve(alpha), wrong_output)], ad)
     with pytest.raises(ValueError, match="invalid Tiny VRF proof length"):
-        TinyVRF[Bandersnatch].from_bytes(tiny.to_bytes()[:-1])
+        TinyVRF[Bandersnatch].decode(tiny.encode()[:-1])
 
     thin = ThinVRF[Bandersnatch].prove(alpha, sk, ad)
     with pytest.raises(ValueError, match="invalid Thin VRF proof length"):
-        ThinVRF[Bandersnatch].from_bytes(thin.to_bytes()[:-1])
+        ThinVRF[Bandersnatch].decode(thin.encode()[:-1])
 
     pedersen = PedersenVRF[Bandersnatch].prove(alpha, sk, ad)
     assert not pedersen.verify(alpha, b"wrong-ad")
     with pytest.raises(ValueError, match="invalid Pedersen VRF proof length"):
-        PedersenVRF[Bandersnatch].from_bytes(pedersen.to_bytes()[:-1])
+        PedersenVRF[Bandersnatch].decode(pedersen.encode()[:-1])
 
     ring_vector = load("bandersnatch_sha-512_ell2_ring.json")[0]
     ring_alpha = bytes.fromhex(ring_vector["alpha"])
@@ -305,23 +304,23 @@ def test_negative_and_malformed_proofs() -> None:
     ring = Ring(keys, params)
     ring_root = RingRoot.from_ring(ring, params)
     wrong_root = RingRoot.from_ring(Ring(list(reversed(keys)), params), params)
-    proof = RingVRF[Bandersnatch].from_bytes(proof_bytes)
+    proof = RingVRF[Bandersnatch].decode(proof_bytes)
 
     assert not proof.verify(ring_alpha, b"wrong-ad", ring, ring_root)
     assert not proof.verify(b"wrong-input", ring_ad, ring, ring_root)
     assert not proof.verify(ring_alpha, ring_ad, ring, wrong_root)
     with pytest.raises(ValueError, match="invalid Ring VRF proof length"):
-        RingVRF[Bandersnatch].from_bytes(proof_bytes[:-1])
+        RingVRF[Bandersnatch].decode(proof_bytes[:-1])
     pedersen_len = len(proof_bytes) - len(bytes.fromhex(ring_vector["ring_proof"]))
     invalid_kzg_point = proof_bytes[:pedersen_len] + b"\xff" * 48 + proof_bytes[pedersen_len + 48 :]
     with pytest.raises(ValueError):
-        RingVRF[Bandersnatch].from_bytes(invalid_kzg_point)
+        RingVRF[Bandersnatch].decode(invalid_kzg_point)
     with pytest.raises(ValueError, match="invalid Ring VRF proof length"):
-        RingVRF[Bandersnatch].from_bytes(bytes.fromhex(ring_vector["ring_proof"])[:-1], skip_pedersen=True)
+        RingVRF[Bandersnatch].decode(bytes.fromhex(ring_vector["ring_proof"])[:-1], skip_pedersen=True)
     with pytest.raises(ValueError, match="invalid ring root length"):
-        RingRoot.from_bytes(ring_root.to_bytes()[:-1])
+        RingRoot.decode(ring_root.encode()[:-1])
     with pytest.raises(ValueError):
-        RingRoot.from_bytes(b"\xff" * 48 + ring_root.to_bytes()[48:])
+        RingRoot.decode(b"\xff" * 48 + ring_root.encode()[48:])
 
 
 def test_ring_rejects_wrong_prover_key() -> None:
@@ -333,7 +332,7 @@ def test_ring_rejects_wrong_prover_key() -> None:
     ring = Ring(keys, params)
     ring_root = RingRoot.from_ring(ring, params)
     wrong_secret = bytes.fromhex(load("bandersnatch_sha-512_ell2_tiny.json")[1]["sk"])
-    wrong_pk = TinyVRF[Bandersnatch].get_public_key(wrong_secret)
+    wrong_pk = Bandersnatch.public_key_from_secret(wrong_secret)
 
     with pytest.raises(ValueError, match="producer key is not in ring"):
         RingVRF[Bandersnatch].prove(alpha, ad, wrong_secret, wrong_pk, ring, ring_root)

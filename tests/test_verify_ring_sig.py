@@ -23,20 +23,6 @@ from tests.utils.rust_serde import (
 )
 
 
-def add_bandersnatch_points(
-    point1: tuple[int | None, int | None],
-    point2: tuple[int | None, int | None],
-) -> tuple[int | None, int | None]:
-    def to_point(point: tuple[int | None, int | None]):
-        x, y = point
-        if x is None or y is None:
-            return Bandersnatch.identity()
-        return Bandersnatch.point(int(x), int(y))
-
-    result = to_point(point1) + to_point(point2)
-    return result.x, result.y
-
-
 def parse_proof_from_json(proof_json: dict) -> tuple:
     proof = proof_json["proof"]
 
@@ -119,8 +105,9 @@ def verify_vector(vector_path: Path) -> None:
     result_y_bytes = bytes.fromhex(params["result"]["y"])
     result_point = deserialize_bandersnatch_point(result_x_bytes, result_y_bytes)
 
-    result_ark_bytes = result_x_bytes + result_y_bytes
-    result_plus_seed = add_bandersnatch_points(result_point, seed_point)
+    result_point = Bandersnatch.point(result_point)
+    seed_point = Bandersnatch.point(seed_point)
+    result_plus_seed = result_point + seed_point
 
     proof_tuple, raw_bytes = parse_proof_from_json(proof_data)
     vk_bytes, fixed_cols = parse_verifier_key(proof_data["verifier_key"]["verification_key"])
@@ -161,7 +148,7 @@ def verify_vector(vector_path: Path) -> None:
         verifier = Verify(
             proof=proof_tuple,
             fixed_cols=fixed_cols,
-            relation_to_prove=result_ark_bytes,
+            relation_to_prove=result_point,
             result_plus_seed=result_plus_seed,
             seed_point=seed_point,
             domain=domain,

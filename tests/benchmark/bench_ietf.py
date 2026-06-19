@@ -10,7 +10,6 @@ import time
 from dataclasses import dataclass
 
 from dot_ring import Bandersnatch
-from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.ietf import TinyVRF
 
 
@@ -39,7 +38,7 @@ def _seed(*parts: object) -> bytes:
 
 
 def benchmark_once(sample_index: int) -> Timing:
-    public_key, secret_key = secret_from_seed(_seed("ietf-signer", sample_index), Bandersnatch)
+    public_key, secret_key = Bandersnatch.secret_from_seed(_seed("ietf-signer", sample_index))
     alpha = b"bench-ietf-input" + sample_index.to_bytes(8, "little")
     ad = b"bench-ietf-ad" + sample_index.to_bytes(8, "little")
     salt = b"bench-ietf-salt" + sample_index.to_bytes(8, "little")
@@ -61,7 +60,7 @@ def benchmark_once(sample_index: int) -> Timing:
         prove_ms=prove_ms,
         verify_ms=verify_ms,
         total_ms=(time.perf_counter() - total_start) * 1000,
-        proof_size=len(proof.to_bytes()),
+        proof_size=len(proof.encode()),
     )
 
 

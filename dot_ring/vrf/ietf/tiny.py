@@ -20,7 +20,7 @@ from dot_ring.vrf.transcript import (
     vrf_transcript_scalars,
 )
 
-from ..vrf import VRF, PreparedSecretKey
+from ..vrf import VRF
 
 
 @dataclass
@@ -43,7 +43,7 @@ class TinyVRF(VRF[Any]):
     s: int
 
     @classmethod
-    def from_bytes(cls, proof_bytes: bytes) -> TinyVRF:
+    def decode(cls, proof_bytes: bytes) -> TinyVRF:
         encoded_point_len = point_len(cls.cv)
         scalar_size = scalar_len(cls.cv)
         expected = encoded_point_len + CHALLENGE_LEN + scalar_size
@@ -60,7 +60,7 @@ class TinyVRF(VRF[Any]):
             raise ValueError("Response scalar s is not less than the curve order")
         return cls(output_point, c, s)
 
-    def to_bytes(self) -> bytes:
+    def encode(self) -> bytes:
         return self.output_point.point_to_string() + self.c.to_bytes(CHALLENGE_LEN, "little") + scalar_encode(self.cv, self.s)
 
     @classmethod
@@ -77,20 +77,10 @@ class TinyVRF(VRF[Any]):
         additional_data: bytes,
         salt: bytes = b"",
     ) -> TinyVRF:
-        return cls.prove_prepared(alpha, cls.prepare_secret_key(secret_key), additional_data, salt)
-
-    @classmethod
-    def prove_prepared(
-        cls,
-        alpha: bytes,
-        secret_key: PreparedSecretKey[Any],
-        additional_data: bytes,
-        salt: bytes = b"",
-    ) -> TinyVRF:
-        if secret_key.curve is not cls.cv:
-            raise ValueError("prepared secret key uses a different curve")
-        io = cls._io_from_alpha(alpha, secret_key.secret_scalar, salt)
-        return cls.prove_ios([io], secret_key.secret_scalar, secret_key.public_key, additional_data)
+        secret_scalar = scalar_decode(cls.cv, secret_key)
+        public_key = cls.cv.generator_point() * secret_scalar
+        io = cls._io_from_alpha(alpha, secret_scalar, salt)
+        return cls.prove_ios([io], secret_scalar, public_key, additional_data)
 
     @classmethod
     def prove_ios(

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from dot_ring.ring_proof.columns.columns import Column, require_commitment
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.ring_proof.pcs.opening import Opening
 from dot_ring.ring_proof.pcs.protocol import G1Commitment
 
 RING_SCALAR_LEN = 32
@@ -12,6 +11,23 @@ RING_SCALAR_LEN = 32
 
 def ring_proof_len(params: RingProofParams) -> int:
     return 7 * params.pcs.commitment_size + 8 * RING_SCALAR_LEN
+
+
+def encode_scalar(value: int) -> bytes:
+    return value.to_bytes(RING_SCALAR_LEN, "little")
+
+
+def decode_scalar(data: bytes, modulus: int) -> int:
+    if len(data) != RING_SCALAR_LEN:
+        raise ValueError(f"scalar must be exactly {RING_SCALAR_LEN} bytes, got {len(data)}")
+    value = int.from_bytes(data, "little")
+    if value >= modulus:
+        raise ValueError("scalar is not canonical")
+    return value
+
+
+def _commitment_column(name: str, commitment: G1Commitment) -> Column:
+    return Column(name=name, evals=[], commitment=commitment)
 
 
 @dataclass(slots=True)
@@ -29,8 +45,8 @@ class RingProofPayload:
     accy_zeta: int
     c_q: Column
     l_zeta_omega: int
-    open_agg_zeta: Opening
-    open_l_zeta_omega: Opening
+    open_agg_zeta: G1Commitment
+    open_l_zeta_omega: G1Commitment
 
     def as_tuple(
         self,
@@ -48,8 +64,8 @@ class RingProofPayload:
         int,
         Column,
         int,
-        Opening,
-        Opening,
+        G1Commitment,
+        G1Commitment,
     ]:
         return (
             self.c_b,
@@ -69,39 +85,43 @@ class RingProofPayload:
             self.open_l_zeta_omega,
         )
 
-    def to_bytes(self, params: RingProofParams) -> bytes:
+    @staticmethod
+    def encoded_len(params: RingProofParams) -> int:
+        return ring_proof_len(params)
+
+    def encode(self, params: RingProofParams) -> bytes:
         return b"".join(
             (
                 params.pcs.compress_g1(require_commitment(self.c_b)),
                 params.pcs.compress_g1(require_commitment(self.c_accip)),
                 params.pcs.compress_g1(require_commitment(self.c_accx)),
                 params.pcs.compress_g1(require_commitment(self.c_accy)),
-                _scalar_to_bytes(self.px_zeta),
-                _scalar_to_bytes(self.py_zeta),
-                _scalar_to_bytes(self.s_zeta),
-                _scalar_to_bytes(self.b_zeta),
-                _scalar_to_bytes(self.accip_zeta),
-                _scalar_to_bytes(self.accx_zeta),
-                _scalar_to_bytes(self.accy_zeta),
+                encode_scalar(self.px_zeta),
+                encode_scalar(self.py_zeta),
+                encode_scalar(self.s_zeta),
+                encode_scalar(self.b_zeta),
+                encode_scalar(self.accip_zeta),
+                encode_scalar(self.accx_zeta),
+                encode_scalar(self.accy_zeta),
                 params.pcs.compress_g1(require_commitment(self.c_q)),
-                _scalar_to_bytes(self.l_zeta_omega),
-                params.pcs.compress_g1(self.open_agg_zeta.proof),
-                params.pcs.compress_g1(self.open_l_zeta_omega.proof),
+                encode_scalar(self.l_zeta_omega),
+                params.pcs.compress_g1(self.open_agg_zeta),
+                params.pcs.compress_g1(self.open_l_zeta_omega),
             )
         )
 
     @classmethod
-    def from_bytes(cls, proof: bytes, params: RingProofParams) -> RingProofPayload:
+    def decode(cls, proof: bytes, params: RingProofParams) -> RingProofPayload:
         expected = ring_proof_len(params)
         if len(proof) != expected:
             raise ValueError(f"invalid Ring VRF proof length: expected {expected}, got {len(proof)}")
 
         reader = _PayloadReader(proof, params)
-        return cls(
-            c_b=Column(name="c_b", evals=[], commitment=reader.commitment()),
-            c_accip=Column(name="c_accip", evals=[], commitment=reader.commitment()),
-            c_accx=Column(name="c_accx", evals=[], commitment=reader.commitment()),
-            c_accy=Column(name="c_accy", evals=[], commitment=reader.commitment()),
+        payload = cls(
+            c_b=_commitment_column("c_b", reader.commitment()),
+            c_accip=_commitment_column("c_accip", reader.commitment()),
+            c_accx=_commitment_column("c_accx", reader.commitment()),
+            c_accy=_commitment_column("c_accy", reader.commitment()),
             px_zeta=reader.scalar(),
             py_zeta=reader.scalar(),
             s_zeta=reader.scalar(),
@@ -109,11 +129,13 @@ class RingProofPayload:
             accip_zeta=reader.scalar(),
             accx_zeta=reader.scalar(),
             accy_zeta=reader.scalar(),
-            c_q=Column(name="c_q", evals=[], commitment=reader.commitment()),
+            c_q=_commitment_column("c_q", reader.commitment()),
             l_zeta_omega=reader.scalar(),
-            open_agg_zeta=Opening(proof=reader.commitment(), y=0),
-            open_l_zeta_omega=Opening(proof=reader.commitment(), y=0),
+            open_agg_zeta=reader.commitment(),
+            open_l_zeta_omega=reader.commitment(),
         )
+        reader.finish()
+        return payload
 
 
 class _PayloadReader:
@@ -130,20 +152,11 @@ class _PayloadReader:
         return commitment
 
     def scalar(self) -> int:
-        end = self.offset + 32
-        value = _scalar_from_bytes(self.data[self.offset : end], self.params.prime)
+        end = self.offset + RING_SCALAR_LEN
+        value = decode_scalar(self.data[self.offset : end], self.params.prime)
         self.offset = end
         return value
 
-
-def _scalar_to_bytes(value: int) -> bytes:
-    return value.to_bytes(RING_SCALAR_LEN, "little")
-
-
-def _scalar_from_bytes(data: bytes, modulus: int) -> int:
-    if len(data) != RING_SCALAR_LEN:
-        raise ValueError(f"scalar must be exactly {RING_SCALAR_LEN} bytes, got {len(data)}")
-    value = int.from_bytes(data, "little")
-    if value >= modulus:
-        raise ValueError("scalar is not canonical")
-    return value
+    def finish(self) -> None:
+        if self.offset != len(self.data):
+            raise ValueError(f"trailing bytes in ring proof payload: {len(self.data) - self.offset}")

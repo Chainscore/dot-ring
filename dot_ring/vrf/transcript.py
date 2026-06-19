@@ -139,7 +139,7 @@ def vrf_transcript_scalars(
     t.absorb(bytes([scheme]))
     t.absorb(len(ios).to_bytes(8, "little"))
     for io in ios:
-        t.absorb(io.to_bytes())
+        t.absorb(io.encode())
     t.absorb(len(ad).to_bytes(8, "little"))
     t.absorb(ad)
     return t, DelinearizeScalars(curve, t)
