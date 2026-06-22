@@ -1,43 +1,16 @@
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any, ClassVar, Generic, Self, TypeVar
 
 from ..curve.curve import CurveVariant
-from ..curve.point import CurvePoint
-from ..curve.twisted_edwards.te_affine_point import TEAffinePoint
 
 C = TypeVar("C", bound=CurveVariant)
-
-
-@lru_cache(maxsize=32)
-def _cofactor_inverse(cofactor: int, subgroup_order: int) -> int:
-    return pow(cofactor, -1, subgroup_order)
 
 
 class VRF(Generic[C]):
     """Base VRF class that specializes implementations by curve variant."""
 
     cv: ClassVar[CurveVariant]
-
-    @staticmethod
-    def _valid_point(point: CurvePoint) -> bool:
-        """Verifier-side `dec_point`: nonidentity and in the prime-order subgroup."""
-        if point.is_identity():
-            return False
-
-        cofactor = point.curve.params.cofactor
-        if cofactor == 1:
-            return True
-
-        cofactor_inv = _cofactor_inverse(cofactor, point.curve.params.subgroup_order)
-        if isinstance(point, TEAffinePoint):
-            cleared = TEAffinePoint.__mul__(point, cofactor)
-        else:
-            cleared = point * cofactor
-        if cleared.is_identity():
-            return False
-        return cleared * cofactor_inv == point
 
     def __class_getitem__(cls, curve_variant: CurveVariant | Any) -> type[Self] | Any:
         """
@@ -53,3 +26,21 @@ class VRF(Generic[C]):
             return cls
         new_class = type(f"{cls.__name__}[{curve_variant.name}]", (cls,), {"cv": curve_variant})
         return new_class
+
+    @classmethod
+    def prove(cls, alpha: bytes, secret_key: bytes, additional_data: bytes, salt: bytes, **_kwargs: Any) -> Self:
+        raise NotImplementedError(f"{cls.__name__} does not implement prove")
+
+    def verify(self, *_args: Any, **_kwargs: Any) -> bool:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement verify")
+
+    def encode(self) -> bytes:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement encode")
+
+    @classmethod
+    def decode(cls, data: bytes) -> Self:
+        raise NotImplementedError(f"{cls.__name__} does not implement from_bytes")
+
+    @classmethod
+    def batch_verify(cls, *_args: Any, **_kwargs: Any) -> bool:
+        raise NotImplementedError(f"{cls.__name__} does not implement batch_verify")

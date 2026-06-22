@@ -53,7 +53,7 @@ class P256Point(SWAffinePoint):
 
     def point_to_string(self, compressed: bool = True) -> bytes:
         if self.curve.e2c_variant != E2C_Variant.TAI:
-            return super().point_to_string(compressed)
+            return super().point_to_string()
 
         if self.x is None and self.y is None:
             return bytes([0] * 32 + [0x40])
@@ -64,26 +64,28 @@ class P256Point(SWAffinePoint):
         return x_bytes + bytes([flag])
 
     @classmethod
-    def string_to_point(cls, data: str | bytes, curve: SWCurve):
+    def string_to_point(cls, data: str | bytes):
+        curve = cls.curve
         if isinstance(data, str):
             data = bytes.fromhex(data)
 
         if curve.e2c_variant != E2C_Variant.TAI:
-            return super().string_to_point(data, curve)
+            return super().string_to_point(data)
         elif len(data) == 33 and data[0] in (0x02, 0x03):
             # Canonical SW encodings put flags in the final byte, so external
             # vectors can coincidentally start with SEC1 marker bytes.
             try:
-                return cls._string_to_canonical_point(data, curve)
+                return cls._string_to_canonical_point(data)
             except ValueError:
-                return super().string_to_point(data, curve)
+                return super().string_to_point(data)
 
         if len(data) != 33:
             raise ValueError(f"Invalid compressed point length: expected 33, got {len(data)}")
-        return cls._string_to_canonical_point(data, curve)
+        return cls._string_to_canonical_point(data)
 
     @classmethod
-    def _string_to_canonical_point(cls, data: bytes, curve: SWCurve):
+    def _string_to_canonical_point(cls, data: bytes):
+        curve = cls.curve
         flag = data[-1]
         is_negative = (flag >> 7) & 1
         is_infinity = (flag >> 6) & 1
@@ -92,19 +94,20 @@ class P256Point(SWAffinePoint):
         if is_infinity:
             if is_negative or any(data[:-1]):
                 raise ValueError("Invalid infinity encoding")
-            return cls.identity(curve)
+            return cls.identity()
 
         x = int.from_bytes(data[:-1], "little")
         if x >= curve.params.field_modulus:
             raise ValueError("x-coordinate is not in field")
-        y_candidates = cls._y_recover(x, curve)
+        y_candidates = cls._y_recover(x)
         if y_candidates is None:
             raise ValueError("Invalid point")
         y, y_neg = y_candidates
-        return cls(x, y_neg if is_negative else y, curve)
+        return cls(x, y_neg if is_negative else y)
 
     @classmethod
-    def _y_recover(cls, x: int, curve: SWCurve) -> tuple[int, int] | None:
+    def _y_recover(cls, x: int) -> tuple[int, int] | None:
+        curve = cls.curve
         p = curve.params.field_modulus
         y_square = (pow(x, 3, p) + curve.params.a * x + curve.params.b) % p
         try:
@@ -115,20 +118,37 @@ class P256Point(SWAffinePoint):
         return (y, neg_y) if y <= neg_y else (neg_y, y)
 
 
+P256_RO_Curve = SWCurve(params=P256_PARAMS, e2c_variant=E2C_Variant.SSWU)
+P256_NU_Curve = SWCurve(params=P256_PARAMS, e2c_variant=E2C_Variant.SSWU_NU)
+P256_TAI_Curve = SWCurve(params=P256_PARAMS, e2c_variant=E2C_Variant.TAI)
+
+
+class P256ROPoint(P256Point):
+    curve = P256_RO_Curve
+
+
+class P256NUPoint(P256Point):
+    curve = P256_NU_Curve
+
+
+class P256TAIPoint(P256Point):
+    curve = P256_TAI_Curve
+
+
 P256_RO = CurveVariant(
     name="P256_RO",
-    curve=SWCurve(params=P256_PARAMS, e2c_variant=E2C_Variant.SSWU),
-    point_type=P256Point,
+    curve=P256_RO_Curve,
+    point_type=P256ROPoint,
 )
 
 P256_NU = CurveVariant(
     name="P256_NU",
-    curve=SWCurve(params=P256_PARAMS, e2c_variant=E2C_Variant.SSWU_NU),
-    point_type=P256Point,
+    curve=P256_NU_Curve,
+    point_type=P256NUPoint,
 )
 
 P256_TAI = CurveVariant(
     name="P256_TAI",
-    curve=SWCurve(params=P256_PARAMS, e2c_variant=E2C_Variant.TAI),
-    point_type=P256Point,
+    curve=P256_TAI_Curve,
+    point_type=P256TAIPoint,
 )

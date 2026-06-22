@@ -6,6 +6,7 @@ payload; the spec writes this as `(pi_p, pi_r)`.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,16 +14,15 @@ from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.columns.columns import Column
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.protocol import G1Commitment
-from dot_ring.ring_proof.verify import RingProofFields, Verify
+from dot_ring.ring_proof.pcs.utils import g1_to_blst
+from dot_ring.ring_proof.proof_builder import RingProofBuilder
+from dot_ring.ring_proof.proof_payload import RingProofPayload
+from dot_ring.ring_proof.verify import RingProofFields, Verify, linear_pcs_verifications
 from dot_ring.vrf.pedersen import PedersenVRF
 
 from ..vrf import VRF
-from .batch_verifier import RingBatchVerifier, _proof_relation_points, _proof_transcript_commitments
-from .context import RingContext, RingRootBuilder
 from .members import Ring
 from .members import parse_concatenated_keys as _parse_concatenated_keys
-from .proof_builder import RingProofBuilder
-from .proof_payload import RingProofPayload
 from .root import RingRoot
 
 
@@ -142,11 +142,13 @@ class RingVRF(VRF[Any]):
 
         if isinstance(message, bytes):
             try:
-                message = ring.params.cv.string_to_point(message)
+                message = ring.params.cv.point_type.string_to_point(message)
             except ValueError as exc:
                 raise ValueError("Invalid message point") from exc
 
-        rltn, res_plus_seed = _proof_relation_points(self, message, ring.params)
+        seed_point = ring.params.cv.point_type(*ring.params.cv.curve.params.auxiliary_points.accumulator_base)
+        rltn = message
+        res_plus_seed = seed_point + rltn
         witness_commitments, quotient_commitment = _proof_transcript_commitments(self, ring.params)
 
         return Verify(
@@ -154,7 +156,7 @@ class RingVRF(VRF[Any]):
             fixed_cols_cmts,
             rltn,
             res_plus_seed,
-            ring.params.cv.point(ring.params.cv.curve.params.auxiliary_points.accumulator_base),
+            seed_point,
             ring.params.domain,
             transcript_prefix,
             padding_rows=ring.params.padding_rows,
@@ -182,17 +184,18 @@ class RingVRF(VRF[Any]):
     def prove(
         cls,
         alpha: bytes,
-        ad: bytes,
+        additional_data: bytes,
         secret_key: bytes,
         producer_key: bytes,
         ring: Ring,
         ring_root: RingRoot | None = None,
+        salt: bytes = b"",
     ) -> RingVRF:
         """Spec section 5.1: run Pedersen prove, then prove `Y_bar = producer_key + b*B` is in the ring."""
         if producer_key != cls.cv.public_key_from_secret(secret_key):
             raise ValueError("producer_key does not match secret_key")
 
-        pedersen_proof = PedersenVRF[cls.cv].prove(alpha, secret_key, ad)
+        pedersen_proof = PedersenVRF[cls.cv].prove(alpha, secret_key, additional_data, salt)
 
         ring_proof = RingProofBuilder(
             cls.cv,
@@ -228,10 +231,79 @@ class RingVRF(VRF[Any]):
     def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
         return PedersenVRF[cls.cv].proof_to_hash(gamma, mul_cofactor)
 
+    @classmethod
+    def batch_verify(
+        cls,
+        proofs: Sequence[RingVRF],
+        inputs: Sequence[bytes],
+        additional_data: Sequence[bytes],
+        ring: Ring,
+        ring_root: RingRoot,
+    ) -> bool:
+        if not ring_root.matches_ring(ring):
+            return False
+        if ring.params.cv.name != cls.cv.name:
+            return False
 
-__all__ = [
-    "RingBatchVerifier",
-    "RingContext",
-    "RingVRF",
-    "RingRootBuilder",
-]
+        try:
+            pedersen_proofs = []
+            for proof in proofs:
+                if proof.cv.name != cls.cv.name:
+                    return False
+                pedersen_proofs.append(proof.pedersen_proof)
+        except (AttributeError, TypeError):
+            return False
+
+        if not PedersenVRF[cls.cv].batch_verify(pedersen_proofs, inputs, additional_data):
+            return False
+        if not pedersen_proofs:
+            return True
+
+        fixed_cols_cmts = ring_root.fixed_commitments(ring.params)
+        fixed_cols_blst = tuple(g1_to_blst(commitment) for commitment in fixed_cols_cmts)
+        transcript_prefix = ring_root.verifier_transcript_prefix(ring.params)
+        if not ring.params.cv.curve.params.auxiliary_points.accumulator_base:
+            raise ValueError("Curve does not have an accumulator base point for Ring VRF")
+        seed_point = ring.params.cv.point_type(*ring.params.cv.curve.params.auxiliary_points.accumulator_base)
+        domain = ring.params.domain
+        domain_size_inv = pow(ring.params.domain_size, -1, ring.params.prime)
+        pcs_verifications: list[Any] = []
+        try:
+            for proof in proofs:
+                relation = proof.pedersen_proof.blinded_pk
+                result_plus_seed = seed_point + relation
+                witness_commitments, quotient_commitment = _proof_transcript_commitments(proof, ring.params)
+                pcs_verifications.extend(
+                    linear_pcs_verifications(
+                        proof.as_ring_proof(),
+                        fixed_cols_blst,
+                        relation,
+                        result_plus_seed,
+                        seed_point,
+                        domain,
+                        ring.params.padding_rows,
+                        domain_size_inv,
+                        ring.params.cv.curve.params.a,
+                        ring.params.omega,
+                        ring.params.prime,
+                        transcript_prefix,
+                        witness_commitments,
+                        quotient_commitment,
+                    )
+                )
+        except (AssertionError, AttributeError, TypeError, ValueError):
+            return False
+
+        return bool(ring.params.pcs.batch_verify_linear_preconverted(pcs_verifications))
+
+
+def _proof_transcript_commitments(proof: RingVRF, params: RingProofParams) -> tuple[bytes, Any]:
+    commitments = (
+        proof.c_b.commitment,
+        proof.c_accip.commitment,
+        proof.c_accx.commitment,
+        proof.c_accy.commitment,
+        proof.c_q.commitment,
+    )
+    transcript_commitments = tuple(params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments)
+    return b"".join(transcript_commitments[:4]), transcript_commitments[4]

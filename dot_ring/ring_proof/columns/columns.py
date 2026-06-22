@@ -133,7 +133,7 @@ class WitnessColumnBuilder:
             else:
                 current = acc[i - 1]
                 member = self.ring_pk[i - 1]
-                added = self.params.cv.point(current[0], current[1]) + self.params.cv.point(member[0], member[1])
+                added = self.params.cv.point_type(*current) + self.params.cv.point_type(*member)
                 next_pt = int(added.x), int(added.y)
             acc.append(next_pt)
         return [point[0] for point in acc], [point[1] for point in acc]
@@ -162,6 +162,6 @@ class WitnessColumnBuilder:
         return (columns[0], columns[1], columns[2], columns[3])
 
     def result(self, blinding_point: tuple[int, int]) -> CurvePoint:
-        producer_point = self.params.cv.point(self.ring_pk[self.producer_index])
-        blinded = self.params.cv.point(blinding_point) * self.secret_t
+        producer_point = self.params.cv.point_type(*self.ring_pk[self.producer_index])
+        blinded = self.params.cv.point_type(*blinding_point) * self.secret_t
         return producer_point + blinded

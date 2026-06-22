@@ -6,10 +6,10 @@ from time import time
 
 from dot_ring.curve.specs.bandersnatch import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.codec import scalar_len
 from dot_ring.vrf.ietf import TinyVRF
 from dot_ring.vrf.pedersen import PedersenVRF
 from dot_ring.vrf.ring import Ring, RingRoot, RingVRF
-from dot_ring.vrf.transcript import scalar_len
 
 HERE = os.path.dirname(__file__)
 
@@ -31,11 +31,11 @@ def test_ietf_ark_bandersnatch():
 
             # Public Key check
             pk_bytes = Bandersnatch.public_key_from_secret(secret_scalar)
-            public_key = Bandersnatch.string_to_point(pk_bytes)
+            public_key = Bandersnatch.point_type.string_to_point(pk_bytes)
             assert public_key.point_to_string().hex() == vector["pk"]
 
             # Input Point check
-            input_point = Bandersnatch.encode_to_curve(vector["alpha"])
+            input_point = Bandersnatch.point_type.encode_to_curve(alpha)
             if "h" in vector:
                 assert input_point.point_to_string().hex() == vector["h"]
 
@@ -77,7 +77,7 @@ def test_pedersen_ark_bandersnatch():
             pk_bytes = Bandersnatch.public_key_from_secret(secret_scalar)
 
             # Input Point check
-            input_point = Bandersnatch.encode_to_curve(alpha)
+            input_point = Bandersnatch.point_type.encode_to_curve(alpha)
             if "h" in vector:
                 assert input_point.point_to_string().hex() == vector["h"]
 

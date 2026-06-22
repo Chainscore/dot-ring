@@ -143,19 +143,19 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
     Implements point operations specific to the BLS12-381 G2 curve.
     """
 
-    def __init__(self, x: Fp2 | tuple[int, int] | None, y: Fp2 | tuple[int, int] | None, curve: SWCurve[Fp2]) -> None:
-        super().__init__(self._coord(x, curve), self._coord(y, curve), curve)
+    def __init__(self, x: Fp2 | tuple[int, int] | None, y: Fp2 | tuple[int, int] | None) -> None:
+        super().__init__(self._coord(x), self._coord(y))
 
-    @staticmethod
-    def _coord(value: Fp2 | tuple[int, int] | None, curve: SWCurve[Fp2]) -> Fp2 | None:
+    @classmethod
+    def _coord(cls, value: Fp2 | tuple[int, int] | None) -> Fp2 | None:
         if value is None:
             return None
         if isinstance(value, Fp2):
-            if value.p != curve.params.field_modulus:
+            if value.p != cls.curve.params.field_modulus:
                 raise ValueError("Fp2 coordinate uses the wrong field")
             return value
         if isinstance(value, tuple) and len(value) == 2:
-            return Fp2(value[0], value[1], curve.params.field_modulus)
+            return Fp2(value[0], value[1], cls.curve.params.field_modulus)
         raise TypeError("BLS12-381 G2 coordinates must be Fp2 values")
 
     def _py_ecc_point(self) -> tuple[FQ2, FQ2]:
@@ -164,10 +164,10 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         return self.x.to_fq2(), self.y.to_fq2()
 
     @classmethod
-    def _from_py_ecc_point(cls, point: tuple[FQ2, FQ2] | None, curve: SWCurve[Fp2]) -> BLS12_381_G2Point:
+    def _from_py_ecc_point(cls, point: tuple[FQ2, FQ2] | None) -> BLS12_381_G2Point:
         if point is None:
-            return cls.identity(curve)
-        return cls(Fp2.from_fq2(point[0], curve.params.field_modulus), Fp2.from_fq2(point[1], curve.params.field_modulus), curve)
+            return cls.identity()
+        return cls(Fp2.from_fq2(point[0], cls.curve.params.field_modulus), Fp2.from_fq2(point[1], cls.curve.params.field_modulus))
 
     def _validate_coordinates(self) -> bool:
         if self.x is None and self.y is None:
@@ -187,8 +187,8 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         return self.x is None and self.y is None
 
     @classmethod
-    def identity(cls, curve: SWCurve[Fp2]) -> BLS12_381_G2Point:
-        return cls(None, None, curve)
+    def identity(cls) -> BLS12_381_G2Point:
+        return cls(None, None)
 
     def clear_cofactor(self) -> BLS12_381_G2Point:
         return self * self.curve.params.cofactor
@@ -197,7 +197,7 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         raise NotImplementedError("BLS12-381 G2 point serialization is not implemented")
 
     @classmethod
-    def string_to_point(cls, data: str | bytes, curve: SWCurve[Fp2]) -> BLS12_381_G2Point:
+    def string_to_point(cls, data: str | bytes) -> BLS12_381_G2Point:
         raise NotImplementedError("BLS12-381 G2 point deserialization is not implemented")
 
     def __add__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:  # type: ignore[override]
@@ -219,7 +219,7 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         if other.is_identity():
             return self
 
-        return self._from_py_ecc_point(add(self._py_ecc_point(), other._py_ecc_point()), self.curve)
+        return self._from_py_ecc_point(add(self._py_ecc_point(), other._py_ecc_point()))
 
     def __neg__(self) -> BLS12_381_G2Point:
         """
@@ -234,7 +234,7 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
 
         if self.x is None or self.y is None:
             raise ValueError("Invalid G2 point coordinate")
-        return self.__class__(self.x, -self.y, self.curve)
+        return self.__class__(self.x, -self.y)
 
     def __sub__(self, other: BLS12_381_G2Point) -> BLS12_381_G2Point:  # type: ignore[override]
         """
@@ -263,39 +263,31 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
             BLS12_381_G2Point: The result of scalar multiplication
         """
         if scalar == 0:
-            return self.identity(self.curve)
+            return self.identity()
         if scalar < 0:
             return (-self) * (-scalar)
-        return self._from_py_ecc_point(multiply(self._py_ecc_point(), scalar), self.curve)
+        return self._from_py_ecc_point(multiply(self._py_ecc_point(), scalar))
 
     @classmethod
     def encode_to_curve(
         cls,
-        alpha_string: bytes | str,
-        salt: bytes | str = b"",
-        curve: SWCurve[Fp2] | None = None,
+        alpha_string: bytes,
+        salt: bytes = b"",
     ) -> BLS12_381_G2Point:
-        if curve is None:
-            raise ValueError("curve is required")
-        if not isinstance(alpha_string, bytes):
-            alpha_string = bytes.fromhex(alpha_string)
-        if not isinstance(salt, bytes):
-            salt = bytes.fromhex(salt)
-
-        if curve.e2c_variant == E2C_Variant.SSWU_NU:
-            return cls._encode_sswu_nu(alpha_string, curve, salt)
-        if curve.e2c_variant == E2C_Variant.SSWU:
-            return cls._encode_sswu_ro(alpha_string, curve, salt)
-        raise ValueError(f"Unexpected E2C Variant: {curve.e2c_variant}")
+        if cls.curve.e2c_variant == E2C_Variant.SSWU_NU:
+            return cls._encode_sswu_nu(alpha_string, salt)
+        if cls.curve.e2c_variant == E2C_Variant.SSWU:
+            return cls._encode_sswu_ro(alpha_string, salt)
+        return super().encode_to_curve(alpha_string, salt)
 
     @classmethod
     def _encode_sswu_ro(
         cls,
         alpha_string: bytes,
-        curve: SWCurve[Fp2],
         salt: bytes = b"",
     ) -> Self:
         """Encode with the random-oracle simplified-SWU hash-to-curve variant."""
+        curve = cls.curve
         string_to_hash = salt + alpha_string
 
         # Get field elements - this returns [re0, im0, re1, im1]
@@ -305,9 +297,9 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
             Fp2(u_raw[2], u_raw[3], curve.params.field_modulus),
         )
 
-        q0 = cls.map_to_curve_simple_swu(u[0], curve)
+        q0 = cls.map_to_curve_simple_swu(u[0])
 
-        q1 = cls.map_to_curve_simple_swu(u[1], curve)
+        q1 = cls.map_to_curve_simple_swu(u[1])
 
         R = q0 + q1
         return cast(Self, R * curve.params.cofactor)
@@ -316,30 +308,31 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
     def _encode_sswu_nu(
         cls,
         alpha_string: bytes,
-        curve: SWCurve[Fp2],
         salt: bytes = b"",
     ) -> Self:
         """Encode with the nonuniform simplified-SWU hash-to-curve variant."""
+        curve = cls.curve
         string_to_hash = salt + alpha_string
         u_raw = curve.hash_to_field(string_to_hash, 1)  # for nu
 
         u0 = Fp2(u_raw[0], u_raw[1], curve.params.field_modulus)
-        q0 = cls.map_to_curve_simple_swu(u0, curve)
+        q0 = cls.map_to_curve_simple_swu(u0)
         return cast(Self, q0 * curve.params.cofactor)
 
     @classmethod
-    def map_to_curve_simple_swu(cls, u: Fp2, curve: SWCurve) -> BLS12_381_G2Point:  # type: ignore[override]
+    def map_to_curve_simple_swu(cls, u: Fp2) -> BLS12_381_G2Point:  # type: ignore[override]
         """
         Simplified SWU map with 3-isogeny for BLS12-381 G2
         Combines SSWU map and 3-isogeny map in one function
         """
+        curve = cls.curve
         # 1. Map to the isogenous curve E'
-        point_on_e_prime = cls._sswu_map_to_e_prime(u, curve)
+        point_on_e_prime = cls._sswu_map_to_e_prime(u)
 
         # 2. Apply 3-isogeny map from E' to E
-        x, y = cls._apply_3_isogeny(point_on_e_prime, curve)
+        x, y = cls._apply_3_isogeny(point_on_e_prime)
 
-        point = cls(x, y, curve)
+        point = cls(x, y)
         if not point.is_on_curve():
             left = y * y
             right = x * x * x + cast(Fp2, curve.params.b)
@@ -351,9 +344,9 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
     def _sgn0(x: Fp2) -> int:
         return x.sgn0()
 
-    @staticmethod
-    def _require_isogeny(curve: SWCurve) -> RationalIsogeny[Fp2]:
-        isogeny = curve.params.hash_to_curve.isogeny
+    @classmethod
+    def _require_isogeny(cls) -> RationalIsogeny[Fp2]:
+        isogeny = cls.curve.params.hash_to_curve.isogeny
         if isogeny is None:
             raise ValueError("Missing isogeny")
         return cast(RationalIsogeny[Fp2], isogeny)
@@ -366,8 +359,9 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         return value
 
     @classmethod
-    def _sswu_map_to_e_prime(cls, u: Fp2, curve: SWCurve) -> tuple[Fp2, Fp2]:
-        isogeny = cls._require_isogeny(curve)
+    def _sswu_map_to_e_prime(cls, u: Fp2) -> tuple[Fp2, Fp2]:
+        curve = cls.curve
+        isogeny = cls._require_isogeny()
         Z = cast(Fp2, curve.params.hash_to_curve.z)
         A_prime = isogeny.map_curve.a
         B_prime = isogeny.map_curve.b
@@ -406,9 +400,10 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         return x, cast(Fp2, y)
 
     @classmethod
-    def _apply_3_isogeny(cls, point: tuple[Fp2, Fp2], curve: SWCurve) -> tuple[Fp2, Fp2]:
+    def _apply_3_isogeny(cls, point: tuple[Fp2, Fp2]) -> tuple[Fp2, Fp2]:
+        curve = cls.curve
         x_prime, y_prime = point
-        isogeny = cls._require_isogeny(curve)
+        isogeny = cls._require_isogeny()
 
         x_num = cls._evaluate_fp2_polynomial(isogeny.x_numerator, x_prime)
         x_den = cls._evaluate_fp2_polynomial(isogeny.x_denominator, x_prime)
@@ -425,14 +420,26 @@ class BLS12_381_G2Point(CurvePoint[SWCurve[Fp2], Fp2]):
         return x, y
 
 
+BLS12_381_G2_NU_Curve = SWCurve(params=BLS12_381_G2_PARAMS, e2c_variant=E2C_Variant.SSWU_NU)
+BLS12_381_G2_RO_Curve = SWCurve(params=BLS12_381_G2_PARAMS, e2c_variant=E2C_Variant.SSWU)
+
+
+class BLS12_381_G2_NUPoint(BLS12_381_G2Point):
+    curve = BLS12_381_G2_NU_Curve
+
+
+class BLS12_381_G2_ROPoint(BLS12_381_G2Point):
+    curve = BLS12_381_G2_RO_Curve
+
+
 BLS12_381_G2_NU = CurveVariant(
     name="BLS12_381_G2_NU",
-    curve=SWCurve(params=BLS12_381_G2_PARAMS, e2c_variant=E2C_Variant.SSWU_NU),
-    point_type=BLS12_381_G2Point,
+    curve=BLS12_381_G2_NU_Curve,
+    point_type=BLS12_381_G2_NUPoint,
 )
 
 BLS12_381_G2_RO = CurveVariant(
     name="BLS12_381_G2_RO",
-    curve=SWCurve(params=BLS12_381_G2_PARAMS, e2c_variant=E2C_Variant.SSWU),
-    point_type=BLS12_381_G2Point,
+    curve=BLS12_381_G2_RO_Curve,
+    point_type=BLS12_381_G2_ROPoint,
 )

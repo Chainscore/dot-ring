@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from dot_ring import Bandersnatch
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.ring import RingBatchVerifier, RingRoot, RingVRF
+from dot_ring.vrf.ring import RingRoot, RingVRF
 from dot_ring.vrf.ring.members import Ring
 
 SIGNER_INDEX = 3
@@ -176,24 +176,11 @@ def _build_batch_fixtures_parallel(ring_size: int, fixture_count: int, workers: 
                 serialized.extend(future.result())
 
     serialized.sort(key=lambda fixture: fixture.index)
-    fixtures = [
-        ProofFixture(
-            RingVRF[Bandersnatch].decode(fixture.proof),
-            fixture.alpha,
-            fixture.ad,
-        )
-        for fixture in serialized
-    ]
+    fixtures = [ProofFixture(RingVRF[Bandersnatch].decode(fixture.proof), fixture.alpha, fixture.ad) for fixture in serialized]
     return ring, ring_root, fixtures
 
 
-def run(
-    ring_size: int,
-    samples: int,
-    max_batch_size: int,
-    batch_fixtures: int | None,
-    batch_workers: int,
-) -> None:
+def run(ring_size: int, samples: int, max_batch_size: int, batch_fixtures: int | None, batch_workers: int) -> None:
     if samples <= 0:
         raise ValueError("samples must be positive")
     if batch_fixtures is None:
@@ -216,37 +203,37 @@ def run(
     _print_stats("total", [timing.total_ms for timing in timings])
     print(f"proof_size: {timings[-1].proof_size} bytes")
 
-    fixture_count, workers = batch_fixtures, batch_workers
     if max_batch_size <= 0:
         return
-    if fixture_count <= 0:
+    if batch_fixtures <= 0:
         raise ValueError("batch fixture count must be positive")
-    if fixture_count < max_batch_size:
+    if batch_fixtures < max_batch_size:
         raise ValueError("batch fixture count must be at least batch max so every batch entry is unique")
-    if samples <= 0:
-        raise ValueError("batch samples must be positive")
-    if workers <= 0:
+    if batch_workers <= 0:
         raise ValueError("batch workers must be positive")
-    workers = min(workers, fixture_count)
 
+    workers = min(batch_workers, batch_fixtures)
     print()
-    print(f"Batch verify: max_n={max_batch_size}, unique_fixtures={fixture_count}")
+    print(f"Batch verify: max_n={max_batch_size}, unique_fixtures={batch_fixtures}")
     print(f"Preparing proofs... | workers={workers}")
 
-    ring, ring_root, fixtures = _build_batch_fixtures_parallel(ring_size, fixture_count, workers)
+    ring, ring_root, fixtures = _build_batch_fixtures_parallel(ring_size, batch_fixtures, workers)
 
     print()
     print("batch_n  batch_ms  batch_ms_per_proof")
     for batch_size in _batch_sizes(max_batch_size):
-        verifier = RingBatchVerifier()
+        batch = fixtures[:batch_size]
         start = time.perf_counter()
-        for fixture in fixtures[:batch_size]:
-            verifier.push(fixture.proof, fixture.alpha, fixture.ad, ring, ring_root)
-        verified = verifier.verify()
+        verified = RingVRF[Bandersnatch].batch_verify(
+            [fixture.proof for fixture in batch],
+            [fixture.alpha for fixture in batch],
+            [fixture.ad for fixture in batch],
+            ring,
+            ring_root,
+        )
         elapsed_ms = (time.perf_counter() - start) * 1000
         if not verified:
             raise AssertionError(f"batch verification failed for n={batch_size}")
-
         print(f"{batch_size:>7}  {elapsed_ms:>13.2f} {elapsed_ms / batch_size:>18.2f}")
 
 

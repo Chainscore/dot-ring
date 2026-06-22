@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
@@ -10,12 +11,9 @@ from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, re
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.polynomial.fft import inverse_fft
 from dot_ring.ring_proof.polynomial.ops import poly_add, poly_divide_by_vanishing, poly_evaluate_single, poly_multiply, poly_scalar_mul
+from dot_ring.ring_proof.proof_payload import RingProofPayload
 from dot_ring.ring_proof.transcript.phases import phase1_alphas_after_vk, phase2_eval_point, phase3_nu_vector
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
-
-from .members import Ring
-from .proof_payload import RingProofPayload
-from .root import RingRoot
 
 
 class RingProofBuilder:
@@ -26,9 +24,9 @@ class RingProofBuilder:
         curve: CurveVariant,
         blinding_factor: int,
         producer_key: bytes | str,
-        ring: Ring,
+        ring: Any,
         transcript_challenge: bytes | None = None,
-        ring_root: RingRoot | None = None,
+        ring_root: Any | None = None,
     ) -> None:
         self.curve = curve
         self.blinding_factor = blinding_factor
@@ -40,7 +38,12 @@ class RingProofBuilder:
     def build(self) -> RingProofPayload:
         """Spec sections 3.1-3.3 in order: witness, constraints, quotient, linearization, openings."""
         params = self.ring.params
-        ring_root = self.ring_root or RingRoot.from_ring(self.ring, params)
+        if self.ring_root is None:
+            from dot_ring.vrf.ring.root import RingRoot
+
+            ring_root = RingRoot.from_ring(self.ring, params)
+        else:
+            ring_root = self.ring_root
         producer_index = self.ring.index_of(self.producer_key)
 
         # Section 3.1: witness bit column and accumulators for R = PK_k + bB.
@@ -54,7 +57,7 @@ class RingProofBuilder:
         witness_columns = witness_builder.build()
         relation_point = witness_builder.result(params.cv.curve.params.auxiliary_points.blinding_base)
         seed_point = params.cv.curve.params.auxiliary_points.accumulator_base
-        relation_plus_seed_point = relation_point + params.cv.point(seed_point)
+        relation_plus_seed_point = relation_point + params.cv.point_type(*seed_point)
         relation_plus_seed = int(relation_plus_seed_point.x), int(relation_plus_seed_point.y)
 
         # Section 3.2: c1-c7 constraints over fixed and witness columns.
@@ -132,7 +135,7 @@ class RingProofBuilder:
 
     def _phase1_transcript(
         self,
-        ring_root: RingRoot,
+        ring_root: Any,
         relation_point: CurvePoint,
         witness_columns: tuple[Column, Column, Column, Column],
     ) -> tuple[FiatShamirTranscript, list[int]]:

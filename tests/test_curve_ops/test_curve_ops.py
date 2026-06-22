@@ -43,7 +43,7 @@ def test_curve_property_based(curve_variant):
     - Scalar wrap-around: (order * P) == identity
     - Negation: P + (-P) == identity
     """
-    Generator = curve_variant.generator_point()
+    Generator = curve_variant.point_type.generator_point()
     order = curve_variant.curve.params.subgroup_order
 
     # Random scalars within valid range
@@ -98,8 +98,8 @@ def test_curve_sanity_operations():
     ]
 
     for curve_variant in curve_data:
-        Generator = curve_variant.generator_point()
-        Identity = curve_variant.identity()
+        Generator = curve_variant.point_type.generator_point()
+        Identity = curve_variant.point_type.identity()
         Order = curve_variant.curve.params.subgroup_order
 
         # Addition with identity

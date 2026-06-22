@@ -44,13 +44,13 @@ class TEProjectivePoint(Generic[C]):
         target_type = point_type or BaseAffine
 
         if self.z == 0:
-            return target_type(0, 1, self.curve)
+            return target_type(0, 1)
 
         p = self.curve.params.field_modulus
         inv_z = pow(self.z, -1, p)
         x = (self.x * inv_z) % p
         y = (self.y * inv_z) % p
-        return target_type(x, y, self.curve)
+        return target_type(x, y)
 
     @classmethod
     def zero(cls, curve: C) -> Self:

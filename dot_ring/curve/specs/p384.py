@@ -44,14 +44,26 @@ P384_PARAMS = ShortWeierstrassCurveParams[int](
 )
 
 
+P384_RO_Curve = SWCurve(params=P384_PARAMS, e2c_variant=E2C_Variant.SSWU)
+P384_NU_Curve = SWCurve(params=P384_PARAMS, e2c_variant=E2C_Variant.SSWU_NU)
+
+
+class P384ROPoint(SWAffinePoint):
+    curve = P384_RO_Curve
+
+
+class P384NUPoint(SWAffinePoint):
+    curve = P384_NU_Curve
+
+
 P384_RO = CurveVariant(
     name="P384_RO",
-    curve=SWCurve(params=P384_PARAMS, e2c_variant=E2C_Variant.SSWU),
-    point_type=SWAffinePoint,
+    curve=P384_RO_Curve,
+    point_type=P384ROPoint,
 )
 
 P384_NU = CurveVariant(
     name="P384_NU",
-    curve=SWCurve(params=P384_PARAMS, e2c_variant=E2C_Variant.SSWU_NU),
-    point_type=SWAffinePoint,
+    curve=P384_NU_Curve,
+    point_type=P384NUPoint,
 )

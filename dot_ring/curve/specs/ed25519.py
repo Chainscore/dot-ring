@@ -51,33 +51,50 @@ class Ed25519Point(TEAffinePoint[TECurve]):
     """Point on Ed25519."""
 
     @classmethod
-    def map_to_curve(cls, u: int, curve: TECurve) -> Self:
-        s, t = curve.map_to_curve_ell2(u)
-        return cls.mont_to_ed25519(s, t, curve)
+    def map_to_curve(cls, u: int) -> Self:
+        s, t = cls.curve.map_to_curve_ell2(u)
+        return cls.mont_to_ed25519(s, t)
 
     @classmethod
-    def mont_to_ed25519(cls, u: int, v: int, curve: TECurve) -> Self:
-        p = curve.params.field_modulus
-        sqrt_neg_a_minus_2 = curve.mod_sqrt(-486664 % p)
+    def mont_to_ed25519(cls, u: int, v: int) -> Self:
+        p = cls.curve.params.field_modulus
+        sqrt_neg_a_minus_2 = cls.curve.mod_sqrt(-486664 % p)
         y = ((u - 1) * pow(u + 1, -1, p)) % p
         x = (sqrt_neg_a_minus_2 * u * pow(v, -1, p)) % p
-        return cls(x, y, curve)
+        return cls(x, y)
+
+
+Ed25519_RO_Curve = TECurve(params=ED25519_PARAMS, e2c_variant=E2C_Variant.ELL2)
+Ed25519_NU_Curve = TECurve(params=ED25519_PARAMS, e2c_variant=E2C_Variant.ELL2_NU)
+Ed25519_TAI_Curve = TECurve(params=ED25519_PARAMS, e2c_variant=E2C_Variant.TAI)
+
+
+class Ed25519ROPoint(Ed25519Point):
+    curve = Ed25519_RO_Curve
+
+
+class Ed25519NUPoint(Ed25519Point):
+    curve = Ed25519_NU_Curve
+
+
+class Ed25519TAIPoint(Ed25519Point):
+    curve = Ed25519_TAI_Curve
 
 
 Ed25519_RO = CurveVariant(
     name="Ed25519_RO",
-    curve=TECurve(params=ED25519_PARAMS, e2c_variant=E2C_Variant.ELL2),
-    point_type=Ed25519Point,
+    curve=Ed25519_RO_Curve,
+    point_type=Ed25519ROPoint,
 )
 
 Ed25519_NU = CurveVariant(
     name="Ed25519_NU",
-    curve=TECurve(params=ED25519_PARAMS, e2c_variant=E2C_Variant.ELL2_NU),
-    point_type=Ed25519Point,
+    curve=Ed25519_NU_Curve,
+    point_type=Ed25519NUPoint,
 )
 
 Ed25519_TAI = CurveVariant(
     name="Ed25519_TAI",
-    curve=TECurve(params=ED25519_PARAMS, e2c_variant=E2C_Variant.TAI),
-    point_type=Ed25519Point,
+    curve=Ed25519_TAI_Curve,
+    point_type=Ed25519TAIPoint,
 )

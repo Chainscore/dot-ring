@@ -1,4 +1,4 @@
-from .thin import ThinBatchVerifier, ThinVRF
+from .thin import ThinVRF
 from .tiny import TinyVRF
 
-__all__ = ["ThinBatchVerifier", "ThinVRF", "TinyVRF"]
+__all__ = ["ThinVRF", "TinyVRF"]

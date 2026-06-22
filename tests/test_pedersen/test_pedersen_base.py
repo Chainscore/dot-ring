@@ -51,7 +51,7 @@ def test_pedersen_base(curve_variant, file_prefix, slice_end):
                 alpha = bytes.fromhex(vector["alpha"])
                 additional_data = bytes.fromhex(vector["ad"])
 
-                curve_variant.encode_to_curve(alpha)
+                curve_variant.point_type.encode_to_curve(alpha)
 
                 proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
                 proof_bytes = proof.encode()

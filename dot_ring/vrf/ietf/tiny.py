@@ -9,20 +9,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from dot_ring.curve.point import CurvePoint
-from dot_ring.vrf.transcript import (
+from dot_ring.vrf.codec import dec_scalar, dec_scalar_mod, enc_point, enc_scalar, point_len, scalar_len, valid_point
+from dot_ring.vrf.domain import DomSep
+from dot_ring.vrf.primitives import (
     CHALLENGE_LEN,
-    DomSep,
     VrfIo,
     challenge,
     nonce,
-    point_len,
     point_to_hash,
-    scalar_decode,
-    scalar_encode,
-    scalar_len,
-    schnorr_ios,
     vrf_transcript,
-    vrf_transcript_scalars,
 )
 
 from ..vrf import VRF
@@ -44,26 +39,17 @@ class TinyVRF(VRF[Any]):
         if len(proof_bytes) != expected:
             raise ValueError(f"invalid Tiny VRF proof length: expected {expected}, got {len(proof_bytes)}")
         try:
-            output_point = cls.cv.string_to_point(proof_bytes[:encoded_point_len])
+            output_point = cls.cv.point_type.string_to_point(proof_bytes[:encoded_point_len])
         except ValueError as exc:
             raise ValueError("Invalid output point") from exc
-        order = cls.cv.curve.params.subgroup_order
-        c = int.from_bytes(proof_bytes[encoded_point_len : encoded_point_len + CHALLENGE_LEN], "little") % order
-        s = scalar_decode(cls.cv, proof_bytes[encoded_point_len + CHALLENGE_LEN :])
-        if s >= order:
-            raise ValueError("Response scalar s is not less than the curve order")
-        if not cls._valid_point(output_point):
+        c = dec_scalar_mod(cls.cv, proof_bytes[encoded_point_len : encoded_point_len + CHALLENGE_LEN])
+        s = dec_scalar(cls.cv, proof_bytes[encoded_point_len + CHALLENGE_LEN :])
+        if not valid_point(output_point):
             raise ValueError("Invalid identity or subgroup point in proof")
         return cls(output_point, c, s)
 
     def encode(self) -> bytes:
-        return self.output_point.point_to_string() + self.c.to_bytes(CHALLENGE_LEN, "little") + scalar_encode(self.cv, self.s)
-
-    @classmethod
-    def _io_from_alpha(cls, alpha: bytes, secret_scalar: int, salt: bytes = b"") -> VrfIo:
-        input_point = cls.cv.encode_to_curve(alpha, salt)
-        output_point = input_point * secret_scalar
-        return VrfIo(input_point, output_point)
+        return enc_point(self.output_point) + self.c.to_bytes(CHALLENGE_LEN, "little") + enc_scalar(self.cv, self.s)
 
     @classmethod
     def prove(
@@ -73,85 +59,30 @@ class TinyVRF(VRF[Any]):
         additional_data: bytes,
         salt: bytes = b"",
     ) -> TinyVRF:
-        secret_scalar = scalar_decode(cls.cv, secret_key)
-        public_key = cls.cv.generator_point() * secret_scalar
-        io = cls._io_from_alpha(alpha, secret_scalar, salt)
-        return cls.prove_ios([io], secret_scalar, public_key, additional_data)
-
-    @classmethod
-    def prove_ios(
-        cls,
-        ios: list[VrfIo],
-        secret_scalar: int,
-        public_key: CurvePoint,
-        additional_data: bytes,
-    ) -> TinyVRF:
-        """Spec section 2.1 steps 2-7 over caller-supplied I/O pairs."""
-        if len(ios) == 1:
-            transcript, scalars = vrf_transcript_scalars(
-                cls.cv,
-                DomSep.TINY_VRF,
-                schnorr_ios(cls.cv, public_key, ios),
-                additional_data,
-            )
-            z0, z1 = scalars
-            k = nonce(cls.cv, secret_scalar, transcript)
-            generator = cls.cv.generator_point()
-            order = cls.cv.curve.params.subgroup_order
-            r = cls.cv.msm(
-                [generator, ios[0].input],
-                [(k * z0) % order, (k * z1) % order],
-            )
-            c = challenge(cls.cv, [r], transcript)
-            s = (k + c * secret_scalar) % order
-            return cls(ios[0].output, c, s)
-
-        transcript, merged = vrf_transcript(cls.cv, DomSep.TINY_VRF, schnorr_ios(cls.cv, public_key, ios), additional_data)
+        secret_scalar = dec_scalar_mod(cls.cv, secret_key)
+        public_key = cls.cv.point_type.generator_point() * secret_scalar
+        input_point = cls.cv.point_type.encode_to_curve(alpha, salt)
+        output_point = input_point * secret_scalar
+        ios = [VrfIo(cls.cv.point_type.generator_point(), public_key), VrfIo(input_point, output_point)]
+        transcript, merged = vrf_transcript(cls.cv, DomSep.TINY_VRF, ios, additional_data)
         k = nonce(cls.cv, secret_scalar, transcript)
         r = merged.input * k
         c = challenge(cls.cv, [r], transcript)
         s = (k + c * secret_scalar) % cls.cv.curve.params.subgroup_order
-        output_point = ios[0].output if len(ios) == 1 else merged.output
         return cls(output_point, c, s)
 
     def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
-        input_point = self.cv.encode_to_curve(input, salt)
+        input_point = self.cv.point_type.encode_to_curve(input, salt)
         try:
-            public_key_pt = self.cv.string_to_point(public_key)
+            public_key_pt = self.cv.point_type.string_to_point(public_key)
         except ValueError as exc:
             raise ValueError("Invalid public key") from exc
-        io = VrfIo(input_point, self.output_point)
-        return self.verify_ios(public_key_pt, [io], additional_data)
 
-    def verify_ios(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes) -> bool:
-        """Spec section 2.2: validate inputs, reconstruct `R = s*I_m - c*O_m`, then compare challenges."""
-        ios_valid = all(self._valid_point(io.input) and self._valid_point(io.output) for io in ios)
-        if not self._valid_point(public_key) or not ios_valid:
+        if not valid_point(public_key_pt) or not valid_point(input_point) or not valid_point(self.output_point):
             return False
-        if len(ios) == 1:
-            transcript, scalars = vrf_transcript_scalars(
-                self.cv,
-                DomSep.TINY_VRF,
-                schnorr_ios(self.cv, public_key, ios),
-                additional_data,
-            )
-            z0, z1 = scalars
-            generator = self.cv.generator_point()
-            order = self.cv.curve.params.subgroup_order
-            r = self.cv.msm(
-                [generator, ios[0].input, public_key, ios[0].output],
-                [
-                    (self.s * z0) % order,
-                    (self.s * z1) % order,
-                    (-self.c * z0) % order,
-                    (-self.c * z1) % order,
-                ],
-            )
-            expected_c = challenge(self.cv, [r], transcript)
-            return self.c == expected_c
-
-        transcript, merged = vrf_transcript(self.cv, DomSep.TINY_VRF, schnorr_ios(self.cv, public_key, ios), additional_data)
-        r = self.cv.msm([merged.input, merged.output], [self.s, -self.c])
+        ios = [VrfIo(self.cv.point_type.generator_point(), public_key_pt), VrfIo(input_point, self.output_point)]
+        transcript, merged = vrf_transcript(self.cv, DomSep.TINY_VRF, ios, additional_data)
+        r = self.cv.point_type.msm([merged.input, merged.output], [self.s, -self.c])
         expected_c = challenge(self.cv, [r], transcript)
         return self.c == expected_c
 
@@ -173,16 +104,13 @@ class TinyVRF(VRF[Any]):
             raise ValueError(f"invalid Tiny VRF proof length: expected {expected}, got {len(proof)}")
 
         try:
-            output_point = cls.cv.string_to_point(proof[:encoded_point_len])
+            output_point = cls.cv.point_type.string_to_point(proof[:encoded_point_len])
         except ValueError as exc:
             raise ValueError("Invalid gamma point") from exc
 
-        order = cls.cv.curve.params.subgroup_order
-        c = int.from_bytes(proof[encoded_point_len : encoded_point_len + CHALLENGE_LEN], "little") % order
-        s = scalar_decode(cls.cv, proof[encoded_point_len + CHALLENGE_LEN :])
-        if s >= order:
-            raise ValueError("Response scalar S is not less than the curve order")
-        if not cls._valid_point(output_point):
+        c = dec_scalar_mod(cls.cv, proof[encoded_point_len : encoded_point_len + CHALLENGE_LEN])
+        s = dec_scalar(cls.cv, proof[encoded_point_len + CHALLENGE_LEN :])
+        if not valid_point(output_point):
             raise ValueError("Invalid identity or subgroup point in proof")
         return output_point, c, s
 

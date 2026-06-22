@@ -2,9 +2,9 @@ import pytest
 
 from dot_ring import Bandersnatch, RingVRF
 from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.codec import point_len
 from dot_ring.vrf.pedersen import PedersenVRF
-from dot_ring.vrf.ring import Ring, RingContext, RingRoot
-from dot_ring.vrf.transcript import point_len
+from dot_ring.vrf.ring import Ring, RingRoot
 
 
 def _keys(count: int) -> list[bytes]:
@@ -12,7 +12,7 @@ def _keys(count: int) -> list[bytes]:
 
 
 def _point_tuple(key: bytes) -> tuple[int, int]:
-    point = Bandersnatch.string_to_point(key)
+    point = Bandersnatch.point_type.string_to_point(key)
     assert not isinstance(point, str)
     return (point.x, point.y)
 
@@ -104,22 +104,6 @@ def test_prove_rejects_producer_key_that_does_not_match_secret():
 
     with pytest.raises(ValueError, match="producer_key does not match secret_key"):
         RingVRF[Bandersnatch].prove(b"audit-input", b"audit-ad", sk1, pk2, ring, ring_root)
-
-
-def test_ring_root_builder_caches_root_when_full():
-    keys = _keys(8)
-    params = RingProofParams(test_vectors=True, max_ring_size=8)
-    context = RingContext(params)
-    builder = context.ring_root_builder()
-
-    builder.append(keys)
-    built_root = builder.finalize()
-    direct_root = context.ring_root(keys)
-
-    assert built_root.encode() == direct_root.encode()
-    assert builder.finalize() is built_root
-    with pytest.raises(ValueError, match="too many keys"):
-        builder.push(keys[0])
 
 
 def test_unsupported_params_fail_at_construction():

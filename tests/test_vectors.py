@@ -7,8 +7,8 @@ import pytest
 
 from dot_ring import P256, Bandersnatch, Ed25519, PedersenVRF, RingVRF, TinyVRF
 from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.codec import point_len, scalar_len
 from dot_ring.vrf.ring import Ring, RingRoot
-from dot_ring.vrf.transcript import point_len, scalar_len
 
 # Alias
 Secp256r1 = P256

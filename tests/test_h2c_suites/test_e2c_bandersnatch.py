@@ -16,8 +16,8 @@ def test_m2c():
     data = bytes("foo", "utf-8")
 
     u = Bandersnatch_TE_Curve.hash_to_field(data, 2)
-    p0 = BandersnatchPoint.map_to_curve(u[0], Bandersnatch_TE_Curve)
-    p1 = BandersnatchPoint.map_to_curve(u[1], Bandersnatch_TE_Curve)
+    p0 = BandersnatchPoint.map_to_curve(u[0])
+    p1 = BandersnatchPoint.map_to_curve(u[1])
 
     assert p0.x == 8864805491392651408849860969071502422330330403516577719645408615048305804698
     assert p0.y == 3141991639291324936022779954882288522159181883763336030616570191472121730763
@@ -28,7 +28,7 @@ def test_m2c():
 def test_e2c():
     data = bytes("foo", "utf-8")
 
-    u = Bandersnatch.encode_to_curve(data)
+    u = Bandersnatch.point_type.encode_to_curve(data)
 
     assert u.x == 41706851287321768980670436615954402659160947743433584884323702829779219804533
     assert u.y == 45261115535002764022712885934321790255618221679857277845409327068867281988279

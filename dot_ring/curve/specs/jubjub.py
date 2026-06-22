@@ -52,8 +52,15 @@ JUBJUB_PARAMS = TwistedEdwardsCurveParams(
 )
 
 
+JubJub_Curve = TECurve(params=JUBJUB_PARAMS, e2c_variant=E2C_Variant.TAI)
+
+
+class JubJubPoint(TEAffinePoint):
+    curve = JubJub_Curve
+
+
 JubJub = CurveVariant(
     name="JubJub",
-    curve=TECurve(params=JUBJUB_PARAMS, e2c_variant=E2C_Variant.TAI),
-    point_type=TEAffinePoint,
+    curve=JubJub_Curve,
+    point_type=JubJubPoint,
 )

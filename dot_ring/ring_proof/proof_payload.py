@@ -8,6 +8,7 @@ from dot_ring.ring_proof.pcs.protocol import G1Commitment
 
 RING_SCALAR_LEN = 32
 
+
 @dataclass(slots=True)
 class RingProofPayload:
     c_b: Column

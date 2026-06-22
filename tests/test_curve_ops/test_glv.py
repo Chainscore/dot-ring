@@ -9,8 +9,8 @@ class TestCoverageGLV:
         """Test GLV methods with identity points."""
         glv = GLV(lambda_param=1, constant_b=1, constant_c=1)
 
-        g = Ed25519_RO.generator_point()
-        identity = Ed25519_RO.identity()
+        g = Ed25519_RO.point_type.generator_point()
+        identity = Ed25519_RO.point_type.identity()
 
         # Test windowed_simultaneous_mult with identity
         # P1 identity

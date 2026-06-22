@@ -9,8 +9,8 @@ from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
 from dot_ring.curve.specs.ed25519 import Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
 from dot_ring.curve.specs.p256 import P256_TAI
+from dot_ring.vrf.codec import scalar_len
 from dot_ring.vrf.pedersen import PedersenVRF
-from dot_ring.vrf.transcript import scalar_len
 
 HERE = os.path.dirname(__file__)
 
@@ -49,7 +49,7 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 pk_bytes = curve_variant.public_key_from_secret(secret_scalar)
 
                 # Input Point check
-                input_point = curve_variant.encode_to_curve(alpha)
+                input_point = curve_variant.point_type.encode_to_curve(alpha)
                 if "h" in vector:
                     assert input_point.point_to_string().hex() == vector["h"]
 

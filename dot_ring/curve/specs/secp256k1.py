@@ -84,7 +84,7 @@ class Secp256k1Point(SWAffinePoint):
 
     def __mul__(self, scalar: int) -> Self:
         if scalar == 0:
-            return cast(Self, self.identity(self.curve))
+            return cast(Self, self.identity())
 
         if scalar < 0:
             return cast(Self, (-self).__mul__(-scalar))
@@ -93,14 +93,26 @@ class Secp256k1Point(SWAffinePoint):
         return cast(Self, super().__mul__(scalar))
 
 
+Secp256k1_RO_Curve = SWCurve(params=SECP256K1_PARAMS, e2c_variant=E2C_Variant.SSWU)
+Secp256k1_NU_Curve = SWCurve(params=SECP256K1_PARAMS, e2c_variant=E2C_Variant.SSWU_NU)
+
+
+class Secp256k1ROPoint(Secp256k1Point):
+    curve = Secp256k1_RO_Curve
+
+
+class Secp256k1NUPoint(Secp256k1Point):
+    curve = Secp256k1_NU_Curve
+
+
 Secp256k1_RO = CurveVariant(
     name="Secp256k1_RO",
-    curve=SWCurve(params=SECP256K1_PARAMS, e2c_variant=E2C_Variant.SSWU),
-    point_type=Secp256k1Point,
+    curve=Secp256k1_RO_Curve,
+    point_type=Secp256k1ROPoint,
 )
 
 Secp256k1_NU = CurveVariant(
     name="Secp256k1_NU",
-    curve=SWCurve(params=SECP256K1_PARAMS, e2c_variant=E2C_Variant.SSWU_NU),
-    point_type=Secp256k1Point,
+    curve=Secp256k1_NU_Curve,
+    point_type=Secp256k1NUPoint,
 )

@@ -7,7 +7,6 @@ the naive O(n * m) Horner evaluation.
 
 from functools import lru_cache
 
-from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_FIELD_MODULUS
 from dot_ring.ring_proof.polynomial.ntt import BlsScalarNTTPlan
 
 
@@ -56,8 +55,6 @@ def _get_twiddle_factors(n: int, omega: int, prime: int) -> list[list[int]]:
     return twiddles
 
 
-
-
 def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     """In-place Cooley-Tukey.
 
@@ -69,7 +66,7 @@ def _fft_in_place(coeffs: list[int], omega: int, prime: int) -> None:
     n = len(coeffs)
     if n == 1:
         return
-    
+
     BlsScalarNTTPlan(_get_twiddle_factors(n, omega, prime), _get_bit_reverse(n)).transform(coeffs)
 
 

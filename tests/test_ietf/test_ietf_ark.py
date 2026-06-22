@@ -49,11 +49,11 @@ def test_ietf_ark(curve_variant, file_prefix, subdir, gamma_len):
 
                 # Public Key check
                 pk_bytes = curve_variant.public_key_from_secret(secret_scalar)
-                public_key = curve_variant.string_to_point(pk_bytes)
+                public_key = curve_variant.point_type.string_to_point(pk_bytes)
                 assert public_key.point_to_string().hex() == vector["pk"]
 
                 # Input Point check
-                input_point = curve_variant.encode_to_curve(alpha, salt)
+                input_point = curve_variant.point_type.encode_to_curve(alpha, salt)
                 if "h" in vector:
                     assert input_point.point_to_string().hex() == vector["h"]
 

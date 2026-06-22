@@ -3,8 +3,8 @@ import pytest
 from dot_ring import Bandersnatch, PedersenVRF, TinyVRF
 from dot_ring.curve.specs.ed448 import Ed448_RO
 from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.codec import point_len, scalar_len
 from dot_ring.vrf.ring import Ring, RingRoot
-from dot_ring.vrf.transcript import point_len, scalar_len
 
 
 class TestCoverageGaps:
@@ -59,7 +59,7 @@ class TestCoverageGaps:
 
         invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
 
-        with pytest.raises(ValueError, match="Response scalar S is not less than the curve order"):
+        with pytest.raises(ValueError, match="scalar is not canonical"):
             TinyVRF[Bandersnatch].ecvrf_decode_proof(invalid_proof)
 
     def test_ecvrf_proof_to_hash_string_input(self):
@@ -109,7 +109,7 @@ class TestCoverageGaps:
 
         invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
 
-        with pytest.raises(ValueError, match="Response scalar s is not less than the curve order"):
+        with pytest.raises(ValueError, match="scalar is not canonical"):
             TinyVRF[Bandersnatch].decode(invalid_proof)
 
     def test_ietf_verify_invalid_public_key(self):

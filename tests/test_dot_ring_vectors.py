@@ -26,7 +26,7 @@ def test_dot_ring_tiny_vectors(suite: Suite) -> None:
         proof = TinyVRF[suite.curve].decode(proof_bytes)
 
         assert suite.curve.public_key_from_secret(bytes.fromhex(vector["sk"])).hex() == vector["pk"]
-        assert suite.curve.encode_to_curve(alpha).point_to_string().hex() == vector["h"]
+        assert suite.curve.point_type.encode_to_curve(alpha).point_to_string().hex() == vector["h"]
         assert proof.verify(bytes.fromhex(vector["pk"]), alpha, ad)
         assert TinyVRF[suite.curve].proof_to_hash(proof.output_point).hex() == vector["beta"]
 

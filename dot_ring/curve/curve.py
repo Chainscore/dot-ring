@@ -366,38 +366,20 @@ class CurveVariant(Generic[CoordT]):
             return x
         if y is None:
             x, y = x
-        return self.point_type(x, y, self.curve)
-
-    def identity(self) -> CurvePoint[Curve[CoordT], CoordT]:
-        return self.point_type.identity(self.curve)
-
-    def generator_point(self) -> CurvePoint[Curve[CoordT], CoordT]:
-        return self.point_type.generator_point(self.curve)
+        return self.point_type(x, y)
 
     def public_key_from_secret(self, secret_key: bytes) -> bytes:
         if not isinstance(secret_key, bytes | bytearray):
             raise TypeError("secret_key must be bytes")
         secret_scalar = int.from_bytes(secret_key, "little")
-        return (self.generator_point() * secret_scalar).point_to_string()
+        return (self.point_type.generator_point() * secret_scalar).point_to_string()
 
     def secret_from_seed(self, seed: bytes) -> tuple[bytes, bytes]:
         if not isinstance(seed, bytes | bytearray):
             raise TypeError("seed must be bytes")
-        from dot_ring.vrf.transcript import scalar_encode, secret_from_seed_scalar
+        from dot_ring.vrf.codec import enc_scalar
+        from dot_ring.vrf.primitives import secret_from_seed_scalar
 
         secret_scalar = secret_from_seed_scalar(self, bytes(seed))
-        secret_key = scalar_encode(self, secret_scalar)
+        secret_key = enc_scalar(self, secret_scalar)
         return self.public_key_from_secret(secret_key), secret_key
-
-    def string_to_point(self, data: str | bytes) -> CurvePoint[Curve[CoordT], CoordT]:
-        return self.point_type.string_to_point(data, self.curve)
-
-    def encode_to_curve(self, alpha_string: bytes | str, salt: bytes | str = b"") -> CurvePoint[Curve[CoordT], CoordT]:
-        return self.point_type.encode_to_curve(alpha_string, salt, self.curve)
-
-    def msm(
-        self,
-        points: list[CurvePoint[Curve[CoordT], CoordT]],
-        scalars: list[int],
-    ) -> CurvePoint[Curve[CoordT], CoordT]:
-        return self.point_type.msm(points, scalars, self.curve)

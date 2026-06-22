@@ -95,7 +95,8 @@ is_valid = proof.verify(alpha, ad)
 ### Ring VRF
 
 ```python
-from dot_ring import Bandersnatch, RingContext, RingVRF
+from dot_ring import Bandersnatch, Ring, RingRoot, RingVRF
+from dot_ring.ring_proof.params import RingProofParams
 
 # Setup ring
 my_pk = Bandersnatch.public_key_from_secret(secret_key)
@@ -105,9 +106,9 @@ other_pks = [
 ]
 ring_pks = [my_pk, *other_pks]
 
-context = RingContext.from_ring_size(len(ring_pks), cv=Bandersnatch)
-ring = context.ring(ring_pks)
-ring_root = context.ring_root(ring)
+params = RingProofParams.from_ring_size(len(ring_pks), cv=Bandersnatch)
+ring = Ring(ring_pks, params)
+ring_root = RingRoot.from_ring(ring, params)
 
 # Generate proof
 proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, my_pk, ring, ring_root)

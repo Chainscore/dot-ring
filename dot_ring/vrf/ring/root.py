@@ -11,8 +11,8 @@ from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 from .members import Ring
 
 
-# Global bounded cache: selector columns are fixed for a params/PCS tuple.
-@lru_cache(maxsize=16)
+# Note: [Assumption] Selector column would likely be same as long as ring size doesn't change
+@lru_cache(maxsize=4)
 def _selector_column_data(
     domain_size: int,
     max_ring_size: int,
@@ -37,19 +37,7 @@ def _selector_column(params: RingProofParams) -> Column:
         params.prime,
         params.pcs,
     )
-    return Column("s", list(evals), list(coeffs), commitment=_copy_commitment(commitment), size=params.domain_size)
-
-
-def _copy_commitment(commitment: Any) -> Any:
-    return commitment.dup() if hasattr(commitment, "dup") else commitment
-
-
-def _commitment_column(name: str, commitment: Any) -> Column:
-    return Column(name=name, evals=[], commitment=_copy_commitment(commitment))
-
-
-def _transcript_g2_points(g2_points: Any) -> list[tuple[int, int]]:
-    return [(b, a) for pair in g2_points for point in pair for a, b in [point]]
+    return Column("s", list(evals), list(coeffs), commitment=commitment.dup(), size=params.domain_size)
 
 
 @dataclass
@@ -97,7 +85,7 @@ class RingRoot:
         commitment_bytes = [params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments]
         verifier_key_bytes = serialize_verifier_key(
             params.pcs.srs.g1_points[0],
-            _transcript_g2_points(params.pcs.srs.g2_points),
+            [(b, a) for pair in params.pcs.srs.g2_points for point in pair for a, b in [point]],
             commitment_bytes,
         )
         if transcript_challenge is None:
@@ -136,9 +124,14 @@ class RingRoot:
         s_commitment = reader.g1(pcs)
         reader.finish()
 
-        px = _commitment_column("px", px_commitment)
-        py = _commitment_column("py", py_commitment)
-        s = _commitment_column("s", s_commitment)
+        if params is None:
+            px = Column("px", [], commitment=px_commitment)
+            py = Column("py", [], commitment=py_commitment)
+            s = Column("s", [], commitment=s_commitment)
+        else:
+            px = Column("px", [], commitment=px_commitment, size=params.domain_size)
+            py = Column("py", [], commitment=py_commitment, size=params.domain_size)
+            s = Column("s", [], commitment=s_commitment, size=params.domain_size)
 
         return cls(px=px, py=py, s=s, params=params)
 

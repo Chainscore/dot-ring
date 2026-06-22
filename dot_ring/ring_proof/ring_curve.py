@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
@@ -36,6 +36,13 @@ def ring_coords(public_curve: CurveVariant, point: CurvePoint | tuple[int, int])
         return _bandersnatch_sw_to_te(coords)
     return coords
 
+
+def ring_auxiliary_point(public_curve: CurveVariant, name: str) -> tuple[int, int]:
+    curve = ring_proof_curve(public_curve)
+    point = getattr(curve.curve.params.auxiliary_points, name)
+    if point is None:
+        raise ValueError(f"{public_curve.name} ring proofs require auxiliary point {name}")
+    return int(point[0]), int(point[1])
 
 
 def validate_ring_curve(public_curve: CurveVariant, prime: int) -> None:

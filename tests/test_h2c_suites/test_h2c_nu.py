@@ -40,7 +40,7 @@ def test_h2c_nu(curve_variant, json_file, byte_size):
 
     for i, t in enumerate(vectors, start=1):
         msg_bytes = t["msg"].encode("utf-8")
-        point = curve_variant.encode_to_curve(msg_bytes, b"")
+        point = curve_variant.point_type.encode_to_curve(msg_bytes, b"")
 
         Px_bytes = point.x.to_bytes(byte_size, "big").hex()
         Py_bytes = point.y.to_bytes(byte_size, "big").hex()
