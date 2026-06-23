@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from dot_ring.curve.point import CurvePoint
-from dot_ring.vrf.codec import dec_scalar, dec_scalar_mod, enc_point, enc_scalar, point_len, scalar_len, valid_point
+from dot_ring.vrf.codec import dec_point, dec_scalar, dec_scalar_mod, enc_point, enc_scalar, point_len, scalar_len
 from dot_ring.vrf.domain import DomSep
 from dot_ring.vrf.primitives import (
     CHALLENGE_LEN,
@@ -50,15 +50,10 @@ class ThinVRF(VRF[Any]):
         expected = 2 * encoded_point_len + scalar_size
         if len(proof_bytes) != expected:
             raise ValueError(f"invalid Thin VRF proof length: expected {expected}, got {len(proof_bytes)}")
-        try:
-            output_point = cls.cv.point_type.string_to_point(proof_bytes[:encoded_point_len])
-            r = cls.cv.point_type.string_to_point(proof_bytes[encoded_point_len : 2 * encoded_point_len])
-        except ValueError as exc:
-            raise ValueError("Invalid point in proof") from exc
+        o = dec_point(cls.cv, proof_bytes[:encoded_point_len])
+        r = dec_point(cls.cv, proof_bytes[encoded_point_len : 2 * encoded_point_len])
         s = dec_scalar(cls.cv, proof_bytes[2 * encoded_point_len :])
-        if not (valid_point(output_point) and valid_point(r)):
-            raise ValueError("Invalid identity or subgroup point in proof")
-        return cls(output_point, r, s)
+        return cls(o, r, s)
 
     def encode(self) -> bytes:
         return enc_point(self.output_point) + enc_point(self.r) + enc_scalar(self.cv, self.s)
@@ -90,11 +85,10 @@ class ThinVRF(VRF[Any]):
     def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
         input_point = self.cv.point_type.encode_to_curve(input, salt)
         try:
-            public_key_point = self.cv.point_type.string_to_point(public_key)
+            public_key_point = dec_point(self.cv, public_key)
         except ValueError as exc:
             raise ValueError("Invalid public key") from exc
-        if not (valid_point(public_key_point) and valid_point(self.r) and valid_point(input_point) and valid_point(self.output_point)):
-            return False
+
         transcript, merged = vrf_transcript(
             self.cv,
             DomSep.THIN_VRF,
@@ -126,9 +120,7 @@ class ThinVRF(VRF[Any]):
         try:
             for proof, public_key, input_value, ad, salt in zip(proofs, public_keys, inputs, additional_data, salts, strict=True):
                 input_point = cls.cv.point_type.encode_to_curve(input_value, salt)
-                public_key_point = cls.cv.point_type.string_to_point(public_key)
-                if not (valid_point(public_key_point) and valid_point(proof.r) and valid_point(input_point) and valid_point(proof.output_point)):
-                    return False
+                public_key_point = dec_point(cls.cv, public_key)
                 ios = [VrfIo(cls.cv.point_type.generator_point(), public_key_point), VrfIo(input_point, proof.output_point)]
                 transcript, scalars = vrf_transcript_scalars(cls.cv, DomSep.THIN_VRF, ios, ad)
                 items.append(_ThinBatchItem(challenge(cls.cv, [proof.r], transcript), ios, scalars, proof.r, proof.s))

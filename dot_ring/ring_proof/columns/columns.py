@@ -23,7 +23,7 @@ class Column:
     name: str
     evals: list[int]
     coeffs: list[int] | None = None
-    commitment: G1Commitment | None = None
+    _commitment: G1Commitment | None = None
     size: int = DEFAULT_DOMAIN_SIZE
 
     def interpolate(
@@ -55,14 +55,14 @@ class Column:
     def commit(self, pcs: type[PCS] = KZG) -> None:
         if self.coeffs is None:
             raise ValueError("call interpolate() first")
-        if self.commitment is None:
-            self.commitment = pcs.commit(self.coeffs)
+        if self._commitment is None:
+            self._commitment = pcs.commit(self.coeffs)
 
-
-def require_commitment(column: Column) -> G1Commitment:
-    if column.commitment is None:
-        raise ValueError(f"{column.name} commitment is missing")
-    return column.commitment
+    @property
+    def commitment(self) -> G1Commitment | None:
+        if self._commitment is None:
+            raise ValueError(f"{self.name} commitment is not set")
+        return self._commitment
 
 
 @dataclass(slots=True)

@@ -80,22 +80,28 @@ def _ring_keys(ring_size: int, sample_index: int, signer_key: bytes) -> list[byt
 def benchmark_once(ring_size: int, sample_index: int) -> Timing:
     public_key, secret_key = _keypair("signer", sample_index)
     keys = _ring_keys(ring_size, sample_index, public_key)
-    params = RingProofParams.from_ring_size(ring_size)
     alpha = b"bench-ring-input" + sample_index.to_bytes(8, "little")
     ad = b"bench-ring-ad" + sample_index.to_bytes(8, "little")
 
     total_start = time.perf_counter()
 
     start = time.perf_counter()
-    ring = Ring(keys, params)
-    ring_root = RingRoot.from_ring(ring, params)
+    ring = Ring.from_keys(keys)
+    ring_root = RingRoot.from_ring(ring)
+    root_bytes = ring_root.encode()
     ring_root_ms = (time.perf_counter() - start) * 1000
 
     start = time.perf_counter()
+    ring = Ring.from_keys(keys)
+    ring_root = RingRoot.decode(root_bytes, ring)
     proof = RingVRF[Bandersnatch].prove(alpha, ad, secret_key, public_key, ring, ring_root)
+    proof_bytes = proof.encode()
     prove_ms = (time.perf_counter() - start) * 1000
 
     start = time.perf_counter()
+    ring = Ring.from_keys(keys)
+    proof = RingVRF[Bandersnatch].decode(proof_bytes)
+    ring_root = RingRoot.decode(root_bytes, ring)
     verified = proof.verify(alpha, ad, ring, ring_root)
     verify_ms = (time.perf_counter() - start) * 1000
 
@@ -135,8 +141,8 @@ def _prove_batch_fixture_range(ring_size: int, start: int, stop: int) -> list[Se
     public_key, secret_key = _keypair("batch-signer", 0)
     keys = _ring_keys(ring_size, 0, public_key)
     params = RingProofParams.from_ring_size(ring_size)
-    ring = Ring(keys, params)
-    ring_root = RingRoot.from_ring(ring, params)
+    ring = Ring.from_keys(keys, params)
+    ring_root = RingRoot.from_ring(ring)
 
     fixtures: list[SerializedProofFixture] = []
     for fixture_index in range(start, stop):
@@ -159,25 +165,21 @@ def _chunk_ranges(count: int, workers: int) -> list[tuple[int, int]]:
     return ranges
 
 
-def _build_batch_fixtures_parallel(ring_size: int, fixture_count: int, workers: int) -> tuple[Ring, RingRoot, list[ProofFixture]]:
+def _build_batch_fixtures_parallel(ring_size: int, fixture_count: int, workers: int) -> tuple[Ring, RingRoot, list[ProofFixture], list[bytes]]:
     public_key, _ = _keypair("batch-signer", 0)
     keys = _ring_keys(ring_size, 0, public_key)
-    params = RingProofParams.from_ring_size(ring_size)
-    ring = Ring(keys, params)
-    ring_root = RingRoot.from_ring(ring, params)
+    ring = Ring.from_keys(keys)
+    ring_root = RingRoot.from_ring(ring)
 
-    if workers <= 1:
-        serialized = _prove_batch_fixture_range(ring_size, 0, fixture_count)
-    else:
-        serialized = []
-        with ProcessPoolExecutor(max_workers=workers) as executor:
-            futures = [executor.submit(_prove_batch_fixture_range, ring_size, start, stop) for start, stop in _chunk_ranges(fixture_count, workers)]
-            for future in futures:
-                serialized.extend(future.result())
+    serialized = []
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(_prove_batch_fixture_range, ring_size, start, stop) for start, stop in _chunk_ranges(fixture_count, workers)]
+        for future in futures:
+            serialized.extend(future.result())
 
     serialized.sort(key=lambda fixture: fixture.index)
     fixtures = [ProofFixture(RingVRF[Bandersnatch].decode(fixture.proof), fixture.alpha, fixture.ad) for fixture in serialized]
-    return ring, ring_root, fixtures
+    return ring, ring_root, fixtures, keys
 
 
 def run(ring_size: int, samples: int, max_batch_size: int, batch_fixtures: int | None, batch_workers: int) -> None:
@@ -217,13 +219,16 @@ def run(ring_size: int, samples: int, max_batch_size: int, batch_fixtures: int |
     print(f"Batch verify: max_n={max_batch_size}, unique_fixtures={batch_fixtures}")
     print(f"Preparing proofs... | workers={workers}")
 
-    ring, ring_root, fixtures = _build_batch_fixtures_parallel(ring_size, batch_fixtures, workers)
+    ring, ring_root, fixtures, keys = _build_batch_fixtures_parallel(ring_size, batch_fixtures, workers)
 
+    ring_root_bytes = ring_root.encode()
     print()
     print("batch_n  batch_ms  batch_ms_per_proof")
     for batch_size in _batch_sizes(max_batch_size):
         batch = fixtures[:batch_size]
         start = time.perf_counter()
+        ring = Ring.from_keys(keys)
+        ring_root = RingRoot.decode(ring_root_bytes, ring)
         verified = RingVRF[Bandersnatch].batch_verify(
             [fixture.proof for fixture in batch],
             [fixture.alpha for fixture in batch],

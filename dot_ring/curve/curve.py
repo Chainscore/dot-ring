@@ -53,6 +53,19 @@ class Curve(Generic[CoordT]):
             return "little"
         return self.params.encoding.endian
 
+    def valid_point(self, point: CurvePoint) -> bool:
+        try:
+            if point.is_identity() or not point.is_on_curve():
+                return False
+            cofactor = self.params.cofactor
+            if cofactor == 1:
+                return True
+            cofactor_inv = _powmod(cofactor, -1, self.params.subgroup_order)
+            cleared = point * cofactor
+            return not cleared.is_identity() and cleared * cofactor_inv == point
+        except (AttributeError, TypeError, ValueError):
+            return False
+
     def _validate(self):
         """
         Validate that the curve parameters are correct.
@@ -372,7 +385,8 @@ class CurveVariant(Generic[CoordT]):
         if not isinstance(secret_key, bytes | bytearray):
             raise TypeError("secret_key must be bytes")
         secret_scalar = int.from_bytes(secret_key, "little")
-        return (self.point_type.generator_point() * secret_scalar).point_to_string()
+        point = self.point_type.generator_point() * secret_scalar
+        return point.point_to_string()
 
     def secret_from_seed(self, seed: bytes) -> tuple[bytes, bytes]:
         if not isinstance(seed, bytes | bytearray):

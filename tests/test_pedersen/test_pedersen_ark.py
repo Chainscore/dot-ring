@@ -70,10 +70,10 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                     scalar_len(curve_variant),
                     curve_variant.curve.encoding_endian(),
                 ) == bytes.fromhex(vector["proof_sb"])
-                assert PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
+                assert PedersenVRF[curve_variant].proof_to_hash(proof.output_point).hex() == vector["beta"]
 
                 if "beta" in vector:
-                    assert PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
+                    assert PedersenVRF[curve_variant].proof_to_hash(proof.output_point).hex() == vector["beta"]
 
                 assert proof.verify(alpha, additional_data)
                 assert proof_rt.encode() == proof_bytes

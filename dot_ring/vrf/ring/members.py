@@ -7,24 +7,19 @@ fixed columns are built; producer-key lookup remains strict.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import lru_cache
 
-from dot_ring.curve.curve import CurveVariant
 from dot_ring.ring_proof.params import RingProofParams
-from dot_ring.vrf.codec import point_len
+from dot_ring.vrf.codec import dec_point
 
-
-def parse_concatenated_keys(keys: bytes, cv: CurveVariant) -> list[bytes]:
-    encoded_point_len = point_len(cv)
-    if len(keys) % encoded_point_len != 0:
-        raise ValueError(f"invalid concatenated key length: expected multiple of {encoded_point_len}, got {len(keys)}")
-    return [keys[encoded_point_len * i : encoded_point_len * (i + 1)] for i in range(len(keys) // encoded_point_len)]
+ParamsCacheKey = tuple[int, int, int, int | None, int, int, bool, int, int]
 
 
 class Ring:
     nm_points: tuple[tuple[int, int], ...]
     params: RingProofParams
 
-    def __init__(self, keys: Sequence[bytes | str], params: RingProofParams | None = None) -> None:
+    def __init__(self, keys: Sequence[bytes], params: RingProofParams | None = None) -> None:
         """Build spec public vector `PK || B powers || zero padding` from encoded keys."""
         if params is None:
             params = RingProofParams.from_ring_size(len(keys))
@@ -39,7 +34,7 @@ class Ring:
 
         nm_points: list[tuple[int, int]] = []
         for key in keys:
-            point = self._decode_key(key, padding_point)
+            point = self._decode_key(key)
             if point is None:
                 nm_points.append(padding_point)
                 continue
@@ -50,26 +45,32 @@ class Ring:
 
         fill_count = params.domain_size - params.padding_rows - len(nm_points)
         if fill_count > 0:
-            nm_points.extend(blinding_base_powers(params, fill_count))
+            blinding_base = params.cv.curve.params.auxiliary_points.blinding_base
+            if not blinding_base:
+                raise ValueError("blinding base is not configured in curve parameters")
+            nm_points.extend(_blinding_base_powers(params.cv.point_type, blinding_base, fill_count))
         if params.padding_rows > 0:
             nm_points.extend([(0, 0)] * params.padding_rows)
 
         self.nm_points = tuple(nm_points)
 
-    def _decode_key(self, key: object, padding_point: tuple[int, int]) -> tuple[int, int] | None:
-        if not isinstance(key, (bytes, str)):
-            return None
+    @classmethod
+    def from_keys(cls, keys: Sequence[bytes], params: RingProofParams | None = None) -> Ring:
+        """Return a cached ring for a stable encoded key vector."""
+        return _ring(tuple(bytes(key) for key in keys))
+
+    def _decode_key(self, key: bytes) -> tuple[int, int] | None:
         try:
-            point = self.params.cv.point_type.string_to_point(key)
+            point = dec_point(self.params.cv, key)
         except ValueError:
             return None
         if point.is_identity():
-            return padding_point
+            return None
         return int(point.x), int(point.y)
 
-    def index_of(self, key: bytes | str) -> int:
+    def index_of(self, key: bytes) -> int:
         padding_point = self.params.cv.curve.params.auxiliary_points.padding_point
-        point = self._decode_key(key, padding_point)
+        point = self._decode_key(key)
         if point is None:
             raise ValueError("invalid ring key")
         if point == padding_point:
@@ -80,12 +81,21 @@ class Ring:
             raise ValueError("producer key is not in ring") from exc
 
 
-def blinding_base_powers(params: RingProofParams, count: int) -> tuple[tuple[int, int], ...]:
-    point = params.cv.curve.params.auxiliary_points.blinding_base
-    points = []
+@lru_cache(maxsize=8)
+def _blinding_base_powers(point_type: type, blinding_base: tuple[int, int], count: int) -> tuple[tuple[int, int], ...]:
+    points: list[tuple[int, int]] = []
+    point = point_type(*blinding_base)
     for _ in range(count):
-        points.append(point)
-        point_obj = params.cv.point_type(*point)
-        doubled = point_obj + point_obj
-        point = int(doubled.x), int(doubled.y)
+        points.append((int(point.x), int(point.y)))
+        point = point + point
     return tuple(points)
+
+
+@lru_cache(maxsize=2)
+def _params(keys_len: int) -> RingProofParams:
+    return RingProofParams.from_ring_size(keys_len)
+
+
+@lru_cache(maxsize=8)
+def _ring(keys: tuple[bytes, ...]) -> Ring:
+    return Ring(keys, _params(len(keys)))

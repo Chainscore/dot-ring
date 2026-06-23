@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from dot_ring.ring_proof.columns.columns import Column, require_commitment
+from dot_ring.ring_proof.columns.columns import Column
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.protocol import G1Commitment
 
@@ -71,10 +71,10 @@ class RingProofPayload:
     def encode(self, params: RingProofParams) -> bytes:
         return b"".join(
             (
-                params.pcs.compress_g1(require_commitment(self.c_b)),
-                params.pcs.compress_g1(require_commitment(self.c_accip)),
-                params.pcs.compress_g1(require_commitment(self.c_accx)),
-                params.pcs.compress_g1(require_commitment(self.c_accy)),
+                params.pcs.compress_g1(self.c_b.commitment),
+                params.pcs.compress_g1(self.c_accip.commitment),
+                params.pcs.compress_g1(self.c_accx.commitment),
+                params.pcs.compress_g1(self.c_accy.commitment),
                 (self.px_zeta).to_bytes(RING_SCALAR_LEN, "little"),
                 (self.py_zeta).to_bytes(RING_SCALAR_LEN, "little"),
                 (self.s_zeta).to_bytes(RING_SCALAR_LEN, "little"),
@@ -82,7 +82,7 @@ class RingProofPayload:
                 (self.accip_zeta).to_bytes(RING_SCALAR_LEN, "little"),
                 (self.accx_zeta).to_bytes(RING_SCALAR_LEN, "little"),
                 (self.accy_zeta).to_bytes(RING_SCALAR_LEN, "little"),
-                params.pcs.compress_g1(require_commitment(self.c_q)),
+                params.pcs.compress_g1(self.c_q.commitment),
                 (self.l_zeta_omega).to_bytes(RING_SCALAR_LEN, "little"),
                 params.pcs.compress_g1(self.open_agg_zeta),
                 params.pcs.compress_g1(self.open_l_zeta_omega),
@@ -97,10 +97,10 @@ class RingProofPayload:
 
         reader = _PayloadReader(proof, params)
         payload = cls(
-            c_b=Column(name="c_b", evals=[], commitment=reader.commitment()),
-            c_accip=Column(name="c_accip", evals=[], commitment=reader.commitment()),
-            c_accx=Column(name="c_accx", evals=[], commitment=reader.commitment()),
-            c_accy=Column(name="c_accy", evals=[], commitment=reader.commitment()),
+            c_b=Column(name="c_b", evals=[], _commitment=reader.commitment()),
+            c_accip=Column(name="c_accip", evals=[], _commitment=reader.commitment()),
+            c_accx=Column(name="c_accx", evals=[], _commitment=reader.commitment()),
+            c_accy=Column(name="c_accy", evals=[], _commitment=reader.commitment()),
             px_zeta=reader.scalar(),
             py_zeta=reader.scalar(),
             s_zeta=reader.scalar(),
@@ -108,7 +108,7 @@ class RingProofPayload:
             accip_zeta=reader.scalar(),
             accx_zeta=reader.scalar(),
             accy_zeta=reader.scalar(),
-            c_q=Column(name="c_q", evals=[], commitment=reader.commitment()),
+            c_q=Column(name="c_q", evals=[], _commitment=reader.commitment()),
             l_zeta_omega=reader.scalar(),
             open_agg_zeta=reader.commitment(),
             open_l_zeta_omega=reader.commitment(),

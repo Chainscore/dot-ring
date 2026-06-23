@@ -7,7 +7,7 @@ from typing import Any
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
-from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, require_commitment
+from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.polynomial.fft import inverse_fft
 from dot_ring.ring_proof.polynomial.ops import poly_add, poly_divide_by_vanishing, poly_evaluate_single, poly_multiply, poly_scalar_mul
@@ -38,12 +38,20 @@ class RingProofBuilder:
     def build(self) -> RingProofPayload:
         """Spec sections 3.1-3.3 in order: witness, constraints, quotient, linearization, openings."""
         params = self.ring.params
-        if self.ring_root is None:
-            from dot_ring.vrf.ring.root import RingRoot
+        from dot_ring.vrf.ring.root import RingRoot
 
-            ring_root = RingRoot.from_ring(self.ring, params)
-        else:
-            ring_root = self.ring_root
+        ring_root = self.ring_root
+        if (
+            ring_root is None
+            or ring_root.px.coeffs is None
+            or ring_root.py.coeffs is None
+            or ring_root.s.coeffs is None
+            or len(ring_root.s.evals) < params.domain_size
+        ):
+            computed_root = RingRoot.from_ring(self.ring, params)
+            if ring_root is not None and computed_root.encode() != ring_root.encode():
+                raise ValueError("ring_root does not match ring")
+            ring_root = computed_root
         producer_index = self.ring.index_of(self.producer_key)
 
         # Section 3.1: witness bit column and accumulators for R = PK_k + bB.
@@ -79,7 +87,7 @@ class RingProofBuilder:
         # Section 3.3.2: quotient commitment.
         q_poly = poly_divide_by_vanishing(c_agg, params.domain_size)
         c_q = params.pcs.commit(q_poly)
-        c_q_column = Column(name="C_q", evals=[], commitment=c_q)
+        c_q_column = Column(name="C_q", evals=[], _commitment=c_q)
 
         fixed_columns = (ring_root.px, ring_root.py, ring_root.s)
 
@@ -142,12 +150,12 @@ class RingProofBuilder:
         params = self.ring.params
         c_b, c_accx, c_accy, c_accip = witness_columns
         witness_commitments = [
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_b)),
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_accip)),
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_accx)),
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_accy)),
+            params.pcs.serialize_g1_uncompressed(c_b.commitment),
+            params.pcs.serialize_g1_uncompressed(c_accip.commitment),
+            params.pcs.serialize_g1_uncompressed(c_accx.commitment),
+            params.pcs.serialize_g1_uncompressed(c_accy.commitment),
         ]
-        transcript = ring_root.verifier_transcript_prefix(params, self.transcript_challenge).copy()
+        transcript = ring_root.verifier_transcript_prefix(self.transcript_challenge).copy()
         return phase1_alphas_after_vk(
             transcript,
             relation_point,

@@ -73,7 +73,7 @@ def test_ietf_ark(curve_variant, file_prefix, subdir, gamma_len):
                 assert int(proof_s.hex(), 16) == int(vector["proof_s"], 16)
 
                 if "beta" in vector:
-                    assert TinyVRF[curve_variant].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
+                    assert TinyVRF[curve_variant].proof_to_hash(proof_rt.output_point).hex() == vector["beta"]
 
                 assert proof.verify(pk_bytes, alpha, additional_data, salt)
                 assert proof_rt.encode() == proof_bytes

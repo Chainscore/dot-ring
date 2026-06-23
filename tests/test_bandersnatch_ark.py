@@ -53,7 +53,7 @@ def test_ietf_ark_bandersnatch():
             assert proof_s.hex() == vector["proof_s"]
 
             if "beta" in vector:
-                assert TinyVRF[Bandersnatch].ecvrf_proof_to_hash(proof_bytes).hex() == vector["beta"]
+                assert TinyVRF[Bandersnatch].proof_to_hash(proof_rt.output_point).hex() == vector["beta"]
 
             assert proof.verify(pk_bytes, alpha, additional_data)
             assert proof_rt.encode() == proof_bytes
@@ -98,10 +98,10 @@ def test_pedersen_ark_bandersnatch():
                 scalar_len(Bandersnatch),
                 Bandersnatch.curve.encoding_endian(),
             ) == bytes.fromhex(vector["proof_sb"])
-            assert PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
+            assert PedersenVRF[Bandersnatch].proof_to_hash(proof.output_point).hex() == vector["beta"]
 
             if "beta" in vector:
-                assert PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
+                assert PedersenVRF[Bandersnatch].proof_to_hash(proof.output_point).hex() == vector["beta"]
 
             assert proof.verify(alpha, additional_data)
             assert proof_rt.encode() == proof_bytes

@@ -8,72 +8,6 @@ from dot_ring.vrf.ring import Ring, RingRoot
 
 
 class TestCoverageGaps:
-    def test_ecvrf_decode_proof_string_input(self):
-        """Test ecvrf_decode_proof handles hex string input."""
-        # Generate a valid proof first
-        alpha = b"test"
-        sk = b"secret"
-        ad = b"ad"
-        proof = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
-        proof_bytes = proof.encode()
-        proof_hex = proof_bytes.hex()
-
-        gamma, c, s = TinyVRF[Bandersnatch].ecvrf_decode_proof(proof_hex)
-        assert gamma == proof.output_point
-        assert c == proof.c
-        assert s == proof.s
-
-    def test_ecvrf_decode_proof_invalid_gamma(self):
-        """Test ecvrf_decode_proof raises ValueError for invalid gamma point."""
-        invalid_gamma = b"\xff" * point_len(Bandersnatch)
-        c_len = Bandersnatch.curve.params.encoding.challenge_len
-        s_len = scalar_len(Bandersnatch)
-        dummy_c = b"\x00" * c_len
-        dummy_s = b"\x00" * s_len
-
-        invalid_proof = invalid_gamma + dummy_c + dummy_s
-
-        with pytest.raises(ValueError, match="Invalid gamma point"):
-            TinyVRF[Bandersnatch].ecvrf_decode_proof(invalid_proof)
-
-    def test_ecvrf_decode_proof_invalid_s(self):
-        """Test ecvrf_decode_proof raises ValueError if S >= order."""
-        alpha = b"test"
-        sk = b"secret"
-        ad = b"ad"
-        proof = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
-        proof_bytes = proof.encode()
-
-        # Modify S to be >= order
-        order = Bandersnatch.curve.params.subgroup_order
-        invalid_s = order + 1
-        s_len = (order.bit_length() + 7) // 8
-
-        gamma_len = point_len(Bandersnatch)
-        c_len = Bandersnatch.curve.params.encoding.challenge_len
-
-        gamma_bytes = proof_bytes[:gamma_len]
-        c_bytes = proof_bytes[gamma_len : gamma_len + c_len]
-
-        invalid_s_bytes = invalid_s.to_bytes(s_len, "little")
-
-        invalid_proof = gamma_bytes + c_bytes + invalid_s_bytes
-
-        with pytest.raises(ValueError, match="scalar is not canonical"):
-            TinyVRF[Bandersnatch].ecvrf_decode_proof(invalid_proof)
-
-    def test_ecvrf_proof_to_hash_string_input(self):
-        """Test ecvrf_proof_to_hash handles hex string input."""
-        alpha = b"test"
-        sk = b"secret"
-        ad = b"ad"
-        proof = TinyVRF[Bandersnatch].prove(alpha, sk, ad)
-        proof_bytes = proof.encode()
-        proof_hex = proof_bytes.hex()
-
-        hash_bytes = TinyVRF[Bandersnatch].ecvrf_proof_to_hash(proof_hex)
-        assert isinstance(hash_bytes, bytes)
-
     def test_ietf_decode_invalid_point(self):
         """Test TinyVRF.decode raises ValueError for invalid output point."""
         invalid_point = b"\xff" * point_len(Bandersnatch)
@@ -133,26 +67,8 @@ class TestCoverageGaps:
         with pytest.raises(ValueError):  # Message might vary depending on which point fails first
             PedersenVRF[Bandersnatch].decode(invalid_proof)
 
-    def test_pedersen_proof_to_hash_string(self):
-        """Test PedersenVRF.ecvrf_proof_to_hash handles hex string input."""
-        alpha = b"test"
-        sk = b"secret"
-        ad = b"ad"
-        proof = PedersenVRF[Bandersnatch].prove(alpha, sk, ad)
-        proof_bytes = proof.output_point.point_to_string()
-        proof_hex = proof_bytes.hex()
-
-        hash_bytes = PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(proof_hex)
-        assert isinstance(hash_bytes, bytes)
-
-    def test_pedersen_proof_to_hash_invalid(self):
-        """Test PedersenVRF.ecvrf_proof_to_hash raises ValueError for invalid point."""
-        invalid_point = b"\xff" * 33
-        with pytest.raises(ValueError, match="Invalid output point"):
-            PedersenVRF[Bandersnatch].ecvrf_proof_to_hash(invalid_point)
-
     def test_uncompressed_curve_decode(self):
-        """Test ecvrf_decode_proof with uncompressed curve (Ed448)."""
+        """Test TinyVRF.decode with an uncompressed curve (Ed448)."""
         # Ed448 is uncompressed.
         alpha = b"test"
         sk = b"secret"
@@ -162,9 +78,8 @@ class TestCoverageGaps:
             proof = TinyVRF[Ed448_RO].prove(alpha, sk, ad)
             proof_bytes = proof.encode()
 
-            # Decode
-            gamma, c, s = TinyVRF[Ed448_RO].ecvrf_decode_proof(proof_bytes)
-            assert gamma == proof.output_point
+            decoded = TinyVRF[Ed448_RO].decode(proof_bytes)
+            assert decoded.output_point == proof.output_point
         except Exception as e:
             pytest.skip(f"Ed448 not fully supported or failed: {e}")
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Literal, Self, cast
+from typing import Self
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
@@ -74,9 +74,8 @@ class BandersnatchSWPoint(SWAffinePoint):
         if self.x is None or self.y is None:
             raise ValueError("Cannot serialize identity point")
 
-        y_int = cast(int, self.y)
-        flag = 0 if y_int <= (-y_int % p) else 1 << 7
-        x_bytes = int(cast(int, self.x)).to_bytes((field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.encoding_endian()))
+        flag = 0 if self.y <= (-self.y % p) else 1 << 7
+        x_bytes = self.x.to_bytes((field_bit_len + 7) // 8, self.curve.params.encoding.endian)
 
         result = bytearray(output_byte_len)
         result[: len(x_bytes)] = x_bytes
@@ -110,7 +109,7 @@ class BandersnatchSWPoint(SWAffinePoint):
             raise ValueError("Empty octet string")
 
         x_bytes = data[:-1]
-        x = int.from_bytes(x_bytes, curve.encoding_endian())
+        x = int.from_bytes(x_bytes, curve.params.encoding.endian)
         y_candidates = cls._y_recover(x)
         if not y_candidates:
             raise ValueError("Invalid point: no y-coordinate found for x")
