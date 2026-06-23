@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Literal, Self, cast
+from typing import Self
 
 from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.e2c import E2C_Variant
@@ -53,8 +53,13 @@ BANDERSNATCH_SW_PARAMS = ShortWeierstrassCurveParams[int](
 )
 
 
+BANDERSNATCH_SW_Curve = SWCurve(params=BANDERSNATCH_SW_PARAMS, e2c_variant=E2C_Variant.TAI)
+
+
 class BandersnatchSWPoint(SWAffinePoint):
     """Point on Bandersnatch in short-Weierstrass form."""
+
+    curve = BANDERSNATCH_SW_Curve
 
     def point_to_string(self, compressed: bool = False) -> bytes:
         p = self.curve.params.field_modulus
@@ -69,9 +74,8 @@ class BandersnatchSWPoint(SWAffinePoint):
         if self.x is None or self.y is None:
             raise ValueError("Cannot serialize identity point")
 
-        y_int = cast(int, self.y)
-        flag = 0 if y_int <= (-y_int % p) else 1 << 7
-        x_bytes = int(cast(int, self.x)).to_bytes((field_bit_len + 7) // 8, cast(Literal["little", "big"], self.curve.encoding_endian()))
+        flag = 0 if self.y <= (-self.y % p) else 1 << 7
+        x_bytes = self.x.to_bytes((field_bit_len + 7) // 8, self.curve.params.encoding.endian)
 
         result = bytearray(output_byte_len)
         result[: len(x_bytes)] = x_bytes
@@ -79,7 +83,8 @@ class BandersnatchSWPoint(SWAffinePoint):
         return bytes(result)
 
     @classmethod
-    def _y_recover(cls, x: int, curve: SWCurve) -> tuple[int, int] | None:
+    def _y_recover(cls, x: int) -> tuple[int, int] | None:
+        curve = cls.curve
         p = curve.params.field_modulus
         y_square = (pow(x, 3, p) + curve.params.a * x + curve.params.b) % p
         try:
@@ -95,7 +100,8 @@ class BandersnatchSWPoint(SWAffinePoint):
         return neg_y, y
 
     @classmethod
-    def string_to_point(cls, data: str | bytes, curve: SWCurve) -> Self:
+    def string_to_point(cls, data: str | bytes) -> Self:
+        curve = cls.curve
         if isinstance(data, str):
             data = bytes.fromhex(data)
 
@@ -103,8 +109,8 @@ class BandersnatchSWPoint(SWAffinePoint):
             raise ValueError("Empty octet string")
 
         x_bytes = data[:-1]
-        x = int.from_bytes(x_bytes, curve.encoding_endian())
-        y_candidates = cls._y_recover(x, curve)
+        x = int.from_bytes(x_bytes, curve.params.encoding.endian)
+        y_candidates = cls._y_recover(x)
         if not y_candidates:
             raise ValueError("Invalid point: no y-coordinate found for x")
         y, y_neg = y_candidates
@@ -121,13 +127,13 @@ class BandersnatchSWPoint(SWAffinePoint):
             raise ValueError("Invalid infinity point: not supported")
 
         try:
-            return cls(x, y_neg if is_negative else y, curve)
+            return cls(x, y_neg if is_negative else y)
         except ValueError:
             raise ValueError("Invalid point") from None
 
 
 Bandersnatch_SW = CurveVariant(
     name="Bandersnatch_SW",
-    curve=SWCurve(params=BANDERSNATCH_SW_PARAMS, e2c_variant=E2C_Variant.TAI),
+    curve=BANDERSNATCH_SW_Curve,
     point_type=BandersnatchSWPoint,
 )

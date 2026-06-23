@@ -13,7 +13,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 from dot_ring import Bandersnatch
-from dot_ring.keygen import secret_from_seed
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.vrf.ring import RingRoot, RingVRF
@@ -50,14 +49,14 @@ def _seed(*parts: object) -> bytes:
 
 
 def _ring_fixture(ring_size: int, sample_index: int) -> tuple[bytes, bytes, bytes, bytes, Ring, RingRoot]:
-    public_key, secret_key = secret_from_seed(_seed("memory-signer", sample_index), Bandersnatch)
+    public_key, secret_key = Bandersnatch.secret_from_seed(_seed("memory-signer", sample_index))
     signer_index = min(SIGNER_INDEX, ring_size - 1)
     keys: list[bytes] = []
     for member_index in range(ring_size):
         if member_index == signer_index:
             keys.append(public_key)
         else:
-            member_key, _ = secret_from_seed(_seed("memory-ring-member", sample_index, member_index), Bandersnatch)
+            member_key, _ = Bandersnatch.secret_from_seed(_seed("memory-ring-member", sample_index, member_index))
             keys.append(member_key)
 
     params = RingProofParams.from_ring_size(ring_size)

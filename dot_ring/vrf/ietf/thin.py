@@ -1,22 +1,24 @@
+"""Thin VRF (section 3).
+
+The library proof envelope is `gamma || R || s`; the spec proof is `R || s`.
+"""
+
 from __future__ import annotations
 
-import secrets
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from dot_ring.curve.curve import CurveVariant
 from dot_ring.curve.point import CurvePoint
-from dot_ring.vrf.transcript import (
-    DomSep,
+from dot_ring.vrf.codec import dec_point, dec_scalar, dec_scalar_mod, enc_point, enc_scalar, point_len, scalar_len
+from dot_ring.vrf.domain import DomSep
+from dot_ring.vrf.primitives import (
+    CHALLENGE_LEN,
     VrfIo,
     challenge,
     nonce,
-    point_len,
     point_to_hash,
-    scalar_decode,
-    scalar_encode,
-    scalar_len,
-    schnorr_ios,
+    squeeze_transcript_bytes,
     vrf_transcript,
     vrf_transcript_scalars,
 )
@@ -25,7 +27,7 @@ from ..vrf import VRF
 
 
 @dataclass
-class ThinBatchItem:
+class _ThinBatchItem:
     c: int
     ios: list[VrfIo]
     zs: list[int]
@@ -35,31 +37,26 @@ class ThinBatchItem:
 
 @dataclass
 class ThinVRF(VRF[Any]):
-    """Batch-friendly VRF-AD proof storing the nonce commitment."""
+    """Batch-friendly VRF-AD proof. Fields after `output_point` are spec proof `(R, s)`."""
 
     output_point: CurvePoint
     r: CurvePoint
     s: int
 
     @classmethod
-    def from_bytes(cls, proof_bytes: bytes) -> ThinVRF:
+    def decode(cls, proof_bytes: bytes) -> ThinVRF:
         encoded_point_len = point_len(cls.cv)
         scalar_size = scalar_len(cls.cv)
         expected = 2 * encoded_point_len + scalar_size
         if len(proof_bytes) != expected:
             raise ValueError(f"invalid Thin VRF proof length: expected {expected}, got {len(proof_bytes)}")
-        try:
-            output_point = cls.cv.string_to_point(proof_bytes[:encoded_point_len])
-            r = cls.cv.string_to_point(proof_bytes[encoded_point_len : 2 * encoded_point_len])
-        except ValueError as exc:
-            raise ValueError("Invalid point in proof") from exc
-        s = scalar_decode(cls.cv, proof_bytes[2 * encoded_point_len :])
-        if s >= cls.cv.curve.params.subgroup_order:
-            raise ValueError("Response scalar s is not less than the curve order")
-        return cls(output_point, r, s)
+        o = dec_point(cls.cv, proof_bytes[:encoded_point_len])
+        r = dec_point(cls.cv, proof_bytes[encoded_point_len : 2 * encoded_point_len])
+        s = dec_scalar(cls.cv, proof_bytes[2 * encoded_point_len :])
+        return cls(o, r, s)
 
-    def to_bytes(self) -> bytes:
-        return self.output_point.point_to_string() + self.r.point_to_string() + scalar_encode(self.cv, self.s)
+    def encode(self) -> bytes:
+        return enc_point(self.output_point) + enc_point(self.r) + enc_scalar(self.cv, self.s)
 
     @classmethod
     def prove(
@@ -69,41 +66,37 @@ class ThinVRF(VRF[Any]):
         additional_data: bytes,
         salt: bytes = b"",
     ) -> ThinVRF:
-        secret_scalar = scalar_decode(cls.cv, secret_key)
-        public_key = cls.cv.generator_point() * secret_scalar
-        input_point = cls.cv.encode_to_curve(alpha, salt)
+        secret_scalar = dec_scalar_mod(cls.cv, secret_key)
+        public_key = cls.cv.point_type.generator_point() * secret_scalar
+        input_point = cls.cv.point_type.encode_to_curve(alpha, salt)
         output_point = input_point * secret_scalar
-        return cls.prove_ios([VrfIo(input_point, output_point)], secret_scalar, public_key, additional_data)
-
-    @classmethod
-    def prove_ios(
-        cls,
-        ios: list[VrfIo],
-        secret_scalar: int,
-        public_key: CurvePoint,
-        additional_data: bytes,
-    ) -> ThinVRF:
-        transcript, merged = vrf_transcript(cls.cv, DomSep.THIN_VRF, schnorr_ios(cls.cv, public_key, ios), additional_data)
+        transcript, merged = vrf_transcript(
+            cls.cv,
+            DomSep.THIN_VRF,
+            [VrfIo(cls.cv.point_type.generator_point(), public_key), VrfIo(input_point, output_point)],
+            additional_data,
+        )
         k = nonce(cls.cv, secret_scalar, transcript)
         r = merged.input * k
         c = challenge(cls.cv, [r], transcript)
         s = (k + c * secret_scalar) % cls.cv.curve.params.subgroup_order
-        output_point = ios[0].output if len(ios) == 1 else merged.output
         return cls(output_point, r, s)
 
     def verify(self, public_key: bytes, input: bytes, additional_data: bytes, salt: bytes = b"") -> bool:
-        input_point = self.cv.encode_to_curve(input, salt)
+        input_point = self.cv.point_type.encode_to_curve(input, salt)
         try:
-            public_key_pt = self.cv.string_to_point(public_key)
+            public_key_point = dec_point(self.cv, public_key)
         except ValueError as exc:
             raise ValueError("Invalid public key") from exc
-        return self.verify_ios(public_key_pt, [VrfIo(input_point, self.output_point)], additional_data)
 
-    def verify_ios(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes) -> bool:
-        transcript, merged = vrf_transcript(self.cv, DomSep.THIN_VRF, schnorr_ios(self.cv, public_key, ios), additional_data)
+        transcript, merged = vrf_transcript(
+            self.cv,
+            DomSep.THIN_VRF,
+            [VrfIo(self.cv.point_type.generator_point(), public_key_point), VrfIo(input_point, self.output_point)],
+            additional_data,
+        )
         c = challenge(self.cv, [self.r], transcript)
-        lhs = self.cv.msm([merged.input, merged.output], [self.s, -c])
-        return lhs == self.r
+        return self.cv.point_type.msm([merged.input, merged.output], [self.s, -c]) == self.r
 
     @classmethod
     def proof_to_hash(cls, gamma: CurvePoint, mul_cofactor: bool = False) -> bytes:
@@ -111,56 +104,49 @@ class ThinVRF(VRF[Any]):
             gamma = gamma * cls.cv.curve.params.cofactor
         return point_to_hash(cls.cv, gamma)
 
-
-def _batch_coefficients(count: int, order: int) -> list[int]:
-    if count == 0:
-        return []
-    coefficients = [1]
-    for _ in range(count - 1):
-        coefficient = 0
-        while coefficient == 0:
-            coefficient = secrets.randbelow(order)
-        coefficients.append(coefficient)
-    return coefficients
-
-
-class ThinBatchVerifier:
-    def __init__(self, curve: CurveVariant):
-        self.cv = curve
-        self.items: list[ThinBatchItem] = []
-
     @classmethod
-    def __class_getitem__(cls, curve_variant: CurveVariant | Any) -> type[ThinBatchVerifier] | Any:
-        if not isinstance(curve_variant, CurveVariant):
-            return cls
+    def batch_verify(
+        cls,
+        proofs: Sequence[ThinVRF],
+        public_keys: Sequence[bytes],
+        inputs: Sequence[bytes],
+        additional_data: Sequence[bytes],
+        salts: Sequence[bytes] | None = None,
+    ) -> bool:
+        if salts is None:
+            salts = [b""] * len(proofs)
 
-        class _SpecializedThinBatchVerifier(cls):
-            def __init__(self) -> None:
-                super().__init__(curve_variant)
+        items: list[_ThinBatchItem] = []
+        try:
+            for proof, public_key, input_value, ad, salt in zip(proofs, public_keys, inputs, additional_data, salts, strict=True):
+                input_point = cls.cv.point_type.encode_to_curve(input_value, salt)
+                public_key_point = dec_point(cls.cv, public_key)
+                ios = [VrfIo(cls.cv.point_type.generator_point(), public_key_point), VrfIo(input_point, proof.output_point)]
+                transcript, scalars = vrf_transcript_scalars(cls.cv, DomSep.THIN_VRF, ios, ad)
+                items.append(_ThinBatchItem(challenge(cls.cv, [proof.r], transcript), ios, scalars, proof.r, proof.s))
+        except (AttributeError, TypeError, ValueError):
+            return False
 
-        _SpecializedThinBatchVerifier.__name__ = f"{cls.__name__}[{curve_variant.name}]"
-        return _SpecializedThinBatchVerifier
-
-    def push(self, public_key: CurvePoint, ios: list[VrfIo], additional_data: bytes, proof: ThinVRF) -> None:
-        chained_ios = schnorr_ios(self.cv, public_key, ios)
-        transcript, scalar_stream = vrf_transcript_scalars(self.cv, DomSep.THIN_VRF, chained_ios, additional_data)
-        c = challenge(self.cv, [proof.r], transcript)
-        self.items.append(ThinBatchItem(c, chained_ios, scalar_stream.take(len(chained_ios)), proof.r, proof.s))
-
-    def verify(self) -> bool:
-        if not self.items:
+        if not items:
             return True
 
+        absorbed = bytearray(cls.cv.curve.params.suite_id)
+        absorbed.append(DomSep.BATCH_VERIFY)
+        for item in items:
+            absorbed.extend(enc_scalar(cls.cv, item.c))
+            absorbed.extend(enc_scalar(cls.cv, item.s))
+
+        raw = squeeze_transcript_bytes(cls.cv.curve.params.hash_fn, bytes(absorbed), CHALLENGE_LEN * len(items))
         points: list[CurvePoint] = []
-        scalars: list[int] = []
-        order = self.cv.curve.params.subgroup_order
-        for coefficient, item in zip(_batch_coefficients(len(self.items), order), self.items, strict=False):
+        msm_scalars: list[int] = []
+        for index, item in enumerate(items):
+            coefficient = dec_scalar_mod(cls.cv, raw[CHALLENGE_LEN * index : CHALLENGE_LEN * (index + 1)])
             weighted_c = coefficient * item.c
             weighted_s = coefficient * item.s
 
             for io, z in zip(item.ios, item.zs, strict=True):
                 points.extend([io.input, io.output])
-                scalars.extend([weighted_s * z, -(weighted_c * z)])
+                msm_scalars.extend([weighted_s * z, -(weighted_c * z)])
             points.append(item.r)
-            scalars.append(-coefficient)
-        return self.cv.msm(points, scalars).is_identity()
+            msm_scalars.append(-coefficient)
+        return cls.cv.point_type.msm(points, msm_scalars).is_identity()

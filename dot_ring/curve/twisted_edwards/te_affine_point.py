@@ -42,14 +42,14 @@ class TEAffinePoint(CurvePoint[C, int]):
         return self.x == 0 and self.y == 1
 
     @classmethod
-    def identity(cls, curve: C) -> Self:
+    def identity(cls) -> Self:
         """
         Get the Twisted Edwards identity element.
 
         Returns:
             TEAffinePoint: Identity element
         """
-        return cls(0, 1, curve)
+        return cls(0, 1)
 
     def is_on_curve(self) -> bool:
         """
@@ -111,7 +111,7 @@ class TEAffinePoint(CurvePoint[C, int]):
 
         x3 = ((x1y2 + x2y1) * _invert(1 + dx1x2y1y2, p)) % p
         y3 = ((y1y2 - a_coeff * x1x2) * _invert(1 - dx1x2y1y2, p)) % p
-        return self.__class__(int(x3), int(y3), self.curve)
+        return self.__class__(int(x3), int(y3))
 
     def __neg__(self) -> Self:
         """
@@ -121,7 +121,7 @@ class TEAffinePoint(CurvePoint[C, int]):
             TEAffinePoint: Negated point
         """
         x = -cast(int, self.x) % self.curve.params.field_modulus
-        return self.__class__(x, self.y, self.curve)
+        return self.__class__(x, self.y)
 
     def __sub__(self, other: CurvePoint[C, int]) -> Self:
         """
@@ -147,18 +147,18 @@ class TEAffinePoint(CurvePoint[C, int]):
         x1, y1 = _mpz(cast(int, self.x)) % p, _mpz(cast(int, self.y)) % p
 
         if y1 == 0:
-            return self.identity(self.curve)
+            return self.identity()
 
         # Specialized affine doubling formulas for twisted Edwards curves.
         denom_x = (a_coeff * x1**2 + y1**2) % p
         denom_y = (2 - a_coeff * x1**2 - y1**2) % p
 
         if denom_x == 0 or denom_y == 0:
-            return self.identity(self.curve)
+            return self.identity()
 
         x3 = (2 * x1 * y1 * _invert(denom_x, p)) % p
         y3 = ((y1**2 - a_coeff * x1**2) * _invert(denom_y, p)) % p
-        return self.__class__(int(x3), int(y3), self.curve)
+        return self.__class__(int(x3), int(y3))
 
     def __mul__(self, scalar: int) -> Self:
         """
@@ -194,58 +194,43 @@ class TEAffinePoint(CurvePoint[C, int]):
     @classmethod
     def encode_to_curve(
         cls,
-        alpha_string: bytes | str,
-        salt: bytes | str = b"",
-        curve: C | None = None,
+        alpha_string: bytes,
+        salt: bytes = b"",
     ) -> Self:
         """
         Encode input bytes to a point using the curve's configured hash-to-curve variant.
         """
-        if curve is None:
-            raise ValueError("curve is required")
-        if not isinstance(alpha_string, bytes):
-            alpha_string = bytes.fromhex(alpha_string)
-
-        if not isinstance(salt, bytes):
-            salt = bytes.fromhex(salt)
-
-        if curve.e2c_variant == E2C_Variant.TAI:
-            from dot_ring.vrf.transcript import hash_to_curve_tai
-
-            return cast(Self, hash_to_curve_tai(cls, salt + alpha_string, curve))
-
-        if curve.e2c_variant in (E2C_Variant.ELL2, E2C_Variant.ELL2_NU):
-            if curve.e2c_variant.value.endswith("_NU_"):
-                return cls._encode_elligator2_nu(alpha_string, curve, salt)
-            return cls._encode_elligator2_ro(alpha_string, curve, salt)
-
-        raise ValueError("Unexpected E2C Variant")
+        match cls.curve.e2c_variant:
+            case E2C_Variant.ELL2_NU:
+                return cls._e2c_ell2_nu(alpha_string, salt)
+            case E2C_Variant.ELL2:
+                return cls._e2c_ell2_ro(alpha_string, salt)
+            case _:
+                return super().encode_to_curve(alpha_string, salt)
 
     @classmethod
-    def _encode_elligator2_ro(
+    def _e2c_ell2_ro(
         cls,
         alpha_string: bytes,
-        curve: C,
         salt: bytes = b"",
     ) -> Self:
         """Encode with the random-oracle Elligator2 hash-to-curve variant."""
         string_to_hash = salt + alpha_string
-        u0, u1 = curve.hash_to_field(string_to_hash, 2)
-        q0 = cls.map_to_curve(u0, curve)
-        q1 = cls.map_to_curve(u1, curve)
+        u0, u1 = cls.curve.hash_to_field(string_to_hash, 2)
+        q0 = cls.map_to_curve(u0)
+        q1 = cls.map_to_curve(u1)
         return (q0 + q1).clear_cofactor()
 
     @classmethod
-    def _encode_elligator2_nu(
+    def _e2c_ell2_nu(
         cls,
         alpha_string: bytes,
-        curve: C,
         salt: bytes = b"",
     ) -> Self:
         """Encode with the nonuniform Elligator2 hash-to-curve variant."""
         string_to_hash = salt + alpha_string
-        (u0,) = curve.hash_to_field(string_to_hash, 1)
-        return cls.map_to_curve(u0, curve).clear_cofactor()
+        (u0,) = cls.curve.hash_to_field(string_to_hash, 1)
+        return cls.map_to_curve(u0).clear_cofactor()
 
     def clear_cofactor(self) -> Self:
         """
@@ -265,7 +250,7 @@ class TEAffinePoint(CurvePoint[C, int]):
         return self * cofactor
 
     @classmethod
-    def map_to_curve(cls, u: int, curve: C) -> Self:
+    def map_to_curve(cls, u: int) -> Self:
         """
         Map a field element to a curve point using Elligator 2.
 
@@ -276,11 +261,11 @@ class TEAffinePoint(CurvePoint[C, int]):
             TEAffinePoint: Resulting curve point
         """
 
-        s, t = curve.map_to_curve_ell2(u)
-        return cls.from_mont(s, t, curve)
+        s, t = cls.curve.map_to_curve_ell2(u)
+        return cls.from_mont(s, t)
 
     @classmethod
-    def from_mont(cls, s: int, t: int, curve: C) -> Self:
+    def from_mont(cls, s: int, t: int) -> Self:
         """
         Convert from Montgomery to Twisted Edwards coordinates.
 
@@ -291,7 +276,7 @@ class TEAffinePoint(CurvePoint[C, int]):
         Returns:
             TEAffinePoint: Point in Twisted Edwards coordinates
         """
-        field = curve.params.field_modulus
+        field = cls.curve.params.field_modulus
         tv1 = (s + 1) % field
         tv2 = (tv1 * t) % field
 
@@ -306,11 +291,12 @@ class TEAffinePoint(CurvePoint[C, int]):
         # Handle exceptional case
         w = 1 if tv2 == 0 else w
 
-        return cls(v, w, curve)
+        return cls(v, w)
 
     @classmethod
-    def _x_recover(cls, y: int, curve: C) -> int | tuple[int, int] | None:
+    def _x_recover(cls, y: int) -> int | tuple[int, int] | None:
         """Recover the possible x-coordinates for a compressed Edwards y-coordinate."""
+        curve = cls.curve
         p = curve.params.field_modulus
         lhs = (1 - y * y) % p
         rhs = (curve.params.a - curve.params.d * y * y) % p

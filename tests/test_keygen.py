@@ -1,7 +1,6 @@
 import pytest
 
-from dot_ring import Bandersnatch, secret_from_seed
-from dot_ring.vrf.ietf import TinyVRF
+from dot_ring import Bandersnatch
 
 
 @pytest.mark.parametrize(
@@ -20,19 +19,19 @@ from dot_ring.vrf.ietf import TinyVRF
     ],
 )
 def test_secret_from_seed_vectors(seed: int, expected_pk: str, expected_sk: str) -> None:
-    pk, sk = secret_from_seed(seed.to_bytes(32, "little"), Bandersnatch)
+    pk, sk = Bandersnatch.secret_from_seed(seed.to_bytes(32, "little"))
     assert pk.hex() == expected_pk
     assert sk.hex() == expected_sk
 
 
 def test_secret_from_seed_public_key_roundtrip() -> None:
     seed = (2**32 - 1).to_bytes(32, "little")
-    pk, sk = secret_from_seed(seed, Bandersnatch)
-    assert pk == TinyVRF[Bandersnatch].get_public_key(sk)
+    pk, sk = Bandersnatch.secret_from_seed(seed)
+    assert pk == Bandersnatch.public_key_from_secret(sk)
 
 
 def test_secret_from_seed_type_errors() -> None:
     with pytest.raises(TypeError):
-        secret_from_seed("not-bytes")  # type: ignore[arg-type]
+        Bandersnatch.secret_from_seed("not-bytes")  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        secret_from_seed(b"\x00" * 32, "not-a-curve")  # type: ignore[arg-type]
+        Bandersnatch.public_key_from_secret("not-bytes")  # type: ignore[arg-type]

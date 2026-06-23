@@ -1,7 +1,6 @@
 """Tests for FFT module to improve coverage."""
 
-from dot_ring.ring_proof.constants import OMEGA_512 as OMEGA
-from dot_ring.ring_proof.constants import S_PRIME
+from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.polynomial.fft import (
     _fft_in_place,
     _get_bit_reverse,
@@ -13,6 +12,10 @@ from dot_ring.ring_proof.polynomial.fft import (
 
 class TestFFT:
     """Test cases for FFT functions."""
+
+    PARAMS = RingProofParams()
+    PRIME = PARAMS.prime
+    OMEGA = PARAMS.omega
 
     # Test constants - using a smaller prime for easier testing
     SMALL_PRIME = 17
@@ -81,10 +84,10 @@ class TestFFT:
         # omega^2 = 1, omega != 1, so omega = -1 = p-1 = 16 mod 17
         # Just test that FFT runs without error for small inputs
         # Use larger prime field for proper FFT
-        omega_2 = pow(OMEGA, 512 // 2, S_PRIME)  # Scale down from 512-th root
+        omega_2 = pow(self.OMEGA, 512 // 2, self.PRIME)  # Scale down from 512-th root
         coeffs = [3, 5]
 
-        _fft_in_place(coeffs, omega_2, S_PRIME)
+        _fft_in_place(coeffs, omega_2, self.PRIME)
         # Just verify the result has same length
         assert len(coeffs) == 2
 
@@ -93,16 +96,16 @@ class TestFFT:
         # Use the actual module constants
         original = [1, 2, 3, 4, 5, 6, 7, 8]
 
-        # Need to find proper omega for size 8 in S_PRIME
+        # Need to find proper omega for size 8 in the Bandersnatch field.
         # Using module omega scaled down
-        omega_8 = pow(OMEGA, 512 // 8, S_PRIME)  # Scale down from 512-th root
+        omega_8 = pow(self.OMEGA, 512 // 8, self.PRIME)  # Scale down from 512-th root
 
         # Compute FFT
         values = original[:]
-        _fft_in_place(values, omega_8, S_PRIME)
+        _fft_in_place(values, omega_8, self.PRIME)
 
         # Compute inverse FFT
-        recovered = inverse_fft(values, omega_8, S_PRIME)
+        recovered = inverse_fft(values, omega_8, self.PRIME)
 
         assert recovered == original
 
@@ -157,16 +160,16 @@ class TestFFT:
         """Test FFT/IFFT roundtrip with actual module constants."""
         # Use actual constants from the module
         n = 8
-        omega_n = pow(OMEGA, 512 // n, S_PRIME)
+        omega_n = pow(self.OMEGA, 512 // n, self.PRIME)
 
         original = [i * 12345 for i in range(n)]  # Some test values
 
         # Forward FFT
         values = original[:]
-        _fft_in_place(values, omega_n, S_PRIME)
+        _fft_in_place(values, omega_n, self.PRIME)
 
         # Inverse FFT
-        recovered = inverse_fft(values, omega_n, S_PRIME)
+        recovered = inverse_fft(values, omega_n, self.PRIME)
 
         assert recovered == original
 
@@ -183,8 +186,8 @@ class TestFFT:
 
     def test_caching_twiddle_factors(self):
         """Test that twiddle factor caching works correctly."""
-        result1 = _get_twiddle_factors(8, OMEGA, S_PRIME)
-        result2 = _get_twiddle_factors(8, OMEGA, S_PRIME)
+        result1 = _get_twiddle_factors(8, self.OMEGA, self.PRIME)
+        result2 = _get_twiddle_factors(8, self.OMEGA, self.PRIME)
 
         assert result1 == result2
         assert result1 is result2  # Same cached object

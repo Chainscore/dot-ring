@@ -7,8 +7,8 @@ import pytest
 
 from dot_ring import P256, Bandersnatch, Ed25519, PedersenVRF, RingVRF, TinyVRF
 from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.vrf.codec import point_len, scalar_len
 from dot_ring.vrf.ring import Ring, RingRoot
-from dot_ring.vrf.transcript import point_len, scalar_len
 
 # Alias
 Secp256r1 = P256
@@ -328,8 +328,8 @@ class TestNegativeCases:
         sk1 = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
         sk2 = bytes.fromhex("0202020202020202020202020202020202020202020202020202020202020202")
 
-        pk1 = TinyVRF[Bandersnatch].get_public_key(sk1)
-        pk2 = TinyVRF[Bandersnatch].get_public_key(sk2)
+        pk1 = Bandersnatch.public_key_from_secret(sk1)
+        pk2 = Bandersnatch.public_key_from_secret(sk2)
 
         alpha = b"test_input"
         ad = b"test_ad"
@@ -346,7 +346,7 @@ class TestNegativeCases:
     def test_wrong_input_ietf(self):
         """IETF VRF verification should fail with wrong input."""
         sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
-        pk = TinyVRF[Bandersnatch].get_public_key(sk)
+        pk = Bandersnatch.public_key_from_secret(sk)
 
         alpha1 = b"correct_input"
         alpha2 = b"wrong_input"
@@ -364,7 +364,7 @@ class TestNegativeCases:
     def test_wrong_ad_ietf(self):
         """IETF VRF verification should fail with wrong additional data."""
         sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
-        pk = TinyVRF[Bandersnatch].get_public_key(sk)
+        pk = Bandersnatch.public_key_from_secret(sk)
 
         alpha = b"test_input"
         ad1 = b"correct_ad"
@@ -399,18 +399,18 @@ class TestNegativeCases:
     def test_wrong_ring_root(self):
         """Ring VRF verification should fail with wrong ring root."""
         sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
-        pk = RingVRF[Bandersnatch].get_public_key(sk)
+        pk = Bandersnatch.public_key_from_secret(sk)
 
         # Create two different rings
         ring1 = [pk]
         for i in range(7):
             other_sk = (i + 2).to_bytes(32, "little")
-            ring1.append(RingVRF[Bandersnatch].get_public_key(other_sk))
+            ring1.append(Bandersnatch.public_key_from_secret(other_sk))
 
         ring2 = [pk]
         for i in range(7):
             other_sk = (i + 100).to_bytes(32, "little")
-            ring2.append(RingVRF[Bandersnatch].get_public_key(other_sk))
+            ring2.append(Bandersnatch.public_key_from_secret(other_sk))
 
         alpha = b"test_input"
         ad = b"test_ad"
@@ -476,12 +476,12 @@ class TestDeterminism:
         but both must still verify correctly.
         """
         sk = bytes.fromhex("0101010101010101010101010101010101010101010101010101010101010101")
-        pk = RingVRF[Bandersnatch].get_public_key(sk)
+        pk = Bandersnatch.public_key_from_secret(sk)
 
         ring_keys = [pk]
         for i in range(7):
             other_sk = (i + 2).to_bytes(32, "little")
-            ring_keys.append(RingVRF[Bandersnatch].get_public_key(other_sk))
+            ring_keys.append(Bandersnatch.public_key_from_secret(other_sk))
 
         alpha = b"deterministic_test"
         ad = b"test_ad"
@@ -495,7 +495,7 @@ class TestDeterminism:
         proof2 = RingVRF[Bandersnatch].prove(alpha, ad, sk, pk, ring, ring_root)
 
         # Proof bytes should differ due to random blinding
-        assert proof1.to_bytes() != proof2.to_bytes(), "Ring proofs should be non-deterministic with random ZK-row blinding"
+        assert proof1.encode() != proof2.encode(), "Ring proofs should be non-deterministic with random ZK-row blinding"
 
         # Both proofs must still verify
         assert proof1.verify(alpha, ad, ring, ring_root), "First proof verification failed"

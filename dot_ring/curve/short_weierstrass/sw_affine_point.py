@@ -37,7 +37,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             return self
 
         if self.x is None or self.y is None or other.x is None or other.y is None:
-            return self.__class__.identity(self.curve)
+            return self.__class__.identity()
 
         x1 = self.x
         y1 = self.y
@@ -47,7 +47,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
 
         # Check if points are inverses
         if x1 == x2 and (y1 + y2) % p == 0:
-            return self.__class__.identity(self.curve)
+            return self.__class__.identity()
 
         # Point doubling
         if x1 == x2 and y1 == y2:
@@ -64,7 +64,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         y3 = (slope * (x1 - x3) - y1) % p
 
         # The curve is already set in the instance
-        return self.__class__(x3, y3, self.curve)
+        return self.__class__(x3, y3)
 
     def _double(self) -> Self:
         """
@@ -86,7 +86,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
 
         # Check if y-coordinate is zero (point has order 2)
         if y1 == 0:
-            return self.__class__.identity(self.curve)
+            return self.__class__.identity()
 
         # Calculate slope: λ = (3x₁² + a) / (2y₁)
         numerator = (3 * x1 * x1 + A) % p
@@ -98,7 +98,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         y3 = (slope * (x1 - x3) - y1) % p
 
         # The curve is already set in the instance
-        return self.__class__(x3, y3, self.curve)
+        return self.__class__(x3, y3)
 
     def __mul__(self, scalar: int) -> Self:
         """
@@ -111,13 +111,13 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             Self: Result of scalar multiplication
         """
         if scalar == 0:
-            return self.__class__.identity(self.curve)
+            return self.__class__.identity()
 
         if scalar < 0:
             return (-self) * (-scalar)
 
         # Use binary method (double-and-add)
-        result = self.__class__.identity(self.curve)
+        result = self.__class__.identity()
         addend = self
 
         while scalar > 0:
@@ -138,11 +138,11 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         if self.is_identity():
             return self
         if self.x is None or self.y is None:
-            return self.__class__.identity(self.curve)
+            return self.__class__.identity()
 
         # Create a new instance with negated y-coordinate
         # The curve is already set in the instance
-        return self.__class__(self.x, (-self.y) % self.curve.params.field_modulus, self.curve)
+        return self.__class__(self.x, (-self.y) % self.curve.params.field_modulus)
 
     def __sub__(self, other: SWAffinePoint) -> Self:
         """
@@ -189,7 +189,8 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             return b"\x04" + x_bytes + y_bytes
 
     @classmethod
-    def string_to_point(cls, octet_string: str | bytes, curve: SWCurve[int]) -> Self:
+    def string_to_point(cls, octet_string: str | bytes) -> Self:
+        curve = cls.curve
         if isinstance(octet_string, str):
             octet_string = bytes.fromhex(octet_string)
 
@@ -202,7 +203,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         if prefix == 0x00:
             if len(octet_string) != 1:
                 raise ValueError("Point at infinity must be single byte 0x00")
-            return cls.identity(curve)
+            return cls.identity()
 
         p = curve.params.field_modulus
         A = curve.params.a
@@ -237,7 +238,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             if (y % 2 == 0 and prefix == 0x03) or (y % 2 == 1 and prefix == 0x02):
                 y = p - y  # Use the other square root
 
-            point = cls(x, y, curve)
+            point = cls(x, y)
 
             # Verify point is on curve
             if not point.is_on_curve():
@@ -264,7 +265,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             if y >= p:
                 raise ValueError(f"y-coordinate {y} is not in field Fp (p={p})")
 
-            point = cls(x, y, curve)
+            point = cls(x, y)
 
             # Verify point is on curve
             if not point.is_on_curve():
@@ -293,7 +294,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             if (y % 2 == 0 and prefix == 0x07) or (y % 2 == 1 and prefix == 0x06):
                 raise ValueError("Hybrid format: y parity doesn't match prefix")
 
-            point = cls(x, y, curve)
+            point = cls(x, y)
 
             if not point.is_on_curve():
                 raise ValueError(f"Point ({x}, {y}) is not on curve")
@@ -351,7 +352,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         return self.x is None and self.y is None
 
     @classmethod
-    def identity(cls, curve: SWCurve[int]) -> Self:
+    def identity(cls) -> Self:
         """
         Get the identity element (point at infinity).
 
@@ -359,7 +360,7 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             Self: Identity element
         """
         # Return a point at infinity (None, None)
-        return cls(None, None, curve)
+        return cls(None, None)
 
     @staticmethod
     def tonelli_shanks(n: int, p: int) -> int | None:
@@ -407,7 +408,8 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         return r
 
     @classmethod
-    def _x_recover(cls, y: int, curve: SWCurve[int]) -> tuple[int, int]:
+    def _x_recover(cls, y: int) -> tuple[int, int]:
+        curve = cls.curve
         p = curve.params.field_modulus
         B = curve.params.b
 
@@ -423,8 +425,9 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         return x, (-x) % p
 
     @classmethod
-    def map_to_curve_simple_swu(cls, u: int, curve: SWCurve[int]) -> Self:
+    def map_to_curve_simple_swu(cls, u: int) -> Self:
         """Implements simplified SWU mapping"""
+        curve = cls.curve
         # 1.  tv1 = inv0(Z^2 * u^4 + Z * u^2)
         # 2.   x1 = (-B / A) * (1 + tv1)
         # 3.  If tv1 == 0, set x1 = B / (Z * A)
@@ -486,49 +489,35 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
             # Check if point lies on E'
             if (y * y - (x**3 + map_curve.a * x + map_curve.b)) % p != 0:
                 raise ValueError("Point is not on the hash-to-curve map curve")
-            return cls.apply_isogeny(x, y, curve)
+            return cls.apply_isogeny(x, y)
 
-        return cls(x=x, y=y, curve=curve)
+        return cls(x=x, y=y)
 
     @classmethod
     def encode_to_curve(
         cls,
-        alpha_string: bytes | str,
-        salt: bytes | str = b"",
-        curve: SWCurve[int] | None = None,
+        alpha_string: bytes,
+        salt: bytes = b"",
     ) -> Self:
-        if curve is None:
-            raise ValueError("curve is required")
-        if not isinstance(alpha_string, bytes):
-            alpha_string = bytes.fromhex(alpha_string)
-
-        if not isinstance(salt, bytes):
-            salt = bytes.fromhex(salt)
-
-        if curve.e2c_variant == E2C_Variant.TAI:
-            from dot_ring.vrf.transcript import hash_to_curve_tai
-
-            return cast(Self, hash_to_curve_tai(cls, salt + alpha_string, curve))
-
-        if curve.e2c_variant in (E2C_Variant.SSWU, E2C_Variant.SSWU_NU):
-            if curve.e2c_variant.value.endswith("_NU_"):
-                return cls._encode_sswu_nu(alpha_string, curve, salt)
-            return cls._encode_sswu_ro(alpha_string, curve, salt)
-
-        raise ValueError(f"Unexpected E2C Variant: {curve.e2c_variant}")
+        match cls.curve.e2c_variant:
+            case E2C_Variant.SSWU_NU:
+                return cls._encode_sswu_nu(alpha_string, salt)
+            case E2C_Variant.SSWU:
+                return cls._encode_sswu_ro(alpha_string, salt)
+            case _:
+                return super().encode_to_curve(alpha_string, salt)
 
     @classmethod
     def _encode_sswu_ro(
         cls,
         alpha_string: bytes,
-        curve: SWCurve[int],
         salt: bytes = b"",
     ) -> Self:
         """Encode with the random-oracle simplified-SWU hash-to-curve variant."""
         string_to_hash = salt + alpha_string
-        u0, u1 = curve.hash_to_field(string_to_hash, 2)
-        q0 = cls.map_to_curve_simple_swu(u0, curve)
-        q1 = cls.map_to_curve_simple_swu(u1, curve)
+        u0, u1 = cls.curve.hash_to_field(string_to_hash, 2)
+        q0 = cls.map_to_curve_simple_swu(u0)
+        q1 = cls.map_to_curve_simple_swu(u1)
         R = q0 + q1
         return cast(Self, R.clear_cofactor())
 
@@ -536,21 +525,20 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
     def _encode_sswu_nu(
         cls,
         alpha_string: bytes,
-        curve: SWCurve[int],
         salt: bytes = b"",
     ) -> Self:
         """Encode with the nonuniform simplified-SWU hash-to-curve variant."""
         string_to_hash = salt + alpha_string
-        (u0,) = curve.hash_to_field(string_to_hash, 1)
-        return cast(Self, cls.map_to_curve_simple_swu(u0, curve).clear_cofactor())
+        (u0,) = cls.curve.hash_to_field(string_to_hash, 1)
+        return cast(Self, cls.map_to_curve_simple_swu(u0).clear_cofactor())
 
     @classmethod
-    def apply_isogeny(cls, x_p: int, y_p: int, curve: SWCurve[int]) -> Self:
+    def apply_isogeny(cls, x_p: int, y_p: int) -> Self:
         """
         Apply the rational isogeny map to a point (x', y') on the isogenous curve E'.
         """
-        p = curve.params.field_modulus
-        isogeny = curve.params.hash_to_curve.isogeny
+        p = cls.curve.params.field_modulus
+        isogeny = cls.curve.params.hash_to_curve.isogeny
         if isogeny is None:
             raise ValueError("Missing isogeny")
 
@@ -571,4 +559,4 @@ class SWAffinePoint(CurvePoint[SWCurve[int], int]):
         x_mapped = (x_num * x_den_inv) % p
         y_mapped = (y_p * y_num * y_den_inv) % p
 
-        return cls(x_mapped, y_mapped, curve)
+        return cls(x_mapped, y_mapped)

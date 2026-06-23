@@ -119,14 +119,26 @@ BLS12_381_G1_PARAMS = ShortWeierstrassCurveParams[int](
 )
 
 
+BLS12_381_G1_NU_Curve = SWCurve(params=BLS12_381_G1_PARAMS, e2c_variant=E2C_Variant.SSWU_NU)
+BLS12_381_G1_RO_Curve = SWCurve(params=BLS12_381_G1_PARAMS, e2c_variant=E2C_Variant.SSWU)
+
+
+class BLS12_381_G1_NUPoint(SWAffinePoint):
+    curve = BLS12_381_G1_NU_Curve
+
+
+class BLS12_381_G1_ROPoint(SWAffinePoint):
+    curve = BLS12_381_G1_RO_Curve
+
+
 BLS12_381_G1_NU = CurveVariant(
     name="BLS12_381_G1_NU",
-    curve=SWCurve(params=BLS12_381_G1_PARAMS, e2c_variant=E2C_Variant.SSWU_NU),
-    point_type=SWAffinePoint,
+    curve=BLS12_381_G1_NU_Curve,
+    point_type=BLS12_381_G1_NUPoint,
 )
 
 BLS12_381_G1_RO = CurveVariant(
     name="BLS12_381_G1_RO",
-    curve=SWCurve(params=BLS12_381_G1_PARAMS, e2c_variant=E2C_Variant.SSWU),
-    point_type=SWAffinePoint,
+    curve=BLS12_381_G1_RO_Curve,
+    point_type=BLS12_381_G1_ROPoint,
 )

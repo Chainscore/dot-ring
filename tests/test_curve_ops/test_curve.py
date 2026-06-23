@@ -58,7 +58,7 @@ def _mock_te_params(*, e2c: E2C_Variant = E2C_Variant.SSWU) -> TwistedEdwardsCur
 class TestCoverageCurve:
     def test_te_affine_double_identity(self):
         """Test TEAffinePoint.double with identity point."""
-        identity = Ed25519_RO.identity()
+        identity = Ed25519_RO.point_type.identity()
         doubled = identity.double()
         assert doubled.is_identity()
 
@@ -71,7 +71,7 @@ class TestCoverageCurve:
 
     def test_te_affine_double_coverage(self):
         """Test TEAffinePoint.double with a valid point."""
-        g = Ed25519_RO.generator_point()
+        g = Ed25519_RO.point_type.generator_point()
         doubled = g.double()
         assert doubled == g + g
 
@@ -80,10 +80,10 @@ class TestCoverageCurve:
         """Test MGAffinePoint operations."""
         from dot_ring.curve.specs.curve448 import Curve448_RO
 
-        g = Curve448_RO.generator_point()
+        g = Curve448_RO.point_type.generator_point()
 
         # Identity
-        identity = Curve448_RO.identity()
+        identity = Curve448_RO.point_type.identity()
         assert (g + identity) == g
         assert (identity + g) == g
 
@@ -101,7 +101,7 @@ class TestCoverageCurve:
 
         # Encode to curve
         msg = b"test message"
-        p = Curve448_RO.encode_to_curve(msg, b"DST")
+        p = Curve448_RO.point_type.encode_to_curve(msg, b"DST")
         assert p.is_on_curve()
 
         # Map to curve (if applicable directly, usually via encode)
@@ -112,10 +112,10 @@ class TestCoverageCurve:
         """Test SWAffinePoint operations."""
         from dot_ring.curve.specs.p256 import P256_RO
 
-        g = P256_RO.generator_point()
+        g = P256_RO.point_type.generator_point()
 
         # Identity
-        identity = P256_RO.identity()
+        identity = P256_RO.point_type.identity()
         assert identity.is_identity()
 
         # Add with identity
@@ -134,16 +134,16 @@ class TestCoverageCurve:
         """Test SWAffinePoint from_bytes (compressed/uncompressed)."""
         from dot_ring.curve.specs.p256 import P256_RO
 
-        g = P256_RO.generator_point()
+        g = P256_RO.point_type.generator_point()
 
         # Uncompressed
         b_uncomp = g.point_to_string(compressed=False)
-        p_uncomp = P256_RO.string_to_point(b_uncomp)
+        p_uncomp = P256_RO.point_type.string_to_point(b_uncomp)
         assert p_uncomp == g
 
         # Compressed
         b_comp = g.point_to_string(compressed=True)
-        p_comp = P256_RO.string_to_point(b_comp)
+        p_comp = P256_RO.point_type.string_to_point(b_comp)
         assert p_comp == g
 
     def test_sw_affine_encode(self):
@@ -151,7 +151,7 @@ class TestCoverageCurve:
         from dot_ring.curve.specs.p256 import P256_RO
 
         msg = b"test message"
-        p = P256_RO.encode_to_curve(msg, b"DST")
+        p = P256_RO.point_type.encode_to_curve(msg, b"DST")
         assert p.is_on_curve()
 
     def test_sw_affine_string_to_point_errors(self):
@@ -160,19 +160,19 @@ class TestCoverageCurve:
 
         # Empty string
         with pytest.raises(ValueError, match="Empty octet string"):
-            P256_RO.string_to_point(b"")
+            P256_RO.point_type.string_to_point(b"")
 
         # Invalid prefix
         with pytest.raises(ValueError, match="Invalid point encoding prefix"):
-            P256_RO.string_to_point(b"\x05" + b"\x00" * 32)
+            P256_RO.point_type.string_to_point(b"\x05" + b"\x00" * 32)
 
         # Invalid length for compressed
         with pytest.raises(ValueError, match="Invalid compressed point length"):
-            P256_RO.string_to_point(b"\x02" + b"\x00")
+            P256_RO.point_type.string_to_point(b"\x02" + b"\x00")
 
         # Invalid length for uncompressed
         with pytest.raises(ValueError, match="Invalid uncompressed point length"):
-            P256_RO.string_to_point(b"\x04" + b"\x00")
+            P256_RO.point_type.string_to_point(b"\x04" + b"\x00")
 
     def test_mg_affine_string_to_point_errors(self):
         """Test MGAffinePoint string_to_point error cases."""
@@ -184,7 +184,7 @@ class TestCoverageCurve:
         u_bytes = b"\x00" * 56
         v_bytes = b"\x01" + b"\x00" * 55  # Little endian 1
         with pytest.raises(ValueError, match="Point is not on the curve"):
-            Curve448_RO.string_to_point(u_bytes + v_bytes)
+            Curve448_RO.point_type.string_to_point(u_bytes + v_bytes)
 
     def test_tonelli_shanks_coverage(self):
         """Test Tonelli-Shanks algorithm with a mock curve (p % 8 == 1)."""
@@ -199,13 +199,17 @@ class TestCoverageCurve:
                 pass
 
         curve = MockMGCurve()
+        mock_curve = curve
+
+        class MockMGPoint(MGAffinePoint):
+            curve = mock_curve
 
         # Test _sqrt_mod_p with p=17
         # Squares mod 17: 0, 1, 4, 9, 16, 8, 2, 15, 13
         # 2 is a square (6^2 = 36 = 2 mod 17)
         # 3 is NOT a square
 
-        p = MGAffinePoint(None, None, curve)
+        p = MockMGPoint(None, None)
 
         # Test square
         root = p._sqrt_mod_p(2)
@@ -229,7 +233,12 @@ class TestCoverageCurve:
                 pass
 
         curve = MockMGCurve()
-        p = MGAffinePoint(0, 0, curve)
+        mock_curve = curve
+
+        class MockMGPoint(MGAffinePoint):
+            curve = mock_curve
+
+        p = MockMGPoint(0, 0)
 
         # Test point_to_string compressed error
         with pytest.raises(NotImplementedError, match="Compressed encoding not implemented"):
@@ -237,7 +246,7 @@ class TestCoverageCurve:
 
         # Test _x_recover NotImplementedError
         with pytest.raises(NotImplementedError):
-            MGAffinePoint._x_recover(1, curve)
+            MockMGPoint._x_recover(1)
 
     def test_sw_tonelli_shanks_coverage(self):
         """Test SWAffinePoint.tonelli_shanks with p % 8 == 1."""
@@ -265,7 +274,7 @@ class TestCoverageCurve:
         """Test SWAffinePoint hybrid format (0x06/0x07)."""
         from dot_ring.curve.specs.p256 import P256_RO
 
-        g = P256_RO.generator_point()
+        g = P256_RO.point_type.generator_point()
 
         # Construct hybrid bytes manually
         # Prefix 0x06 if y is even, 0x07 if y is odd
@@ -277,18 +286,18 @@ class TestCoverageCurve:
 
         hybrid_bytes = prefix + x_bytes + y_bytes
 
-        p = P256_RO.string_to_point(hybrid_bytes)
+        p = P256_RO.point_type.string_to_point(hybrid_bytes)
         assert p == g
 
         # Test invalid hybrid length
         with pytest.raises(ValueError, match="Invalid hybrid point length"):
-            P256_RO.string_to_point(b"\x06" + b"\x00")
+            P256_RO.point_type.string_to_point(b"\x06" + b"\x00")
 
         # Test invalid hybrid parity
         wrong_prefix = b"\x07" if y_int % 2 == 0 else b"\x06"
         wrong_hybrid = wrong_prefix + x_bytes + y_bytes
         with pytest.raises(ValueError, match="Hybrid format: y parity doesn't match prefix"):
-            P256_RO.string_to_point(wrong_hybrid)
+            P256_RO.point_type.string_to_point(wrong_hybrid)
 
     def test_curve_point_base_coverage(self):
         """Test base CurvePoint methods."""
@@ -302,7 +311,12 @@ class TestCoverageCurve:
             def __post_init__(self):
                 pass
 
+        c = MockCurve()
+        mock_curve = c
+
         class MockPoint(CurvePoint):
+            curve = mock_curve
+
             def is_on_curve(self):
                 return True
 
@@ -313,11 +327,10 @@ class TestCoverageCurve:
                 return True
 
             @classmethod
-            def identity(cls, curve):
-                return cls(None, None, curve)
+            def identity(cls):
+                return cls(None, None)
 
-        c = MockCurve()
-        p = MockPoint(0, 0, curve=c)
+        p = MockPoint(0, 0)
 
         # Test NotImplementedError
         with pytest.raises(NotImplementedError):
@@ -329,14 +342,14 @@ class TestCoverageCurve:
 
         # Test msm errors
         with pytest.raises(ValueError, match="Points and scalars must have same length"):
-            MockPoint.msm([p], [1, 2], c)
+            MockPoint.msm([p], [1, 2])
 
         # Test msm empty
         # Should return identity
-        res = MockPoint.msm([], [], c)
+        res = MockPoint.msm([], [])
         assert res.x is None and res.y is None
 
-        p_hash = MockPoint(1, 2, curve=c)
+        p_hash = MockPoint(1, 2)
         h = hash(p_hash)
         assert isinstance(h, int)
 
@@ -344,7 +357,7 @@ class TestCoverageCurve:
         """Test TEAffinePoint error cases."""
         from dot_ring.curve.specs.ed25519 import Ed25519_RO
 
-        g = Ed25519_RO.generator_point()
+        g = Ed25519_RO.point_type.generator_point()
 
         # __add__ invalid type
         with pytest.raises(TypeError, match="Can only add TEAffinePoints"):
@@ -366,20 +379,24 @@ class TestCoverageCurve:
                 super().__init__(params=_mock_te_params(), e2c_variant=E2C_Variant.SSWU)
 
         curve = MockTECurve()
+        mock_curve = curve
+
+        class MockTEPoint(TEAffinePoint):
+            curve = mock_curve
 
         # Unsupported TE hash-to-curve variants fail at dispatch.
         with pytest.raises(ValueError, match="Unexpected E2C Variant"):
-            TEAffinePoint.encode_to_curve(b"test", curve=curve)
+            MockTEPoint.encode_to_curve(b"test")
 
         # Test point_to_string uncompressed
         # MockTECurve uses uncompressed encoding.
-        p = TEAffinePoint(0, 1, curve)  # Identity
+        p = MockTEPoint(0, 1)  # Identity
         # Identity serialization should succeed for TE (0, 1)
         s = p.point_to_string()
         assert len(s) == 2  # 1 byte x, 1 byte y (p=17 -> 5 bits -> 1 byte)
 
         # Valid point serialization (uncompressed)
-        p_valid = TEAffinePoint(0, 16, curve)  # 16 = -1 mod 17
+        p_valid = MockTEPoint(0, 16)  # 16 = -1 mod 17
         s = p_valid.point_to_string()
         assert len(s) == 2  # 1 byte x, 1 byte y
 
@@ -387,7 +404,7 @@ class TestCoverageCurve:
         """Test CurvePoint.__hash__ with explicit Fp2 coordinates."""
         from dot_ring.curve.specs.bls12_381_G2 import BLS12_381_G2_RO
 
-        point = BLS12_381_G2_RO.generator_point()
+        point = BLS12_381_G2_RO.point_type.generator_point()
         assert isinstance(point.x, Fp2)
         assert isinstance(point.y, Fp2)
         expected = (point.x.re + point.x.im + point.y.re + point.y.im) % point.curve.params.subgroup_order

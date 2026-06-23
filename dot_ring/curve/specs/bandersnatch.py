@@ -172,6 +172,8 @@ class BandersnatchPoint(TEAffinePoint[TECurve]):
     including GLV scalar multiplication.
     """
 
+    curve = Bandersnatch_TE_Curve
+
     def __mul__(self, scalar: int) -> Self:
         """
         GLV scalar multiplication using endomorphism.
@@ -189,17 +191,17 @@ class BandersnatchPoint(TEAffinePoint[TECurve]):
         return cast(Self, BandersnatchGLV.windowed_simultaneous_mult(k1, k2, self, phi, w=2))
 
     @classmethod
-    def msm(cls, points: list[Self], scalars: list[int], curve: TECurve) -> Self:
+    def msm(cls, points: list[Self], scalars: list[int]) -> Self:
         """
         Optimized multi-scalar multiplication using GLV.
         """
         if len(points) != len(scalars):
             raise ValueError("Points and scalars must have same length")
         if not points:
-            return cls.identity(curve)
+            return cls.identity()
 
         # Normalize scalars to [0, ORDER) for GLV
-        n = curve.params.subgroup_order
+        n = cls.curve.params.subgroup_order
         raw_scalars = scalars
         scalars = [s % n for s in scalars]
 
@@ -221,7 +223,7 @@ class BandersnatchPoint(TEAffinePoint[TECurve]):
 
         if len(points) == 4:
             if any(point.is_identity() for point in points):
-                return super().msm(points, scalars, curve)
+                return super().msm(points, scalars)
 
             return cast(
                 Self,
@@ -239,7 +241,7 @@ class BandersnatchPoint(TEAffinePoint[TECurve]):
 
         if len(points) == 3:
             if any(point.is_identity() for point in points):
-                return super().msm(points, scalars, curve)
+                return super().msm(points, scalars)
 
             decomposed = [BandersnatchGLV.decompose_scalar(scalar, n) for scalar in scalars]
             phi_points = [BandersnatchGLV.compute_endomorphism(point) for point in points]
@@ -276,12 +278,12 @@ class BandersnatchPoint(TEAffinePoint[TECurve]):
                     work_points.append(point)
                     work_scalars.append(scalar)
             if not work_points:
-                return cls.identity(curve)
+                return cls.identity()
             if len(work_points) >= 5:
                 window_bits = _pippenger_window_bits(len(work_points))
                 return cast(Self, BandersnatchGLV.multi_scalar_mult_pippenger(work_scalars, work_points, window_bits=window_bits))
 
-        return super().msm(points, scalars, curve)
+        return super().msm(points, scalars)
 
 
 Bandersnatch = CurveVariant(
@@ -292,8 +294,13 @@ Bandersnatch = CurveVariant(
 
 Bandersnatch_SHAKE128_TE_Curve = BandersnatchCurve(params=BANDERSNATCH_SHAKE128_PARAMS, e2c_variant=E2C_Variant.ELL2)
 
+
+class BandersnatchSHAKE128Point(BandersnatchPoint):
+    curve = Bandersnatch_SHAKE128_TE_Curve
+
+
 Bandersnatch_SHAKE128 = CurveVariant(
     name="Bandersnatch_SHAKE128",
     curve=Bandersnatch_SHAKE128_TE_Curve,
-    point_type=BandersnatchPoint,
+    point_type=BandersnatchSHAKE128Point,
 )

@@ -8,11 +8,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dot_ring import Bandersnatch, blst
-from dot_ring.ring_proof.constants import EVAL_DOMAINS, S_PRIME
+from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.utils import g2_to_blst
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
-from dot_ring.ring_proof.verify import Verify
+from dot_ring.ring_proof.verify import RingProofFields, Verify
 from tests.utils.rust_serde import (
     compressed_g1_to_uncompressed_bytes,
     compressed_g2_to_uncompressed_bytes,
@@ -23,21 +23,7 @@ from tests.utils.rust_serde import (
 )
 
 
-def add_bandersnatch_points(
-    point1: tuple[int | None, int | None],
-    point2: tuple[int | None, int | None],
-) -> tuple[int | None, int | None]:
-    def to_point(point: tuple[int | None, int | None]):
-        x, y = point
-        if x is None or y is None:
-            return Bandersnatch.identity()
-        return Bandersnatch.point(int(x), int(y))
-
-    result = to_point(point1) + to_point(point2)
-    return result.x, result.y
-
-
-def parse_proof_from_json(proof_json: dict) -> tuple:
+def parse_proof_from_json(proof_json: dict) -> tuple[RingProofFields, dict]:
     proof = proof_json["proof"]
 
     col_cmts_bytes = bytes.fromhex(proof["column_commitments"])
@@ -62,22 +48,22 @@ def parse_proof_from_json(proof_json: dict) -> tuple:
     phi_zeta = deserialize_bls12_381_g1(bytes.fromhex(proof["agg_at_zeta_proof"]))
     phi_zeta_omega = deserialize_bls12_381_g1(bytes.fromhex(proof["lin_at_zeta_omega_proof"]))
 
-    proof_tuple = (
-        c_b,
-        c_accip,
-        c_accx,
-        c_accy,
-        px_zeta,
-        py_zeta,
-        s_zeta,
-        b_zeta,
-        accip_zeta,
-        accx_zeta,
-        accy_zeta,
-        c_q,
-        l_zeta_omega,
-        phi_zeta,
-        phi_zeta_omega,
+    proof_fields = RingProofFields(
+        c_b=c_b,
+        c_accip=c_accip,
+        c_accx=c_accx,
+        c_accy=c_accy,
+        px_zeta=px_zeta,
+        py_zeta=py_zeta,
+        s_zeta=s_zeta,
+        b_zeta=b_zeta,
+        accip_zeta=accip_zeta,
+        accx_zeta=accx_zeta,
+        accy_zeta=accy_zeta,
+        c_q=c_q,
+        l_zeta_omega=l_zeta_omega,
+        phi_zeta=phi_zeta,
+        phi_zeta_omega=phi_zeta_omega,
     )
 
     raw_bytes = {
@@ -90,7 +76,7 @@ def parse_proof_from_json(proof_json: dict) -> tuple:
         "quotient_commitment": cq_bytes,
     }
 
-    return proof_tuple, raw_bytes
+    return proof_fields, raw_bytes
 
 
 def parse_verifier_key(vk_hex: str) -> tuple[bytes, list]:
@@ -107,22 +93,25 @@ def verify_vector(vector_path: Path) -> None:
     with open(vector_path) as f:
         proof_data = json.load(f)
 
-    params = proof_data["metadata"]["parameters"]
-    domain = EVAL_DOMAINS[params["domain_size"]]
-    padding_rows = params.get("padding_rows", 4)
+    vector_params = proof_data["metadata"]["parameters"]
+    ring_params = RingProofParams(domain_size=vector_params["domain_size"], max_ring_size=1)
+    prime = ring_params.prime
+    domain = ring_params.domain
+    padding_rows = vector_params.get("padding_rows", ring_params.padding_rows)
 
-    seed_x_bytes = bytes.fromhex(params["seed"]["x"])
-    seed_y_bytes = bytes.fromhex(params["seed"]["y"])
+    seed_x_bytes = bytes.fromhex(vector_params["seed"]["x"])
+    seed_y_bytes = bytes.fromhex(vector_params["seed"]["y"])
     seed_point = deserialize_bandersnatch_point(seed_x_bytes, seed_y_bytes)
 
-    result_x_bytes = bytes.fromhex(params["result"]["x"])
-    result_y_bytes = bytes.fromhex(params["result"]["y"])
+    result_x_bytes = bytes.fromhex(vector_params["result"]["x"])
+    result_y_bytes = bytes.fromhex(vector_params["result"]["y"])
     result_point = deserialize_bandersnatch_point(result_x_bytes, result_y_bytes)
 
-    result_ark_bytes = result_x_bytes + result_y_bytes
-    result_plus_seed = add_bandersnatch_points(result_point, seed_point)
+    result_point = Bandersnatch.point(result_point)
+    seed_point = Bandersnatch.point(seed_point)
+    result_plus_seed = result_point + seed_point
 
-    proof_tuple, raw_bytes = parse_proof_from_json(proof_data)
+    proof_fields, raw_bytes = parse_proof_from_json(proof_data)
     vk_bytes, fixed_cols = parse_verifier_key(proof_data["verifier_key"]["verification_key"])
 
     # Update SRS from verifier key
@@ -155,13 +144,13 @@ def verify_vector(vector_path: Path) -> None:
 
         quotient_compressed = bytes.fromhex(proof_data["proof"]["quotient_commitment"])
         quotient_uncompressed = compressed_g1_to_uncompressed_bytes(quotient_compressed)
-        transcript_prefix = FiatShamirTranscript(S_PRIME, b"w3f-ring-proof-test")
+        transcript_prefix = FiatShamirTranscript(prime, b"w3f-ring-proof-test")
         transcript_prefix.absorb_labeled(b"vk", vk_uncompressed)
 
         verifier = Verify(
-            proof=proof_tuple,
+            proof=proof_fields,
             fixed_cols=fixed_cols,
-            relation_to_prove=result_ark_bytes,
+            relation_to_prove=result_point,
             result_plus_seed=result_plus_seed,
             seed_point=seed_point,
             domain=domain,

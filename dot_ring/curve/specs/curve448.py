@@ -46,14 +46,26 @@ CURVE448_PARAMS = MontgomeryCurveParams(
 )
 
 
+Curve448_NU_Curve = MGCurve(params=CURVE448_PARAMS, e2c_variant=E2C_Variant.ELL2_NU)
+Curve448_RO_Curve = MGCurve(params=CURVE448_PARAMS, e2c_variant=E2C_Variant.ELL2)
+
+
+class Curve448NUPoint(MGAffinePoint):
+    curve = Curve448_NU_Curve
+
+
+class Curve448ROPoint(MGAffinePoint):
+    curve = Curve448_RO_Curve
+
+
 Curve448_NU = CurveVariant(
     name="Curve448_NU",
-    curve=MGCurve(params=CURVE448_PARAMS, e2c_variant=E2C_Variant.ELL2_NU),
-    point_type=MGAffinePoint,
+    curve=Curve448_NU_Curve,
+    point_type=Curve448NUPoint,
 )
 
 Curve448_RO = CurveVariant(
     name="Curve448_RO",
-    curve=MGCurve(params=CURVE448_PARAMS, e2c_variant=E2C_Variant.ELL2),
-    point_type=MGAffinePoint,
+    curve=Curve448_RO_Curve,
+    point_type=Curve448ROPoint,
 )

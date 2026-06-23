@@ -32,7 +32,7 @@ class TestBLS12_381_G2_SSWU_RO(unittest.TestCase):
                 p = BLS12_381_G2_NU.curve.params.field_modulus
 
                 # Encode message to curve
-                computed_P = BLS12_381_G2_NU.encode_to_curve(msg.encode("utf-8"), b"")
+                computed_P = BLS12_381_G2_NU.point_type.encode_to_curve(msg.encode("utf-8"), b"")
 
                 # Create sample.py P point
                 expected_P_x = self.hex_to_fp2(expected_P["x"], p)

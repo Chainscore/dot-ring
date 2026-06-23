@@ -1,16 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any
 
 from ..curve import Curve
 from ..specs.parameters import MontgomeryCurveParams
-
-if TYPE_CHECKING:
-    from .mg_affine_point import MGAffinePoint
-
-C = TypeVar("C", bound="MGCurve")
-P = TypeVar("P", bound="MGAffinePoint")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -51,53 +45,6 @@ class MGCurve(Curve[int]):
         left = (self.params.b * v * v) % p
         right = (u * u * u + self.params.a * u * u + u) % p
         return left == right
-
-    def point_at_infinity(self) -> MGAffinePoint:
-        """Return the point at infinity for this curve."""
-        # Import here to avoid circular dependency
-        from .mg_affine_point import MGAffinePoint
-
-        return MGAffinePoint(None, None, self)
-
-    def random_point(self, rng: Any = None) -> MGAffinePoint:
-        """
-        Generate a random point on the curve by trying random x-coordinates
-        until we find one that gives a valid y-coordinate.
-        """
-        import secrets
-
-        if rng is None:
-            rng = secrets.SystemRandom()
-
-        from .mg_affine_point import MGAffinePoint
-
-        p = self.params.field_modulus
-        max_attempts = 100
-
-        for _ in range(max_attempts):
-            # Try random x-coordinate
-            x = rng.randrange(0, p)
-
-            # Compute y² = (x³ + Ax² + x) / B
-            x_cubed = (x * x * x) % p
-            x_squared = (x * x) % p
-            numerator = (x_cubed + (self.params.a * x_squared) % p + x) % p
-
-            try:
-                inv_B = pow(self.params.b, -1, p)
-                y_squared = (numerator * inv_B) % p
-
-                # Check if y_squared is a quadratic residue
-                if pow(y_squared, (p - 1) // 2, p) == 1:
-                    # Create temporary point to use _sqrt_mod_p method
-                    temp_point = MGAffinePoint(0, 0, self)
-                    y = temp_point._sqrt_mod_p(y_squared)
-                    if y is not None:
-                        return MGAffinePoint(x, y, self)
-            except ValueError:
-                continue
-
-        raise RuntimeError(f"Failed to find random point after {max_attempts} attempts")
 
     def validate_point(self, point: Any) -> bool:
         """

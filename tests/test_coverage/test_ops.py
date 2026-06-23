@@ -1,6 +1,6 @@
 """Tests for polynomial operations module to improve coverage."""
 
-from dot_ring.ring_proof.constants import D_512, D_2048, S_PRIME
+from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.polynomial.ops import (
     get_root_of_unity,
     lagrange_basis_polynomial,
@@ -17,6 +17,11 @@ class TestPolynomialOps:
     """Test cases for polynomial operations."""
 
     PRIME = 17  # Small prime for testing
+    PARAMS_512 = RingProofParams(domain_size=512, max_ring_size=1)
+    PARAMS_2048 = RingProofParams(domain_size=2048, max_ring_size=1)
+    RING_PRIME = PARAMS_512.prime
+    DOMAIN_512 = PARAMS_512.domain
+    DOMAIN_2048 = PARAMS_2048.domain
 
     def test_poly_add_same_length(self):
         """Test polynomial addition with same length."""
@@ -53,7 +58,7 @@ class TestPolynomialOps:
         p1 = list(range(1, 65))  # 64 coefficients
         p2 = list(range(1, 65))
 
-        result = poly_multiply(p1, p2, S_PRIME)
+        result = poly_multiply(p1, p2, self.RING_PRIME)
 
         # Result should have len(p1) + len(p2) - 1 = 127 coefficients
         assert len(result) == 127
@@ -170,46 +175,46 @@ class TestPolynomialOps:
         assert val_at_2 == 0
 
     def test_lagrange_basis_polynomial_d512(self):
-        """Test Lagrange basis polynomial for roots of unity domain D_512."""
-        # Should use optimized path for D_512
-        basis = lagrange_basis_polynomial(D_512, 0, S_PRIME)
+        """Test Lagrange basis polynomial for roots of unity domain DOMAIN_512."""
+        # Should use optimized path for DOMAIN_512
+        basis = lagrange_basis_polynomial(self.DOMAIN_512, 0, self.RING_PRIME)
         assert len(basis) == 512
 
     def test_lagrange_basis_polynomial_d2048(self):
-        """Test Lagrange basis polynomial for roots of unity domain D_2048."""
-        # Should use optimized path for D_2048
-        basis = lagrange_basis_polynomial(D_2048, 0, S_PRIME)
+        """Test Lagrange basis polynomial for roots of unity domain DOMAIN_2048."""
+        # Should use optimized path for DOMAIN_2048
+        basis = lagrange_basis_polynomial(self.DOMAIN_2048, 0, self.RING_PRIME)
         assert len(basis) == 2048
 
     def test_lagrange_basis_polynomial_generic_root_domain(self):
         """Test optimized Lagrange basis on generated roots-of-unity domains."""
-        omega = get_root_of_unity(8, S_PRIME)
-        domain = [pow(omega, i, S_PRIME) for i in range(8)]
-        basis = lagrange_basis_polynomial(domain, 3, S_PRIME)
+        omega = get_root_of_unity(8, self.RING_PRIME)
+        domain = [pow(omega, i, self.RING_PRIME) for i in range(8)]
+        basis = lagrange_basis_polynomial(domain, 3, self.RING_PRIME)
 
         for index, point in enumerate(domain):
             expected = 1 if index == 3 else 0
-            assert poly_evaluate_single(basis, point, S_PRIME) == expected
+            assert poly_evaluate_single(basis, point, self.RING_PRIME) == expected
 
     def test_get_root_of_unity_caching(self):
         """Test that root of unity computation is cached."""
         # First call
-        root1 = get_root_of_unity(8, S_PRIME)
+        root1 = get_root_of_unity(8, self.RING_PRIME)
         # Second call should be cached
-        root2 = get_root_of_unity(8, S_PRIME)
+        root2 = get_root_of_unity(8, self.RING_PRIME)
 
         assert root1 == root2
         # Verify it's actually a root of unity
-        assert pow(root1, 8, S_PRIME) == 1
+        assert pow(root1, 8, self.RING_PRIME) == 1
 
     def test_get_root_of_unity_various_sizes(self):
         """Test root of unity for various sizes."""
         for n in [4, 8, 16, 32, 64]:
-            root = get_root_of_unity(n, S_PRIME)
-            assert pow(root, n, S_PRIME) == 1
+            root = get_root_of_unity(n, self.RING_PRIME)
+            assert pow(root, n, self.RING_PRIME) == 1
             # Should be primitive (root^(n/2) != 1)
             if n > 1:
-                assert pow(root, n // 2, S_PRIME) != 1
+                assert pow(root, n // 2, self.RING_PRIME) != 1
 
 
 class TestPolynomialOpsEdgeCases:

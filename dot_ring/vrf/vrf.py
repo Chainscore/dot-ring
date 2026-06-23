@@ -1,36 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, Self, TypeVar, cast
+from typing import Any, ClassVar, Generic, Self, TypeVar
 
 from ..curve.curve import CurveVariant
-from ..curve.point import CurvePoint
 
 C = TypeVar("C", bound=CurveVariant)
 
 
-@dataclass(frozen=True, slots=True)
-class PreparedSecretKey(Generic[C]):
-    """Decoded VRF secret scalar with its matching public key."""
-
-    curve: CurveVariant
-    secret_scalar: int
-    public_key: CurvePoint
-    public_key_bytes: bytes
-
-
 class VRF(Generic[C]):
-    """
-    Base VRF (Verifiable Random Function) implementation.
-
-    This class provides the core functionality for VRF operations,
-    following the shared dot-ring VRF interface.
-
-    Usage with subscript syntax:
-        >>> from dot_ring.curve.specs.bandersnatch import Bandersnatch
-        >>> from dot_ring.vrf.ietf import TinyVRF
-        >>> proof = TinyVRF[Bandersnatch].prove(alpha, secret_key, additional_data)
-    """
+    """Base VRF class that specializes implementations by curve variant."""
 
     cv: ClassVar[CurveVariant]
 
@@ -50,21 +28,19 @@ class VRF(Generic[C]):
         return new_class
 
     @classmethod
-    def get_public_key(cls, secret_key: bytes) -> bytes:
-        """Take the Secret_Key and return Public Key"""
-        return cls.prepare_secret_key(secret_key).public_key_bytes
+    def prove(cls, alpha: bytes, secret_key: bytes, additional_data: bytes, salt: bytes, **_kwargs: Any) -> Self:
+        raise NotImplementedError(f"{cls.__name__} does not implement prove")
+
+    def verify(self, *_args: Any, **_kwargs: Any) -> bool:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement verify")
+
+    def encode(self) -> bytes:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement encode")
 
     @classmethod
-    def prepare_secret_key(cls, secret_key: bytes) -> PreparedSecretKey[C]:
-        """Decode a secret key once and compute its matching public key."""
-        from dot_ring.vrf.transcript import scalar_decode
+    def decode(cls, data: bytes) -> Self:
+        raise NotImplementedError(f"{cls.__name__} does not implement from_bytes")
 
-        secret_key_int = scalar_decode(cls.cv, secret_key)
-        generator = cls.cv.generator_point()
-        public_key: CurvePoint = cast(Any, generator) * secret_key_int
-        return PreparedSecretKey(
-            curve=cls.cv,
-            secret_scalar=secret_key_int,
-            public_key=public_key,
-            public_key_bytes=public_key.point_to_string(),
-        )
+    @classmethod
+    def batch_verify(cls, *_args: Any, **_kwargs: Any) -> bool:
+        raise NotImplementedError(f"{cls.__name__} does not implement batch_verify")

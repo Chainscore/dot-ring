@@ -75,7 +75,7 @@ class TestGLVEndomorphism:
         """Test computing endomorphism."""
         from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = Bandersnatch.generator_point()
+        G = Bandersnatch.point_type.generator_point()
 
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
@@ -86,7 +86,7 @@ class TestGLVEndomorphism:
         """Test that phi(P) = lambda * P for the endomorphism."""
         from dot_ring.curve.specs.bandersnatch import BANDERSNATCH_PARAMS, Bandersnatch, BandersnatchGLV
 
-        G = Bandersnatch.generator_point()
+        G = Bandersnatch.point_type.generator_point()
 
         phi_G = BandersnatchGLV.compute_endomorphism(G)
         lambda_G = G * BANDERSNATCH_PARAMS.glv_lambda
@@ -102,7 +102,7 @@ class TestGLVWindowedMult:
         """Test windowed simultaneous multiplication."""
         from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = Bandersnatch.generator_point()
+        G = Bandersnatch.point_type.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = 100
@@ -117,7 +117,7 @@ class TestGLVWindowedMult:
         """Test windowed mult with negative k1."""
         from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = Bandersnatch.generator_point()
+        G = Bandersnatch.point_type.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = -50
@@ -132,7 +132,7 @@ class TestGLVWindowedMult:
         """Test windowed mult with negative k2."""
         from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = Bandersnatch.generator_point()
+        G = Bandersnatch.point_type.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = 100
@@ -147,7 +147,7 @@ class TestGLVWindowedMult:
         """Test windowed mult with both k1 and k2 negative."""
         from dot_ring.curve.specs.bandersnatch import Bandersnatch, BandersnatchGLV
 
-        G = Bandersnatch.generator_point()
+        G = Bandersnatch.point_type.generator_point()
         phi_G = BandersnatchGLV.compute_endomorphism(G)
 
         k1 = -30

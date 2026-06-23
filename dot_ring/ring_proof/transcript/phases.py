@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from dot_ring.curve.point import CurvePoint
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 
 __all__ = [
@@ -16,7 +17,7 @@ __all__ = [
 
 def phase1_alphas_after_vk(
     t: FiatShamirTranscript,
-    result_point: Any,
+    result_point: CurvePoint,
     witness_commitments: Sequence[Any],
 ) -> Any:
     """Append phase-1 data after the verifier key has already been absorbed."""
@@ -44,7 +45,7 @@ def phase3_nu_vector(
 
 def derive_challenges_after_vk(
     t: FiatShamirTranscript,
-    result_point: Any,
+    result_point: CurvePoint,
     witness_commitments: Sequence[Any],
     quotient_commitment: Any,
     evals: list[int] | bytes,
@@ -73,11 +74,11 @@ def serialize_verifier_key(g1: Any, g2_points: Sequence[Any], commitments: Seque
     return _serialize_bls_pair(g1) + b"".join(_serialize_bls_pair(point) for point in g2_points) + _serialize_commitments(commitments)
 
 
-def _serialize_instance(result_point: Any) -> bytes:
-    if isinstance(result_point, tuple) and len(result_point) == 2:
-        x, y = result_point
-        return int(x).to_bytes(32, "little") + int(y).to_bytes(32, "little")
-    return _serialize_bytes(result_point)
+def _serialize_instance(result_point: CurvePoint) -> bytes:
+    x, y = result_point.x, result_point.y
+    if x is None or y is None:
+        raise ValueError("Cannot serialize identity point")
+    return int(x).to_bytes(32, "little") + int(y).to_bytes(32, "little")
 
 
 def _serialize_commitments(commitments: Sequence[Any]) -> bytes:

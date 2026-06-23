@@ -1,30 +1,32 @@
+"""Ring-proof prover pipeline from ring-proof spec sections 3.1-3.3."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Any
 
 from dot_ring.curve.curve import CurveVariant
-from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder, require_commitment
+from dot_ring.curve.point import CurvePoint
+from dot_ring.ring_proof.columns.columns import Column, WitnessColumnBuilder
 from dot_ring.ring_proof.constraints.constraints import RingConstraintBuilder
 from dot_ring.ring_proof.polynomial.fft import inverse_fft
 from dot_ring.ring_proof.polynomial.ops import poly_add, poly_divide_by_vanishing, poly_evaluate_single, poly_multiply, poly_scalar_mul
+from dot_ring.ring_proof.proof_payload import RingProofPayload
 from dot_ring.ring_proof.transcript.phases import phase1_alphas_after_vk, phase2_eval_point, phase3_nu_vector
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
 
-from .members import Ring
-from .proof_payload import RingProofPayload
-from .root import RingRoot
-
 
 class RingProofBuilder:
+    """Build the SNARK payload that proves `producer_key + b*B` is in the committed ring."""
+
     def __init__(
         self,
         curve: CurveVariant,
         blinding_factor: int,
         producer_key: bytes | str,
-        ring: Ring,
+        ring: Any,
         transcript_challenge: bytes | None = None,
-        ring_root: RingRoot | None = None,
+        ring_root: Any | None = None,
     ) -> None:
         self.curve = curve
         self.blinding_factor = blinding_factor
@@ -34,10 +36,25 @@ class RingProofBuilder:
         self.transcript_challenge = transcript_challenge or curve.curve.params.suite_id
 
     def build(self) -> RingProofPayload:
+        """Spec sections 3.1-3.3 in order: witness, constraints, quotient, linearization, openings."""
         params = self.ring.params
-        ring_root = self.ring_root or RingRoot.from_ring(self.ring, params)
+        from dot_ring.vrf.ring.root import RingRoot
+
+        ring_root = self.ring_root
+        if (
+            ring_root is None
+            or ring_root.px.coeffs is None
+            or ring_root.py.coeffs is None
+            or ring_root.s.coeffs is None
+            or len(ring_root.s.evals) < params.domain_size
+        ):
+            computed_root = RingRoot.from_ring(self.ring, params)
+            if ring_root is not None and computed_root.encode() != ring_root.encode():
+                raise ValueError("ring_root does not match ring")
+            ring_root = computed_root
         producer_index = self.ring.index_of(self.producer_key)
 
+        # Section 3.1: witness bit column and accumulators for R = PK_k + bB.
         witness_builder = WitnessColumnBuilder.from_params(
             self.ring.nm_points,
             ring_root.s.evals,
@@ -46,28 +63,31 @@ class RingProofBuilder:
             params,
         )
         witness_columns = witness_builder.build()
-        relation_point = witness_builder.result(params.blinding_base)
-        relation_plus_seed = witness_builder.result_p_seed(relation_point)
+        relation_point = witness_builder.result(params.cv.curve.params.auxiliary_points.blinding_base)
+        seed_point = params.cv.curve.params.auxiliary_points.accumulator_base
+        relation_plus_seed_point = relation_point + params.cv.point_type(*seed_point)
+        relation_plus_seed = int(relation_plus_seed_point.x), int(relation_plus_seed_point.y)
 
+        # Section 3.2: c1-c7 constraints over fixed and witness columns.
         constraints = RingConstraintBuilder(
-            Result_plus_Seed=relation_plus_seed,
-            px=cast(list[int], ring_root.px.coeffs),
-            py=cast(list[int], ring_root.py.coeffs),
-            s=cast(list[int], ring_root.s.coeffs),
-            b=cast(list[int], witness_columns[0].coeffs),
-            acc_x=cast(list[int], witness_columns[1].coeffs),
-            acc_y=cast(list[int], witness_columns[2].coeffs),
-            acc_ip=cast(list[int], witness_columns[3].coeffs),
+            result_plus_seed=relation_plus_seed,
+            px=self._coeffs(ring_root.px),
+            py=self._coeffs(ring_root.py),
+            s=self._coeffs(ring_root.s),
+            b=self._coeffs(witness_columns[0]),
+            acc_x=self._coeffs(witness_columns[1]),
+            acc_y=self._coeffs(witness_columns[2]),
+            acc_ip=self._coeffs(witness_columns[3]),
             params=params,
-            seed_point=params.seed_point,
         )
         transcript, alpha = self._phase1_transcript(ring_root, relation_point, witness_columns)
         constraint_polys = list(constraints.compute().values())
         c_agg = self._aggregate_constraints(constraint_polys, alpha)
 
+        # Section 3.3.2: quotient commitment.
         q_poly = poly_divide_by_vanishing(c_agg, params.domain_size)
         c_q = params.pcs.commit(q_poly)
-        c_q_column = Column(name="C_q", evals=[], commitment=c_q)
+        c_q_column = Column(name="C_q", evals=[], _commitment=c_q)
 
         fixed_columns = (ring_root.px, ring_root.py, ring_root.s)
 
@@ -102,6 +122,7 @@ class RingProofBuilder:
         ) = relation_evals.values()
         c_b, c_accx, c_accy, c_accip = witness_columns
 
+        # Section 3.3.8: fixed payload order used by verifier.
         return RingProofPayload(
             c_b=c_b,
             c_accip=c_accip,
@@ -116,32 +137,29 @@ class RingProofBuilder:
             accy_zeta=accy_zeta,
             c_q=c_q_column,
             l_zeta_omega=l_zeta_omega,
-            open_agg_zeta=phi_zeta,
-            open_l_zeta_omega=phi_zeta_omega,
+            open_agg_zeta=phi_zeta.proof,
+            open_l_zeta_omega=phi_zeta_omega.proof,
         )
 
     def _phase1_transcript(
         self,
-        ring_root: RingRoot,
-        relation_point: tuple[int, int],
+        ring_root: Any,
+        relation_point: CurvePoint,
         witness_columns: tuple[Column, Column, Column, Column],
     ) -> tuple[FiatShamirTranscript, list[int]]:
         params = self.ring.params
         c_b, c_accx, c_accy, c_accip = witness_columns
         witness_commitments = [
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_b)),
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_accip)),
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_accx)),
-            params.pcs.serialize_g1_uncompressed(require_commitment(c_accy)),
+            params.pcs.serialize_g1_uncompressed(c_b.commitment),
+            params.pcs.serialize_g1_uncompressed(c_accip.commitment),
+            params.pcs.serialize_g1_uncompressed(c_accx.commitment),
+            params.pcs.serialize_g1_uncompressed(c_accy.commitment),
         ]
-        transcript = ring_root.verifier_transcript_prefix(params, self.transcript_challenge).copy()
-        return cast(
-            tuple[FiatShamirTranscript, list[int]],
-            phase1_alphas_after_vk(
-                transcript,
-                relation_point,
-                witness_commitments,
-            ),
+        transcript = ring_root.verifier_transcript_prefix(self.transcript_challenge).copy()
+        return phase1_alphas_after_vk(
+            transcript,
+            relation_point,
+            witness_commitments,
         )
 
     def _aggregate_constraints(
@@ -149,6 +167,7 @@ class RingProofBuilder:
         constraint_evals: Sequence[Sequence[int]],
         alphas: Sequence[int],
     ) -> list[int]:
+        """Spec section 3.3.1: alpha-combine constraint evaluations and hide final ZK rows."""
         params = self.ring.params
         if not constraint_evals:
             return []
@@ -183,6 +202,7 @@ class RingProofBuilder:
         witness_columns: tuple[Column, Column, Column, Column],
         alphas: Sequence[int],
     ) -> tuple[FiatShamirTranscript, int, dict[str, int], list[int], int, int]:
+        """Spec sections 3.3.3-3.3.5: choose zeta, evaluate relation columns, build L(X)."""
         params = self.ring.params
         current_transcript, zeta = phase2_eval_point(
             transcript,
@@ -235,7 +255,7 @@ class RingProofBuilder:
         b = evals["b_zeta"]
         x1, y1 = evals["acc_x_zeta"], evals["acc_y_zeta"]
         x2, y2 = evals["P_x_zeta"], evals["P_y_zeta"]
-        point_relation = y1 * y2 + params.ring_edwards_a * x1 * x2
+        point_relation = y1 * y2 + params.cv.curve.params.a * x1 * x2
         return (b * point_relation + (1 - b)) * scalar_term % params.prime
 
     def _acc_y_constraint_factor(self, evals: dict[str, int], scalar_term: int) -> int:
@@ -272,6 +292,7 @@ class RingProofBuilder:
         q_poly: list[int],
         opening_challenges: Sequence[int],
     ) -> list[int]:
+        """Spec section 3.3.6: aggregate all zeta openings with the nu challenge vector."""
         params = self.ring.params
         c_b, c_accx, c_accy, c_accip = witness_columns
         polynomials = [

@@ -10,7 +10,6 @@ import time
 from dataclasses import dataclass
 
 from dot_ring import Bandersnatch
-from dot_ring.keygen import secret_from_seed
 from dot_ring.vrf.pedersen import PedersenVRF
 
 
@@ -39,7 +38,7 @@ def _seed(*parts: object) -> bytes:
 
 
 def benchmark_once(sample_index: int) -> Timing:
-    _, secret_key = secret_from_seed(_seed("pedersen-signer", sample_index), Bandersnatch)
+    _, secret_key = Bandersnatch.secret_from_seed(_seed("pedersen-signer", sample_index))
     alpha = b"bench-pedersen-input" + sample_index.to_bytes(8, "little")
     ad = b"bench-pedersen-ad" + sample_index.to_bytes(8, "little")
     salt = b"bench-pedersen-salt" + sample_index.to_bytes(8, "little")
@@ -61,7 +60,7 @@ def benchmark_once(sample_index: int) -> Timing:
         prove_ms=prove_ms,
         verify_ms=verify_ms,
         total_ms=(time.perf_counter() - total_start) * 1000,
-        proof_size=len(proof.to_bytes()),
+        proof_size=len(proof.encode()),
     )
 
 

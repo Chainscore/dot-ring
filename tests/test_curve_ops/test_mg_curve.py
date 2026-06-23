@@ -51,15 +51,15 @@ def test_mg_curve_methods():
     invalid_point = (1, 0)
     assert not curve.is_on_curve(invalid_point)
 
-    # Test point_at_infinity
-    inf = curve.point_at_infinity()
+    # Point construction is suite-bound; MGCurve itself does not own a point class.
+    inf = Curve25519_RO.point_type.identity()
     assert inf.is_identity()
 
     # Test validate_point
     assert curve.validate_point(inf)
 
     # Test validate_point with valid point
-    gen_point = Curve25519_RO.generator_point()
+    gen_point = Curve25519_RO.point_type.generator_point()
     assert curve.validate_point(gen_point)
 
     # Test validate_point with invalid point object (mock)
@@ -75,7 +75,7 @@ def test_mg_curve_methods():
 
 def test_mg_curve_random_point():
     curve = Curve25519_RO.curve
-    point = curve.random_point()
+    point = Curve25519_RO.point_type.encode_to_curve(b"random point")
     assert curve.is_on_curve((point.x, point.y))
     assert curve.validate_point(point)
 

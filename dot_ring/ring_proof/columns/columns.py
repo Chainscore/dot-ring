@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import cast
+from dataclasses import dataclass, field
 
-from dot_ring.ring_proof.constants import DEFAULT_SIZE, MAX_RING_SIZE, OMEGAS, S_PRIME, ZK_ROWS, SeedPoint
-from dot_ring.ring_proof.params import RingProofParams
+from dot_ring.curve.point import CurvePoint
+from dot_ring.ring_proof.params import (
+    DEFAULT_DOMAIN_SIZE,
+    DEFAULT_MAX_RING_SIZE,
+    ZK_ROWS,
+    RingProofParams,
+)
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.pcs.protocol import PCS, G1Commitment
 from dot_ring.ring_proof.polynomial.fft import inverse_fft
@@ -19,13 +23,13 @@ class Column:
     name: str
     evals: list[int]
     coeffs: list[int] | None = None
-    commitment: G1Commitment | None = None
-    size: int = DEFAULT_SIZE
+    _commitment: G1Commitment | None = None
+    size: int = DEFAULT_DOMAIN_SIZE
 
     def interpolate(
         self,
-        domain_omega: int = OMEGAS[DEFAULT_SIZE],
-        prime: int = S_PRIME,
+        domain_omega: int,
+        prime: int,
         hidden: bool = False,
         test_vectors: bool = False,
     ) -> None:
@@ -51,14 +55,14 @@ class Column:
     def commit(self, pcs: type[PCS] = KZG) -> None:
         if self.coeffs is None:
             raise ValueError("call interpolate() first")
-        if self.commitment is None:
-            self.commitment = pcs.commit(self.coeffs)
+        if self._commitment is None:
+            self._commitment = pcs.commit(self.coeffs)
 
-
-def require_commitment(column: Column) -> G1Commitment:
-    if column.commitment is None:
-        raise ValueError(f"{column.name} commitment is missing")
-    return column.commitment
+    @property
+    def commitment(self) -> G1Commitment | None:
+        if self._commitment is None:
+            raise ValueError(f"{self.name} commitment is not set")
+        return self._commitment
 
 
 @dataclass(slots=True)
@@ -67,15 +71,19 @@ class WitnessColumnBuilder:
     selector_vector: list[int]
     producer_index: int
     secret_t: int
-    size: int = DEFAULT_SIZE
-    omega: int = OMEGAS[DEFAULT_SIZE]
-    prime: int = S_PRIME
-    max_ring_size: int = MAX_RING_SIZE
+    params: RingProofParams = field(default_factory=RingProofParams, repr=False)
+    size: int = DEFAULT_DOMAIN_SIZE
+    omega: int | None = None
+    prime: int | None = None
+    max_ring_size: int = DEFAULT_MAX_RING_SIZE
     padding_rows: int = 4
     test_vectors: bool = False
-    seed_point: tuple[int, int] = SeedPoint
-    params: RingProofParams | None = None
-    pcs: type[PCS] = KZG
+
+    def __post_init__(self) -> None:
+        if self.omega is None:
+            self.omega = self.params.omega
+        if self.prime is None:
+            self.prime = self.params.prime
 
     @classmethod
     def from_params(
@@ -91,28 +99,14 @@ class WitnessColumnBuilder:
             selector_vector=selector_vector,
             producer_index=producer_index,
             secret_t=secret_t,
+            params=params,
             size=params.domain_size,
             omega=params.omega,
             prime=params.prime,
             max_ring_size=params.max_ring_size,
             padding_rows=params.padding_rows,
             test_vectors=params.test_vectors,
-            seed_point=params.seed_point,
-            params=params,
-            pcs=params.pcs,
         )
-
-    def _add(self, point1: tuple[int, int], point2: tuple[int, int]) -> tuple[int, int]:
-        if self.params is None:
-            raise ValueError("Ring proof params are required for point arithmetic")
-        result = self.params.add_points(point1, point2)
-        return result
-
-    def _mul(self, scalar: int, point: tuple[int, int]) -> tuple[int, int]:
-        if self.params is None:
-            raise ValueError("Ring proof params are required for point arithmetic")
-        result = self.params.mul_point(scalar, point)
-        return result
 
     def _bits_vector(self) -> list[int]:
         bv = [1 if i == self.producer_index else 0 for i in range(self.max_ring_size)]
@@ -131,12 +125,16 @@ class WitnessColumnBuilder:
         return bv
 
     def _conditional_sum_accumulator(self, b_vector: list[int]) -> tuple[list[int], list[int]]:
-        seed_sw = self.seed_point
-
-        acc = [seed_sw]
+        acc = [self.params.cv.curve.params.auxiliary_points.accumulator_base]
         acc_len = self.size - self.padding_rows + 1
         for i in range(1, acc_len):
-            next_pt = acc[i - 1] if b_vector[i - 1] == 0 else self._add(acc[i - 1], self.ring_pk[i - 1])
+            if b_vector[i - 1] == 0:
+                next_pt = acc[i - 1]
+            else:
+                current = acc[i - 1]
+                member = self.ring_pk[i - 1]
+                added = self.params.cv.point_type(*current) + self.params.cv.point_type(*member)
+                next_pt = int(added.x), int(added.y)
             acc.append(next_pt)
         return [point[0] for point in acc], [point[1] for point in acc]
 
@@ -160,25 +158,10 @@ class WitnessColumnBuilder:
         ]
         for col in columns:
             col.interpolate(self.omega, self.prime, hidden=True, test_vectors=self.test_vectors)
-            col.commit(self.pcs)
+            col.commit(self.params.pcs)
         return (columns[0], columns[1], columns[2], columns[3])
 
-    def result(self, Blinding_point: tuple[int, int]) -> tuple[int, int]:
-        """
-        input: public key, secret vector and Blinding Base
-        output: relation as Result Point
-        """
-        # sw_H = sw.from_twisted_edwards(Blinding_point)
-        sw_H = Blinding_point
-        PK_k = self.ring_pk[self.producer_index]
-        Result_point = cast(
-            tuple[int, int],
-            self._add(PK_k, self._mul(self.secret_t, sw_H)),
-        )
-        return Result_point
-
-    def result_p_seed(self, result: tuple[int, int]) -> tuple[int, int]:
-        """result plus seed"""
-        # res=sw.add(result, sw.from_twisted_edwards(SeedPoint))
-        res = cast(tuple[int, int], self._add(result, self.seed_point))
-        return res
+    def result(self, blinding_point: tuple[int, int]) -> CurvePoint:
+        producer_point = self.params.cv.point_type(*self.ring_pk[self.producer_index])
+        blinded = self.params.cv.point_type(*blinding_point) * self.secret_t
+        return producer_point + blinded

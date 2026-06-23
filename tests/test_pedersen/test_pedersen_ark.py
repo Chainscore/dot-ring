@@ -9,8 +9,8 @@ from dot_ring.curve.specs.bandersnatch_sw import Bandersnatch_SW
 from dot_ring.curve.specs.ed25519 import Ed25519_TAI
 from dot_ring.curve.specs.jubjub import JubJub
 from dot_ring.curve.specs.p256 import P256_TAI
+from dot_ring.vrf.codec import scalar_len
 from dot_ring.vrf.pedersen import PedersenVRF
-from dot_ring.vrf.transcript import scalar_len
 
 HERE = os.path.dirname(__file__)
 
@@ -46,16 +46,16 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                 additional_data = bytes.fromhex(vector["ad"])
 
                 # Public Key check
-                pk_bytes = PedersenVRF[curve_variant].get_public_key(secret_scalar)
+                pk_bytes = curve_variant.public_key_from_secret(secret_scalar)
 
                 # Input Point check
-                input_point = curve_variant.encode_to_curve(alpha)
+                input_point = curve_variant.point_type.encode_to_curve(alpha)
                 if "h" in vector:
                     assert input_point.point_to_string().hex() == vector["h"]
 
                 proof = PedersenVRF[curve_variant].prove(alpha, secret_scalar, additional_data)
-                proof_bytes = proof.to_bytes()
-                proof_rt = PedersenVRF[curve_variant].from_bytes(proof_bytes)
+                proof_bytes = proof.encode()
+                proof_rt = PedersenVRF[curve_variant].decode(proof_bytes)
 
                 assert pk_bytes.hex() == vector["pk"], "Invalid Public Key"
                 assert proof.output_point.point_to_string().hex() == vector["gamma"]
@@ -70,13 +70,13 @@ def test_pedersen_ietf(curve_variant, file_prefix, subdir):
                     scalar_len(curve_variant),
                     curve_variant.curve.encoding_endian(),
                 ) == bytes.fromhex(vector["proof_sb"])
-                assert PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
+                assert PedersenVRF[curve_variant].proof_to_hash(proof.output_point).hex() == vector["beta"]
 
                 if "beta" in vector:
-                    assert PedersenVRF[curve_variant].ecvrf_proof_to_hash(proof.output_point.point_to_string()).hex() == vector["beta"]
+                    assert PedersenVRF[curve_variant].proof_to_hash(proof.output_point).hex() == vector["beta"]
 
                 assert proof.verify(alpha, additional_data)
-                assert proof_rt.to_bytes() == proof_bytes
+                assert proof_rt.encode() == proof_bytes
                 assert proof_rt.verify(alpha, additional_data)
 
     if not found:

@@ -44,14 +44,26 @@ P521_PARAMS = ShortWeierstrassCurveParams[int](
 )
 
 
+P521_RO_Curve = SWCurve(params=P521_PARAMS, e2c_variant=E2C_Variant.SSWU)
+P521_NU_Curve = SWCurve(params=P521_PARAMS, e2c_variant=E2C_Variant.SSWU_NU)
+
+
+class P521ROPoint(SWAffinePoint):
+    curve = P521_RO_Curve
+
+
+class P521NUPoint(SWAffinePoint):
+    curve = P521_NU_Curve
+
+
 P521_RO = CurveVariant(
     name="P521_RO",
-    curve=SWCurve(params=P521_PARAMS, e2c_variant=E2C_Variant.SSWU),
-    point_type=SWAffinePoint,
+    curve=P521_RO_Curve,
+    point_type=P521ROPoint,
 )
 
 P521_NU = CurveVariant(
     name="P521_NU",
-    curve=SWCurve(params=P521_PARAMS, e2c_variant=E2C_Variant.SSWU_NU),
-    point_type=SWAffinePoint,
+    curve=P521_NU_Curve,
+    point_type=P521NUPoint,
 )

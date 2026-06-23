@@ -172,7 +172,7 @@ class GLV:
         x, y, p = point.x, point.y, point.curve.params.field_modulus
 
         if x is None or y is None:
-            return point.__class__.identity(point.curve)
+            return point.__class__.identity()
         y2 = pow(cast(int, y), 2, p)
         xy = (cast(int, x) * cast(int, y)) % p
         f_y = (self.constant_c * (1 - y2)) % p
@@ -186,7 +186,7 @@ class GLV:
         x_a = (x_p * pow(z_p, -1, p)) % p
         y_a = (y_p * pow(z_p, -1, p)) % p
 
-        return point.__class__(x_a, y_a, point.curve)
+        return point.__class__(x_a, y_a)
 
     def windowed_simultaneous_mult(self, k1: int, k2: int, P1: AffinePointT, P2: AffinePointT, w: int = 2) -> AffinePointT:
         """
@@ -245,7 +245,7 @@ class GLV:
         # Convert back to affine
         ax, ay = projective_to_affine(rx, ry, rz, p)
         point_cls = cast(type[AffinePointT], P1.__class__)
-        return point_cls(ax, ay, P1.curve)
+        return point_cls(ax, ay)
 
     def multi_scalar_mult_4(
         self,
@@ -288,14 +288,14 @@ class GLV:
 
         if P1.is_identity() or P2.is_identity() or P3.is_identity() or P4.is_identity():
             point_cls = cast(type[AffinePointT], P1.__class__)
-            result = point_cls.identity(P1.curve)
+            result = point_cls.identity()
             for scalar, point in ((k1, P1), (k2, P2), (k3, P3), (k4, P4)):
                 if scalar != 0 and not point.is_identity():
                     result = result + point * scalar  # type: ignore[operator]
             return result
         if w != 2:
             point_cls = cast(type[AffinePointT], P1.__class__)
-            result = point_cls.identity(P1.curve)
+            result = point_cls.identity()
             for scalar, point in ((k1, P1), (k2, P2), (k3, P3), (k4, P4)):
                 if scalar:
                     result = result + point * scalar  # type: ignore[operator]
@@ -347,7 +347,7 @@ class GLV:
 
         ax, ay = projective_to_affine(rx, ry, rz, p)
         point_cls = cast(type[AffinePointT], P1.__class__)
-        return point_cls(ax, ay, P1.curve)
+        return point_cls(ax, ay)
 
     def multi_scalar_mult_pippenger(
         self,
@@ -362,7 +362,7 @@ class GLV:
         d_coeff = points[0].curve.params.d
         ax, ay = _native_signed_pippenger_msm(points, scalars, a_coeff, d_coeff, p, window_bits, True)
         point_cls = cast(type[AffinePointT], points[0].__class__)
-        return point_cls(ax, ay, points[0].curve)
+        return point_cls(ax, ay)
 
     def multi_scalar_mult_6(
         self,
@@ -387,7 +387,7 @@ class GLV:
 
         if any(point.is_identity() for point in work_points):
             point_cls = cast(type[AffinePointT], work_points[0].__class__)
-            result = point_cls.identity(work_points[0].curve)
+            result = point_cls.identity()
             for scalar, point in zip(work_scalars, work_points, strict=True):
                 if scalar != 0 and not point.is_identity():
                     result = result + point * scalar  # type: ignore[operator]
@@ -409,7 +409,7 @@ class GLV:
             or P6.y is None
         ):
             point_cls = cast(type[AffinePointT], P1.__class__)
-            result = point_cls.identity(P1.curve)
+            result = point_cls.identity()
             for scalar, point in zip(work_scalars, work_points, strict=True):
                 result = result + point * scalar  # type: ignore[operator]
             return result
@@ -427,7 +427,7 @@ class GLV:
 
         if w != 2:
             point_cls = cast(type[AffinePointT], P1.__class__)
-            result = point_cls.identity(P1.curve)
+            result = point_cls.identity()
             for scalar, point in zip(work_scalars, work_points, strict=True):
                 result = result + point * scalar  # type: ignore[operator]
             return result
@@ -469,4 +469,4 @@ class GLV:
         )
         ax, ay = projective_to_affine(rx, ry, rz, p)
         point_cls = cast(type[AffinePointT], P1.__class__)
-        return point_cls(ax, ay, P1.curve)
+        return point_cls(ax, ay)

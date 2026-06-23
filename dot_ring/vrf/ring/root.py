@@ -2,17 +2,135 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from dot_ring.ring_proof.columns.columns import Column, require_commitment
+from dot_ring.ring_proof.columns.columns import Column
 from dot_ring.ring_proof.params import RingProofParams
 from dot_ring.ring_proof.pcs.kzg import KZG
 from dot_ring.ring_proof.transcript.phases import serialize_verifier_key
 from dot_ring.ring_proof.transcript.transcript import FiatShamirTranscript
+from dot_ring.vrf.ring.members import Ring
 
-from .members import Ring
+
+@dataclass
+class RingRoot:
+    px: Column
+    py: Column
+    s: Column
+    params: RingProofParams | None = None
+
+    @classmethod
+    def from_ring(cls, ring: Ring, params: RingProofParams | None = None):
+        if params is None:
+            params = ring.params
+
+        s_evals, s_coeffs, s_commitment = _selector_column_data(
+            domain_size=params.domain_size,
+            max_ring_size=params.max_ring_size,
+            omega=params.omega,
+            prime=params.prime,
+            pcs=params.pcs,
+        )
+        s = Column("s", list(s_evals), coeffs=list(s_coeffs), _commitment=s_commitment, size=params.domain_size)
+
+        px_evals, px_coeffs, px_commitment, py_evals, py_coeffs, py_commitment = _public_keys_column_data(
+            nm_points=ring.nm_points,
+            domain_size=params.domain_size,
+            omega=params.omega,
+            prime=params.prime,
+            pcs=params.pcs,
+        )
+        px = Column("px", list(px_evals), coeffs=list(px_coeffs), _commitment=px_commitment, size=params.domain_size)
+        py = Column("py", list(py_evals), coeffs=list(py_coeffs), _commitment=py_commitment, size=params.domain_size)
+
+        return cls(px=px, py=py, s=s, params=params)
+
+    def fixed_commitments(self) -> list[Any]:
+        """Return fixed-column commitments for the ring root."""
+        return [
+            self.px.commitment,
+            self.py.commitment,
+            self.s.commitment,
+        ]
+
+    def verifier_transcript_prefix(self, transcript_challenge: bytes | None = None):
+        """Return a transcript state after absorbing the fixed verifier key."""
+        if self.params is None:
+            raise ValueError("Ring root verifier transcript requires ring proof parameters")
+
+        commitments = self.fixed_commitments()
+        commitment_bytes = [self.params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments]
+        verifier_key_bytes = serialize_verifier_key(
+            self.params.pcs.srs.g1_points[0],
+            [(b, a) for pair in self.params.pcs.srs.g2_points for point in pair for a, b in [point]],
+            commitment_bytes,
+        )
+        if transcript_challenge is None:
+            transcript_challenge = self.params.cv.curve.params.suite_id
+
+        transcript = FiatShamirTranscript(self.params.prime, transcript_challenge)
+        transcript.absorb_labeled(b"vk", verifier_key_bytes)
+        return transcript
+
+    @staticmethod
+    def encoded_len(params: RingProofParams | None = None) -> int:
+        commitment_size = params.pcs.commitment_size if params is not None else KZG.commitment_size
+        return 3 * commitment_size
+
+    def encode(self) -> bytes:
+        pcs = self.params.pcs if self.params is not None else KZG
+        return b"".join(
+            (
+                pcs.compress_g1(self.px.commitment),
+                pcs.compress_g1(self.py.commitment),
+                pcs.compress_g1(self.s.commitment),
+            )
+        )
+
+    @classmethod
+    def decode(cls, data: bytes, ring: Ring | RingProofParams | None = None) -> "RingRoot":
+        params = ring.params if isinstance(ring, Ring) else ring
+        if params is None:
+            params = RingProofParams()
+        commitment_size = params.pcs.commitment_size
+        expected = cls.encoded_len(params)
+        if len(data) != expected:
+            raise ValueError(f"invalid ring root length: ring root must be exactly {expected} bytes, got {len(data)}")
+
+        pcs = params.pcs
+        reader = _RingRootReader(data, commitment_size)
+        px_commitment = reader.g1(pcs)
+        py_commitment = reader.g1(pcs)
+        s_commitment = reader.g1(pcs)
+        reader.finish()
+
+        px = Column("px", [], _commitment=px_commitment, size=params.domain_size)
+        py = Column("py", [], _commitment=py_commitment, size=params.domain_size)
+        s = Column("s", [], _commitment=s_commitment, size=params.domain_size)
+
+        return cls(px=px, py=py, s=s, params=params)
+
+    def matches_ring(self, ring: Ring) -> bool:
+        return RingRoot.from_ring(ring).encode() == self.encode()
 
 
-# Global bounded cache: selector columns are fixed for a params/PCS tuple.
-@lru_cache(maxsize=16)
+class _RingRootReader:
+    def __init__(self, data: bytes, commitment_size: int) -> None:
+        self.data = data
+        self.commitment_size = commitment_size
+        self.offset = 0
+
+    def g1(self, pcs: Any) -> Any:
+        end = self.offset + self.commitment_size
+        commitment = pcs.decompress_g1(self.data[self.offset : end])
+        self.offset = end
+        return commitment
+
+    def finish(self) -> None:
+        if self.offset != len(self.data):
+            raise ValueError(f"trailing bytes in ring root: {len(self.data) - self.offset}")
+
+
+# Assumption: Selector column would likely be same as long as ring size doesn't change
+@lru_cache(maxsize=2)
 def _selector_column_data(
     domain_size: int,
     max_ring_size: int,
@@ -29,120 +147,27 @@ def _selector_column_data(
     return tuple(selector_col.evals), tuple(selector_col.coeffs), selector_col.commitment
 
 
-def _selector_column(params: RingProofParams) -> Column:
-    evals, coeffs, commitment = _selector_column_data(
-        params.domain_size,
-        params.max_ring_size,
-        params.omega,
-        params.prime,
-        params.pcs,
+# Assumption: Ring changes are infrequent, so caching the ring for a given set of keys is reasonable
+@lru_cache(maxsize=8)
+def _public_keys_column_data(
+    nm_points: tuple[tuple[int, int], ...],
+    domain_size: int,
+    omega: int,
+    prime: int,
+    pcs: Any,
+) -> tuple[tuple[int, ...], tuple[int, ...], Any, tuple[int, ...], tuple[int, ...], Any]:
+    px_col = Column("Px", [point[0] for point in nm_points], size=domain_size)
+    py_col = Column("Py", [point[1] for point in nm_points], size=domain_size)
+    for col in (px_col, py_col):
+        col.interpolate(omega, prime)
+        col.commit(pcs)
+        if col.coeffs is None or col.commitment is None:
+            raise ValueError(f"failed to build {col.name} column")
+    return (
+        tuple(px_col.evals),
+        tuple(px_col.coeffs),
+        px_col.commitment,
+        tuple(py_col.evals),
+        tuple(py_col.coeffs),
+        py_col.commitment,
     )
-    return Column("s", list(evals), list(coeffs), commitment=_copy_commitment(commitment), size=params.domain_size)
-
-
-def _copy_commitment(commitment: Any) -> Any:
-    return commitment.dup() if hasattr(commitment, "dup") else commitment
-
-
-def _transcript_g2_points(g2_points: Any) -> list[tuple[int, int]]:
-    return [(b, a) for pair in g2_points for point in pair for a, b in [point]]
-
-
-@dataclass
-class RingRoot:
-    px: Column
-    py: Column
-    s: Column
-    params: RingProofParams | None = None
-
-    @classmethod
-    def from_ring(cls, ring: Ring, params: RingProofParams | None = None):
-        if params is None:
-            params = ring.params
-        px = [point[0] for point in ring.nm_points]
-        py = [point[1] for point in ring.nm_points]
-        px_col = Column("Px", px, size=params.domain_size)
-        py_col = Column("Py", py, size=params.domain_size)
-        s_col = _selector_column(params)
-        for col in (px_col, py_col):
-            col.interpolate(params.omega, params.prime)
-            col.commit(params.pcs)
-        return cls(px=px_col, py=py_col, s=s_col, params=params)
-
-    def fixed_commitments(self, params: RingProofParams | None = None) -> list[Any]:
-        """Return fixed-column commitments for the ring root."""
-        if params is None:
-            params = self.params
-        if params is None:
-            raise ValueError("Ring root commitments require ring proof parameters")
-
-        return [
-            require_commitment(self.px),
-            require_commitment(self.py),
-            require_commitment(self.s),
-        ]
-
-    def verifier_transcript_prefix(self, params: RingProofParams | None = None, transcript_challenge: bytes | None = None):
-        """Return a transcript state after absorbing the fixed verifier key."""
-        if params is None:
-            params = self.params
-        if params is None:
-            raise ValueError("Ring root verifier transcript requires ring proof parameters")
-
-        commitments = self.fixed_commitments(params)
-        commitment_bytes = [params.pcs.serialize_g1_uncompressed(commitment) for commitment in commitments]
-        verifier_key_bytes = serialize_verifier_key(
-            params.pcs.srs.g1_points[0],
-            _transcript_g2_points(params.pcs.srs.g2_points),
-            commitment_bytes,
-        )
-        if transcript_challenge is None:
-            transcript_challenge = params.cv.curve.params.suite_id
-
-        transcript = FiatShamirTranscript(params.prime, transcript_challenge)
-        transcript.absorb_labeled(b"vk", verifier_key_bytes)
-        return transcript
-
-    def to_bytes(self) -> bytes:
-        pcs = self.params.pcs if self.params is not None else KZG
-        return b"".join(
-            (
-                pcs.compress_g1(require_commitment(self.px)),
-                pcs.compress_g1(require_commitment(self.py)),
-                pcs.compress_g1(require_commitment(self.s)),
-            )
-        )
-
-    @classmethod
-    def from_bytes(cls, data: bytes, params: RingProofParams | None = None) -> "RingRoot":
-        if params is not None:
-            commitment_size = params.pcs.commitment_size
-        else:
-            commitment_size = KZG.commitment_size
-        expected = 3 * commitment_size
-        if len(data) != expected:
-            raise ValueError(f"invalid ring root length: ring root must be exactly {expected} bytes, got {len(data)}")
-
-        pcs = params.pcs if params is not None else KZG
-        px_commitment, py_commitment, s_commitment = (
-            pcs.decompress_g1(data[0:commitment_size]),
-            pcs.decompress_g1(data[commitment_size : commitment_size * 2]),
-            pcs.decompress_g1(data[commitment_size * 2 : expected]),
-        )
-
-        px = Column(name="px", evals=[], commitment=_copy_commitment(px_commitment))
-        py = Column(name="py", evals=[], commitment=_copy_commitment(py_commitment))
-        s = Column(name="s", evals=[], commitment=_copy_commitment(s_commitment))
-
-        return cls(px=px, py=py, s=s, params=params)
-
-    def matches_ring(self, ring: Ring) -> bool:
-        params = ring.params
-        domain_size = params.domain_size
-        if len(self.px.evals) >= domain_size and len(self.py.evals) >= domain_size and len(self.s.evals) >= domain_size:
-            return (
-                tuple(self.px.evals[:domain_size]) == tuple(point[0] for point in ring.nm_points)
-                and tuple(self.py.evals[:domain_size]) == tuple(point[1] for point in ring.nm_points)
-                and tuple(self.s.evals[:domain_size]) == tuple(1 if i < params.max_ring_size else 0 for i in range(domain_size))
-            )
-        return RingRoot.from_ring(ring, params).to_bytes() == self.to_bytes()

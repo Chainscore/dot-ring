@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
+from dot_ring.curve.e2c import E2C_Variant
 from dot_ring.curve.fp2 import Fp2
 
 if TYPE_CHECKING:
@@ -11,6 +12,8 @@ if TYPE_CHECKING:
 # TypeVar for curve types
 Coord = int | Fp2
 CoordT = TypeVar("CoordT", int, Fp2)
+
+
 C = TypeVar("C", bound="Curve[Coord]")
 
 
@@ -35,11 +38,10 @@ class CurvePoint(Generic[C, CoordT]):
         self,
         x: CoordT | None,
         y: CoordT | None,
-        curve: C,
     ) -> None:
         self.x = x
         self.y = y
-        self.curve = curve
+        self.curve = self.__class__.curve
         super().__init__()
         self.__post_init__()
 
@@ -79,10 +81,10 @@ class CurvePoint(Generic[C, CoordT]):
         if self.is_identity():
             return True
         field_modulus = self.curve.params.field_modulus
-        return 0 <= cast(int, self.x) < field_modulus and 0 <= cast(int, self.y) < field_modulus
+        return 0 <= self.x < field_modulus and 0 <= self.y < field_modulus
 
     @classmethod
-    def msm(cls, points: list[Self], scalars: list[int], curve: C) -> Self:
+    def msm(cls, points: list[Self], scalars: list[int]) -> Self:
         """
         Compute sum(P_i * s_i) for pairs (P_i, s_i).
         Default implementation uses naive summation.
@@ -92,24 +94,24 @@ class CurvePoint(Generic[C, CoordT]):
             raise ValueError("Points and scalars must have same length")
 
         if not points:
-            return cls.identity(curve)
+            return cls.identity()
 
-        result = cls.identity(curve)
+        result = cls.identity()
         for point, scalar in zip(points, scalars, strict=False):
             result = result + (point * scalar)
 
         return result
 
     @classmethod
-    def generator_point(cls, curve: C) -> Self:
+    def generator_point(cls) -> Self:
         """
         Get the generator point of the curve.
 
         Returns:
             BandersnatchPoint: Generator point
         """
-        generator_x, generator_y = curve.params.generator
-        return cls(generator_x, generator_y, curve)
+        generator_x, generator_y = cls.curve.params.generator
+        return cls(generator_x, generator_y)
 
     @abstractmethod
     def is_on_curve(self) -> bool:
@@ -136,7 +138,7 @@ class CurvePoint(Generic[C, CoordT]):
 
     @classmethod
     @abstractmethod
-    def identity(cls, curve: C) -> Self:
+    def identity(cls) -> Self:
         """
         Get the identity element.
 
@@ -164,16 +166,16 @@ class CurvePoint(Generic[C, CoordT]):
 
         p = self.curve.params.field_modulus
         n_bytes = (p.bit_length() + 7) // 8
-        y_bytes = bytearray(cast(int, self.y).to_bytes(n_bytes, self.curve.encoding_endian()))
+        y_bytes = bytearray(self.y.to_bytes(n_bytes, self.curve.params.encoding.endian))
 
         # Compute x sign bit
-        x_sign_bit = 1 if cast(int, self.x) > (-cast(int, self.x) % p) else 0
+        x_sign_bit = 1 if self.x > -self.x % p else 0
         y_bytes[-1] |= x_sign_bit << 7
         encoded = bytes(y_bytes)
         return encoded
 
     @classmethod
-    def string_to_point(cls, octet_string: str | bytes, curve: C) -> Self:
+    def string_to_point(cls, octet_string: bytes) -> Self:
         """
         Convert compressed octet string back to point.
         Args:
@@ -186,61 +188,52 @@ class CurvePoint(Generic[C, CoordT]):
             ValueError: If encoding is invalid.
         """
 
-        if curve.params.encoding.uncompressed:
-            return cls.uncompressed_s2p(octet_string, curve)
-
-        if isinstance(octet_string, str):
-            octet_string = bytes.fromhex(octet_string)
         if not octet_string:
             raise ValueError("Empty octet string")
+
+        if cls.curve.params.encoding.uncompressed:
+            return cls.uncompressed_s2p(octet_string)
 
         x_sign_bit = (octet_string[-1] >> 7) & 1
         y_bytes = bytearray(octet_string)
         y_bytes[-1] &= 0x7F
-        y = int.from_bytes(y_bytes, curve.encoding_endian())
-        if y >= curve.params.field_modulus:
+        y = int.from_bytes(y_bytes, cls.curve.params.encoding.endian)
+        if y >= cls.curve.params.field_modulus:
             raise ValueError("Invalid point encoding")
 
-        x_candidates = cls._x_recover(y, curve)
+        x_candidates = cls._x_recover(y)
         if x_candidates is None:
             raise ValueError("Invalid point encoding")
 
         if isinstance(x_candidates, int):
-            x, neg_x = x_candidates, (-x_candidates) % curve.params.field_modulus
+            x, neg_x = x_candidates, (-x_candidates) % cls.curve.params.field_modulus
         else:
             x, neg_x = x_candidates
 
         x, y = neg_x if x_sign_bit else x, y
-        return cls(x, y, curve)
+        return cls(x, y)
 
     def uncompressed_p2s(self) -> bytes:
         p = self.curve.params.field_modulus
         byte_length = (p.bit_length() + 7) // 8
         # Encode u and v coordinates as little-endian bytes
-        x_bytes = cast(int, self.x).to_bytes(byte_length, self.curve.encoding_endian())
-        y_bytes = cast(int, self.y).to_bytes(byte_length, self.curve.encoding_endian())
+        x_bytes = self.x.to_bytes(byte_length, self.curve.params.encoding.endian)
+        y_bytes = self.y.to_bytes(byte_length, self.curve.params.encoding.endian)
         return x_bytes + y_bytes
 
     @classmethod
-    def uncompressed_s2p(cls, octet_string: str | bytes, curve: C) -> Self:
-        if isinstance(octet_string, str):
-            octet_string = bytes.fromhex(octet_string)
+    def uncompressed_s2p(cls, octet_string: bytes) -> Self:
+        curve = cls.curve
         p = curve.params.field_modulus
         byte_length = (p.bit_length() + 7) // 8
         # Split into u and v coordinates
-        x_bytes = octet_string[:byte_length]
-        y_bytes = octet_string[byte_length:]
-        x = int.from_bytes(x_bytes, curve.encoding_endian())
-        y = int.from_bytes(y_bytes, curve.encoding_endian())
+        x = int.from_bytes(octet_string[:byte_length], curve.params.encoding.endian)
+        y = int.from_bytes(octet_string[byte_length:], curve.params.encoding.endian)
         # Create the point
-        point = cls(x % curve.params.field_modulus, y % curve.params.field_modulus, curve)
-        # Verify the point is on the curve
-        if not point.is_on_curve():
-            raise ValueError("Point is not on the curve")
-        return point
+        return cls(x, y)
 
     @classmethod
-    def _x_recover(cls, y: int, curve: C) -> int | tuple[int, int] | None:
+    def _x_recover(cls, y: int) -> int | tuple[int, int] | None:
         """
         Recover x-coordinate from y.
 
@@ -258,28 +251,58 @@ class CurvePoint(Generic[C, CoordT]):
     @classmethod
     def encode_to_curve(
         cls,
-        alpha_string: bytes | str,
-        salt: bytes | str = b"",
-        curve: C | None = None,
+        alpha_string: bytes,
+        salt: bytes = b"",
     ) -> Self:
-        raise NotImplementedError("Must be implemented by subclass")
+        curve = cls.curve
+        if curve.e2c_variant != E2C_Variant.TAI:
+            raise ValueError(f"Unexpected E2C Variant: {curve.e2c_variant}")
+
+        from dot_ring.vrf.codec import enc_64
+        from dot_ring.vrf.domain import DomSep
+        from dot_ring.vrf.primitives import VrfTranscript
+
+        data = salt + alpha_string
+        field_len = (curve.params.field_modulus.bit_length() + 7) // 8
+
+        prefix = VrfTranscript(curve.params.suite_id, curve.params.hash_fn)
+        prefix.absorb(bytes([DomSep.HASH_TO_CURVE]))
+        prefix.absorb(enc_64(len(data)))
+        prefix.absorb(data)
+
+        for counter in range(256):
+            t = prefix.copy()
+            t.absorb(bytes([counter]))
+            candidate = bytearray(t.squeeze(field_len))
+            if hasattr(curve.params, "a") and hasattr(curve.params, "b"):
+                shave = field_len * 8 - curve.params.field_modulus.bit_length()
+                if shave:
+                    candidate[-1] &= (1 << (8 - shave)) - 1
+                candidate = bytearray(candidate + b"\x80")
+            else:
+                sign = candidate[-1] & 0x80
+                shave = field_len * 8 - curve.params.field_modulus.bit_length()
+                if shave:
+                    candidate[-1] &= (1 << (8 - shave)) - 1
+                candidate[-1] |= sign
+            try:
+                point = cls.string_to_point(bytes(candidate))
+            except ValueError:
+                continue
+            if point.curve.params.cofactor > 1:
+                point = point * point.curve.params.cofactor
+            if not point.is_identity():
+                return point
+        raise ValueError("hash_to_curve_tai failed")
 
     def __hash__(self) -> int:
         if self.x is None or self.y is None:
             return 0
-
-        x_val = 0
-        if isinstance(self.x, int):
+        if isinstance(self.x, int) and isinstance(self.y, int):
             x_val = self.x
-        elif isinstance(self.x, Fp2):
-            x_val = self.x.re + self.x.im
-        else:
-            raise TypeError(f"Unsupported point coordinate type: {type(self.x).__name__}")
-
-        y_val = 0
-        if isinstance(self.y, int):
             y_val = self.y
-        elif isinstance(self.y, Fp2):
+        elif isinstance(self.x, Fp2) and isinstance(self.y, Fp2):
+            x_val = self.x.re + self.x.im
             y_val = self.y.re + self.y.im
         else:
             raise TypeError(f"Unsupported point coordinate type: {type(self.y).__name__}")
